@@ -18,7 +18,7 @@
 
 ### 1. User Experience Improvements
 - [x] Add user name input on home page
-- [ ] Implement room creation with unique IDs
+- [x] Implement room creation with unique IDs
 - [ ] Add room password protection
 - [x] Show participant list with names
 - [ ] Add "raise hand" feature
