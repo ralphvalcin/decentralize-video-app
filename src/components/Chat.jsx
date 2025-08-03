@@ -43,98 +43,114 @@ const Chat = ({ messages, onSendMessage, isOpen, onToggle, userInfo }) => {
     });
   };
 
-  if (!isOpen) return null;
+  // Generate user avatar color based on name
+  const getUserAvatarColor = (userName) => {
+    const colors = [
+      'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500', 
+      'bg-yellow-500', 'bg-indigo-500', 'bg-red-500', 'bg-teal-500'
+    ];
+    let hash = 0;
+    if (userName) {
+      for (let i = 0; i < userName.length; i++) {
+        hash = userName.charCodeAt(i) + ((hash << 5) - hash);
+      }
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
 
   return (
-    <div className="fixed right-4 top-16 bottom-24 w-96 max-w-[calc(100vw-2rem)] card flex flex-col z-40 shadow-hard animate-slide-down">
+    <div className={`fixed top-16 right-0 bottom-20 bg-slate-900 border-l border-slate-700 transition-all duration-300 ease-in-out z-40 ${
+      isOpen ? 'w-80 md:w-96' : 'w-0'
+    } overflow-hidden flex flex-col`}>
       {/* Chat Header */}
-      <div className="card-header">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
-              <span className="text-sm">💬</span>
-            </div>
-            <div>
-              <h3 className="text-white font-semibold">Meeting Chat</h3>
-              <p className="text-xs text-surface-400">
-                {messages.length} message{messages.length !== 1 ? 's' : ''}
-              </p>
-            </div>
+      <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800/50">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-blue-500/20 rounded-lg layout-flex-center">
+            <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+            </svg>
           </div>
-          <button
-            onClick={onToggle}
-            className="btn-ghost p-2 text-surface-400 hover:text-white"
-            aria-label="Close chat"
-          >
-            ✕
-          </button>
+          <div>
+            <h3 className="text-sm font-semibold text-white">Team Chat</h3>
+            <p className="text-xs text-slate-400">
+              {messages.length} message{messages.length !== 1 ? 's' : ''}
+            </p>
+          </div>
         </div>
+        
+        {/* Toggle Button */}
+        <button
+          onClick={onToggle}
+          className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+          aria-label="Close chat"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
+      <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-900">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full p-8">
             <div className="text-center">
-              <div className="w-16 h-16 bg-surface-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">💬</span>
+              <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+                </svg>
               </div>
-              <p className="text-surface-400 text-sm mb-2">No messages yet</p>
-              <p className="text-surface-500 text-xs">Start the conversation with your team!</p>
+              <p className="text-slate-300 text-sm mb-2">No messages yet</p>
+              <p className="text-slate-500 text-xs">Start the conversation with your team!</p>
             </div>
           </div>
         ) : (
-          <div className="p-4 space-y-4">
+          <div className="p-4 space-y-3">
             {messages.map((message, index) => {
               const isOwnMessage = message.userId === userInfo?.id;
-              const showAvatar = !isOwnMessage && (index === 0 || messages[index - 1]?.userId !== message.userId);
+              const showAvatar = index === 0 || messages[index - 1]?.userId !== message.userId;
+              const showName = showAvatar && !isOwnMessage;
               
               return (
-                <div
-                  key={index}
-                  className={`flex gap-3 ${isOwnMessage ? 'justify-end' : 'justify-start'} animate-slide-up`}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  {/* Avatar for other users */}
-                  {!isOwnMessage && (
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm bg-gradient-to-br from-surface-600 to-surface-700 flex-shrink-0 ${
-                      showAvatar ? '' : 'invisible'
+                <div key={index} className="animate-slide-up" style={{ animationDelay: `${index * 50}ms` }}>
+                  {/* Message with avatar and content */}
+                  <div className={`flex gap-3 ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}>
+                    {/* Avatar */}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-medium text-xs flex-shrink-0 ${
+                      showAvatar ? getUserAvatarColor(message.userName) : 'invisible'
                     }`}>
                       {message.userName?.charAt(0)?.toUpperCase() || '?'}
                     </div>
-                  )}
-                  
-                  {/* Message Bubble */}
-                  <div className={`max-w-xs ${isOwnMessage ? 'order-first' : ''}`}>
-                    {/* Sender name for other users */}
-                    {!isOwnMessage && showAvatar && (
-                      <div className="text-xs text-surface-400 mb-1 px-1">
-                        {message.userName}
-                      </div>
-                    )}
                     
-                    {/* Message content */}
-                    <div
-                      className={`px-4 py-3 rounded-2xl shadow-soft ${
-                        isOwnMessage
-                          ? 'bg-primary-600 text-white rounded-br-lg'
-                          : 'bg-surface-700 text-white rounded-bl-lg'
-                      }`}
-                    >
-                      <div 
-                        className="text-sm leading-relaxed" 
-                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(message.text) }}
-                      />
-                      <div className={`text-xs mt-2 ${
-                        isOwnMessage ? 'text-primary-100' : 'text-surface-400'
-                      }`}>
-                        {formatTime(message.timestamp)}
+                    {/* Message Content */}
+                    <div className={`flex-1 max-w-[250px] ${isOwnMessage ? 'text-right' : 'text-left'}`}>
+                      {/* Sender name and timestamp */}
+                      {showName && (
+                        <div className="flex items-center gap-2 mb-1 px-1">
+                          <span className="text-xs font-medium text-white">{message.userName}</span>
+                          <span className="text-xs text-slate-500">{formatTime(message.timestamp)}</span>
+                        </div>
+                      )}
+                      
+                      {/* Message bubble */}
+                      <div
+                        className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
+                          isOwnMessage
+                            ? 'bg-blue-600 text-white rounded-br-md'
+                            : 'bg-slate-700 text-slate-100 rounded-bl-md'
+                        }`}
+                      >
+                        <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(message.text) }} />
                       </div>
+                      
+                      {/* Timestamp for own messages */}
+                      {isOwnMessage && showAvatar && (
+                        <div className="text-xs text-slate-500 mt-1 px-1">
+                          {formatTime(message.timestamp)}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  
-                  {/* Spacer for own messages */}
-                  {isOwnMessage && <div className="w-8"></div>}
                 </div>
               );
             })}
@@ -144,7 +160,7 @@ const Chat = ({ messages, onSendMessage, isOpen, onToggle, userInfo }) => {
       </div>
 
       {/* Message Input */}
-      <div className="card-footer">
+      <div className="p-4 border-t border-slate-700 bg-slate-800/50">
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="flex gap-3">
             <div className="flex-1 relative">
@@ -154,35 +170,41 @@ const Chat = ({ messages, onSendMessage, isOpen, onToggle, userInfo }) => {
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Type your message..."
-                className="input pr-12 resize-none min-h-[48px] max-h-32"
+                className="w-full px-3 py-2.5 text-sm bg-slate-700 border border-slate-600 rounded-lg resize-none min-h-[40px] max-h-32 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 maxLength={1000}
                 rows={1}
                 aria-label="Message input"
               />
-              <div className="absolute right-3 bottom-3 text-xs text-surface-500">
+              <div className="absolute right-3 bottom-2 text-xs text-slate-500">
                 {newMessage.length}/1000
               </div>
             </div>
             <button
               type="submit"
               disabled={!newMessage.trim()}
-              className="btn-primary px-4 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center"
               aria-label="Send message"
             >
-              <span className="text-lg">📤</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
             </button>
           </div>
           
           {/* Quick Actions */}
-          <div className="flex items-center gap-2 text-xs text-surface-500">
+          <div className="flex items-center gap-3 text-xs text-slate-500">
             <div className="flex items-center gap-1">
-              <span>💡</span>
-              <span>Press Enter to send</span>
+              <kbd className="px-1.5 py-0.5 text-xs bg-slate-700 border border-slate-600 rounded">Enter</kbd>
+              <span>to send</span>
             </div>
-            <div className="w-px h-3 bg-surface-600"></div>
+            <div className="w-px h-3 bg-slate-600"></div>
             <div className="flex items-center gap-1">
-              <span>📝</span>
-              <span>Shift + Enter for new line</span>
+              <div className="flex gap-0.5">
+                <kbd className="px-1.5 py-0.5 text-xs bg-slate-700 border border-slate-600 rounded">Shift</kbd>
+                <span className="text-slate-600">+</span>
+                <kbd className="px-1.5 py-0.5 text-xs bg-slate-700 border border-slate-600 rounded">Enter</kbd>
+              </div>
+              <span>for new line</span>
             </div>
           </div>
         </form>

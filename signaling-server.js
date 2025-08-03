@@ -46,6 +46,10 @@ server.listen(5001, () => {
 const users = {};
 const roomMessages = {}; // Store messages for each room
 const roomTokens = {}; // Store valid tokens for each room
+const roomPolls = {}; // Store polls for each room
+const roomQuestions = {}; // Store Q&A questions for each room
+const roomReactions = {}; // Store emoji reactions for each room
+const roomRaisedHands = {}; // Store raised hands for each room
 
 // Generate JWT token for room access
 function generateRoomToken(roomId, userName) {
@@ -150,9 +154,21 @@ io.on('connection', (socket) => {
       ...sanitizedUserData
     };
     
-    // Initialize room messages if not exists
+    // Initialize room data if not exists
     if (!roomMessages[roomId]) {
       roomMessages[roomId] = [];
+    }
+    if (!roomPolls[roomId]) {
+      roomPolls[roomId] = [];
+    }
+    if (!roomQuestions[roomId]) {
+      roomQuestions[roomId] = [];
+    }
+    if (!roomReactions[roomId]) {
+      roomReactions[roomId] = [];
+    }
+    if (!roomRaisedHands[roomId]) {
+      roomRaisedHands[roomId] = [];
     }
     
     // Send only users in the same room
@@ -161,8 +177,11 @@ io.on('connection', (socket) => {
     );
     socket.emit('all-users', otherUsers);
     
-    // Send existing messages for this room
+    // Send existing data for this room
     socket.emit('chat-history', roomMessages[roomId]);
+    socket.emit('polls-history', roomPolls[roomId]);
+    socket.emit('questions-history', roomQuestions[roomId]);
+    socket.emit('raised-hands-history', roomRaisedHands[roomId]);
     
     // Notify others in the same room
     socket.broadcast.to(roomId).emit('user-joined', {
@@ -227,18 +246,163 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle raise hand event
-  socket.on('raise-hand', (data) => {
+  // Handle emoji reactions
+  socket.on('send-reaction', (reactionData) => {
+    if (!checkRateLimit(socket.id, 'send-reaction', 30)) {
+      socket.emit('error', { message: 'Rate limit exceeded' });
+      return;
+    }
+    
     const user = users[socket.id];
     if (user && user.roomId) {
-      // Update user hand state
-      user.handRaised = data.handRaised;
-      // Broadcast to all users in the room
-      io.to(user.roomId).emit('hand-raised', {
+      const reaction = {
+        id: Date.now() + Math.random(),
+        emoji: sanitizeInput(reactionData.emoji),
         userId: socket.id,
         userName: user.name,
-        handRaised: data.handRaised
-      });
+        timestamp: Date.now()
+      };
+      
+      // Store reaction temporarily (clear after 10 seconds)
+      roomReactions[user.roomId].push(reaction);
+      setTimeout(() => {
+        roomReactions[user.roomId] = roomReactions[user.roomId].filter(r => r.id !== reaction.id);
+      }, 10000);
+      
+      // Broadcast reaction to all users in the room
+      io.to(user.roomId).emit('new-reaction', reaction);
+    }
+  });
+
+  // Handle polls
+  socket.on('create-poll', (pollData) => {
+    if (!checkRateLimit(socket.id, 'create-poll', 5)) {
+      socket.emit('error', { message: 'Rate limit exceeded' });
+      return;
+    }
+    
+    const user = users[socket.id];
+    if (user && user.roomId) {
+      const poll = {
+        ...pollData,
+        id: Date.now() + Math.random(),
+        roomId: user.roomId,
+        createdBy: user.name,
+        createdAt: Date.now(),
+        votes: {},
+        isActive: true
+      };
+      
+      roomPolls[user.roomId].push(poll);
+      io.to(user.roomId).emit('new-poll', poll);
+    }
+  });
+
+  socket.on('vote-poll', (voteData) => {
+    if (!checkRateLimit(socket.id, 'vote-poll', 20)) {
+      socket.emit('error', { message: 'Rate limit exceeded' });
+      return;
+    }
+    
+    const user = users[socket.id];
+    if (user && user.roomId) {
+      const poll = roomPolls[user.roomId].find(p => p.id === voteData.pollId);
+      if (poll && poll.isActive) {
+        poll.votes[socket.id] = voteData.optionIndex;
+        io.to(user.roomId).emit('poll-updated', poll);
+      }
+    }
+  });
+
+  // Handle Q&A
+  socket.on('submit-question', (questionData) => {
+    if (!checkRateLimit(socket.id, 'submit-question', 10)) {
+      socket.emit('error', { message: 'Rate limit exceeded' });
+      return;
+    }
+    
+    const user = users[socket.id];
+    if (user && user.roomId) {
+      const question = {
+        ...questionData,
+        id: Date.now() + Math.random(),
+        roomId: user.roomId,
+        author: user.name,
+        authorId: socket.id,
+        timestamp: Date.now(),
+        votes: 0,
+        votedBy: [],
+        answer: null,
+        answeredBy: null,
+        answeredAt: null,
+        isAnswered: false
+      };
+      
+      roomQuestions[user.roomId].push(question);
+      io.to(user.roomId).emit('new-question', question);
+    }
+  });
+
+  socket.on('vote-question', (voteData) => {
+    if (!checkRateLimit(socket.id, 'vote-question', 30)) {
+      socket.emit('error', { message: 'Rate limit exceeded' });
+      return;
+    }
+    
+    const user = users[socket.id];
+    if (user && user.roomId) {
+      const question = roomQuestions[user.roomId].find(q => q.id === voteData.questionId);
+      if (question && !question.votedBy.includes(socket.id)) {
+        question.votes += 1;
+        question.votedBy.push(socket.id);
+        io.to(user.roomId).emit('question-updated', question);
+      }
+    }
+  });
+
+  socket.on('answer-question', (answerData) => {
+    if (!checkRateLimit(socket.id, 'answer-question', 10)) {
+      socket.emit('error', { message: 'Rate limit exceeded' });
+      return;
+    }
+    
+    const user = users[socket.id];
+    if (user && user.roomId) {
+      const question = roomQuestions[user.roomId].find(q => q.id === answerData.questionId);
+      if (question) {
+        question.answer = sanitizeInput(answerData.answer);
+        question.answeredBy = user.name;
+        question.answeredAt = Date.now();
+        question.isAnswered = true;
+        io.to(user.roomId).emit('question-updated', question);
+      }
+    }
+  });
+
+  // Handle raise hand
+  socket.on('raise-hand', (handData) => {
+    const user = users[socket.id];
+    if (user && user.roomId) {
+      const existingHandIndex = roomRaisedHands[user.roomId].findIndex(h => h.userId === socket.id);
+      
+      if (existingHandIndex === -1) {
+        // Add raised hand
+        const hand = {
+          userId: socket.id,
+          userName: user.name,
+          timestamp: Date.now()
+        };
+        roomRaisedHands[user.roomId].push(hand);
+        io.to(user.roomId).emit('hand-raised', hand);
+      }
+    }
+  });
+
+  socket.on('lower-hand', (handData) => {
+    const user = users[socket.id];
+    if (user && user.roomId) {
+      roomRaisedHands[user.roomId] = roomRaisedHands[user.roomId].filter(h => h.userId !== handData.userId);
+      io.to(user.roomId).emit('hand-lowered', { userId: handData.userId });
     }
   });
 

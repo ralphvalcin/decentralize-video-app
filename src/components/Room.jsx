@@ -5,6 +5,15 @@ import Peer from 'simple-peer';
 import Video from './VideoChat'; // Changed from './Videochat'
 import VideoLayout from './VideoLayout';
 import Chat from './Chat';
+import EmojiReactions from './EmojiReactions';
+import Polls from './Polls';
+import QA from './QA';
+import RaiseHand from './RaiseHand';
+import MoreMenu from './MoreMenu';
+import FeedbackModal from './FeedbackModal';
+import ShareModal from './ShareModal';
+import ConnectionStatus from './ConnectionStatus';
+import SessionHeader from './SessionHeader';
 import toast from 'react-hot-toast';
 
 const PROJECT_ID = import.meta.env.VITE_INFURA_PROJECT_ID;
@@ -45,12 +54,28 @@ const Room = () => {
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
-  const [showParticipants, setShowParticipants] = useState(false);
   const [useAdvancedLayout, setUseAdvancedLayout] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [messages, setMessages] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  
+  // Engagement features state
+  const [showPolls, setShowPolls] = useState(false);
+  const [showQA, setShowQA] = useState(false);
+  const [polls, setPolls] = useState([]);
+  const [questions, setQuestions] = useState([]);
+  const [reactions, setReactions] = useState([]);
+  const [raisedHands, setRaisedHands] = useState([]);
+  const [isHost, setIsHost] = useState(false);
+
+  // Feedback modal state
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [callStartTime] = useState(Date.now());
+
+  // Share modal state
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const userVideo = useRef();
   const peersRef = useRef(new Map());
@@ -126,6 +151,20 @@ const Room = () => {
   };
 
   const handleLeaveRoom = () => {
+    const callDuration = Math.round((Date.now() - callStartTime) / 1000); // in seconds
+    
+    // Show feedback modal if call was longer than 30 seconds
+    if (callDuration > 30) {
+      setShowLeaveConfirm(false);
+      setShowFeedbackModal(true);
+      return; // Don't leave immediately, wait for feedback modal
+    }
+    
+    // For short calls, leave immediately
+    performLeaveRoom();
+  };
+
+  const performLeaveRoom = () => {
     // Stop all tracks
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
@@ -159,6 +198,42 @@ const Room = () => {
     navigate('/');
   };
 
+  const handleFeedbackSubmit = (feedbackData) => {
+    console.log('Feedback submitted:', feedbackData);
+    toast.success('Thank you for your feedback!');
+    performLeaveRoom();
+  };
+
+  const handleFeedbackClose = () => {
+    setShowFeedbackModal(false);
+    performLeaveRoom();
+  };
+
+  const handleReconnect = () => {
+    toast.loading('Reconnecting...', { duration: 2000 });
+    
+    // Simple reconnection attempt
+    if (socket.disconnected) {
+      socket.connect();
+    }
+    
+    // Refresh media stream if needed
+    if (!stream) {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then((currentStream) => {
+          setStream(currentStream);
+          if (userVideo.current) {
+            userVideo.current.srcObject = currentStream;
+          }
+          toast.success('Reconnected successfully!');
+        })
+        .catch((error) => {
+          console.error('Error reconnecting media:', error);
+          toast.error('Failed to reconnect media');
+        });
+    }
+  };
+
   const confirmLeaveRoom = () => {
     setShowLeaveConfirm(true);
   };
@@ -178,6 +253,47 @@ const Room = () => {
     }
   };
 
+  // Engagement handlers
+  const handleSendReaction = (emoji) => {
+    socket.emit('send-reaction', { emoji });
+  };
+
+  const handleCreatePoll = (pollData) => {
+    socket.emit('create-poll', pollData);
+  };
+
+  const handleVotePoll = (pollId, optionIndex) => {
+    socket.emit('vote-poll', { pollId, optionIndex });
+  };
+
+  const handleSubmitQuestion = (questionData) => {
+    socket.emit('submit-question', questionData);
+  };
+
+  const handleVoteQuestion = (questionId, userId) => {
+    socket.emit('vote-question', { questionId, userId });
+  };
+
+  const handleAnswerQuestion = (questionId, answerData) => {
+    socket.emit('answer-question', { questionId, ...answerData });
+  };
+
+  const handleRaiseHand = (handData) => {
+    socket.emit('raise-hand', handData);
+  };
+
+  const handleLowerHand = (userId) => {
+    socket.emit('lower-hand', { userId });
+  };
+
+  const togglePolls = () => {
+    setShowPolls(!showPolls);
+  };
+
+  const toggleQA = () => {
+    setShowQA(!showQA);
+  };
+
   // Update the initial media stream effect
   useEffect(() => {
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
@@ -192,6 +308,8 @@ const Room = () => {
 
         socket.on('all-users', users => {
           console.log('Received all-users:', users);
+          // First user in room is the host
+          setIsHost(users.length === 0);
           const peers = [];
           users.forEach(user => {
             if (!peersRef.current.has(user.id)) {
@@ -279,6 +397,54 @@ const Room = () => {
             setUnreadCount(prev => prev + 1);
           }
         });
+
+        // Engagement event listeners
+        socket.on('polls-history', (pollsHistory) => {
+          setPolls(pollsHistory);
+        });
+
+        socket.on('questions-history', (questionsHistory) => {
+          setQuestions(questionsHistory);
+        });
+
+        socket.on('raised-hands-history', (handsHistory) => {
+          setRaisedHands(handsHistory);
+        });
+
+        socket.on('new-reaction', (reaction) => {
+          setReactions(prev => [...prev, reaction]);
+        });
+
+        socket.on('new-poll', (poll) => {
+          setPolls(prev => [...prev, poll]);
+          toast.success(`New poll: ${poll.question}`);
+        });
+
+        socket.on('poll-updated', (updatedPoll) => {
+          setPolls(prev => prev.map(poll => 
+            poll.id === updatedPoll.id ? updatedPoll : poll
+          ));
+        });
+
+        socket.on('new-question', (question) => {
+          setQuestions(prev => [...prev, question]);
+          toast.success(`New question from ${question.author}`);
+        });
+
+        socket.on('question-updated', (updatedQuestion) => {
+          setQuestions(prev => prev.map(question => 
+            question.id === updatedQuestion.id ? updatedQuestion : question
+          ));
+        });
+
+        socket.on('hand-raised', (hand) => {
+          setRaisedHands(prev => [...prev, hand]);
+          toast.success(`${hand.userName} raised their hand`);
+        });
+
+        socket.on('hand-lowered', (data) => {
+          setRaisedHands(prev => prev.filter(hand => hand.userId !== data.userId));
+        });
       })
       .catch((error) => {
         console.error('Error accessing media devices:', error);
@@ -306,6 +472,16 @@ const Room = () => {
       socket.off('user-left');
       socket.off('chat-history');
       socket.off('new-message');
+      socket.off('polls-history');
+      socket.off('questions-history');
+      socket.off('raised-hands-history');
+      socket.off('new-reaction');
+      socket.off('new-poll');
+      socket.off('poll-updated');
+      socket.off('new-question');
+      socket.off('question-updated');
+      socket.off('hand-raised');
+      socket.off('hand-lowered');
     };
   }, [roomId]);
 
@@ -470,134 +646,135 @@ const Room = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 p-4">
-      <h1 className="text-xl font-semibold text-center text-white mb-4">
-        Room: {roomId}
-      </h1>
+    <div className="min-h-screen bg-gray-900">
+      {/* Professional Session Header */}
+      <SessionHeader
+        roomId={roomId}
+        participantCount={peers.length + 1}
+        userInfo={userInfo}
+        onShare={() => setShowShareModal(true)}
+        onLeave={confirmLeaveRoom}
+        connectionStatus={connectionStatus}
+      />
 
-      {/* Top Navigation Bar */}
-      <div className="fixed top-4 left-4 right-4 flex items-center justify-between z-40">
-        {/* Left side - Room info and participants */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            onClick={() => setShowParticipants(!showParticipants)}
-            className="bg-gray-800 text-white px-2 py-2 sm:px-3 rounded-lg hover:bg-gray-700 transition-colors text-sm"
-          >
-            <span className="hidden sm:inline">👥 Participants</span>
-            <span className="sm:hidden">👥</span>
-            <span className="ml-1">({peers.length + 1})</span>
-          </button>
-          
+      {/* Main Content with Chat Panel Spacing */}
+      <div className={`transition-all duration-300 ${showChat ? 'mr-80 md:mr-96' : 'mr-0'}`}>
+        {/* Secondary Navigation for Additional Features */}
+        <div className="fixed top-16 left-4 right-4 flex items-center justify-center z-30 mt-1">
+        <div className="flex items-center gap-2 bg-gray-800/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-gray-700">
           <button
             onClick={toggleChat}
-            className="bg-gray-800 text-white px-2 py-2 sm:px-3 rounded-lg hover:bg-gray-700 transition-colors text-sm relative"
+            className={`flex items-center space-x-1 px-3 py-2 rounded-md transition-colors text-sm relative ${
+              showChat 
+                ? 'text-white bg-blue-600 hover:bg-blue-700' 
+                : 'text-gray-300 hover:text-white hover:bg-gray-700'
+            }`}
           >
-            <span className="hidden sm:inline">💬 Chat</span>
-            <span className="sm:hidden">💬</span>
+            <span>💬</span>
+            <span className="hidden sm:inline">Chat</span>
+            <svg 
+              className={`w-3 h-3 ml-1 transition-transform ${showChat ? 'rotate-180' : ''}`}
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
           </button>
-          
-          <button
-            onClick={() => setUseAdvancedLayout(!useAdvancedLayout)}
-            className="bg-gray-800 text-white px-2 py-2 sm:px-3 rounded-lg hover:bg-gray-700 transition-colors text-sm"
-          >
-            <span className="hidden sm:inline">
-              {useAdvancedLayout ? '📱 Simple View' : '🎛️ Advanced Layout'}
-            </span>
-            <span className="sm:hidden">
-              {useAdvancedLayout ? '📱' : '🎛️'}
-            </span>
-          </button>
-        </div>
 
-        {/* Right side - Connection status and leave button */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Connection Status Indicator */}
-          <div className="flex items-center gap-2 bg-gray-800 px-2 py-2 sm:px-3 rounded-lg">
-            <span className={`w-2 h-2 rounded-full ${
-              connectionStatus === 'connected' ? 'bg-green-500' : 
-              connectionStatus === 'error' ? 'bg-red-500' : 'bg-yellow-500'
-            }`}></span>
-            <span className="text-xs sm:text-sm text-white hidden sm:inline">
-              {connectionStatus === 'connected' ? 'Connected' : 
-               connectionStatus === 'error' ? 'Error' : 'Connecting...'}
-            </span>
-            {peers.length > 0 && (
-              <span className="text-xs text-gray-400">
-                ({peers.length})
-              </span>
-            )}
-          </div>
-
-          {/* Leave Meeting Button */}
-          <button
-            onClick={confirmLeaveRoom}
-            className="bg-red-600 text-white px-3 py-2 sm:px-4 rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
-            title="End Meeting (Esc)"
-          >
-            <span className="hidden sm:inline">🚪 Leave Meeting</span>
-            <span className="sm:hidden">🚪</span>
-          </button>
         </div>
       </div>
 
-      {/* Participant List Panel */}
-      {showParticipants && (
-        <div className="fixed top-20 left-4 bg-gray-800 rounded-lg p-4 w-64 max-h-96 overflow-y-auto z-40 shadow-lg border border-gray-700">
-          <h3 className="text-white font-semibold mb-3">Participants</h3>
-          <div className="space-y-2">
-            {/* Local user */}
-            <div className="flex items-center gap-2 p-2 bg-gray-700 rounded">
-              <div className="w-2 h-2 rounded-full bg-green-500"></div>
-              <span className="text-white text-sm">{userInfo.name} (You)</span>
-            </div>
-            {/* Remote users */}
-            {peers.map((peer, index) => (
-              <div key={peer.peerID} className="flex items-center gap-2 p-2 bg-gray-700 rounded">
-                <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                <span className="text-white text-sm">{peer.name || `Peer ${index + 1}`}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Simplified Controls Bar */}
+      <div className="fixed bottom-0 left-0 right-0 h-20 bg-gray-900/95 backdrop-blur-sm border-t border-gray-700 flex items-center justify-center gap-6 px-8 z-50">
+        {/* Essential Controls */}
+        <div className="flex items-center gap-4">
+          {/* Microphone */}
+          <button
+            onClick={toggleMic}
+            className={`relative flex items-center justify-center w-12 h-12 rounded-full transition-all duration-200 ${
+              micOn 
+                ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                : 'bg-red-500 hover:bg-red-600 text-white animate-pulse'
+            }`}
+            title={micOn ? 'Mute microphone' : 'Unmute microphone'}
+          >
+            <span className="text-xl">{micOn ? '🎤' : '🔇'}</span>
+            {!micOn && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full"></div>
+            )}
+          </button>
 
-      {/* Controls Bar */}
-      <div className="fixed bottom-0 left-0 right-0 h-16 bg-gray-800 flex items-center justify-center gap-4 px-4 z-50">
-        <button
-          onClick={toggleMic}
-          className={`p-3 rounded-full ${
-            micOn ? 'bg-gray-600 hover:bg-gray-700' : 'bg-red-500 hover:bg-red-600'
-          }`}
-        >
-          {micOn ? '🎤' : '🔇'}
-        </button>
-        <button
-          onClick={toggleCamera}
-          className={`p-3 rounded-full ${
-            camOn ? 'bg-gray-600 hover:bg-gray-700' : 'bg-red-500 hover:bg-red-600'
-          }`}
-        >
-          {camOn ? '📹' : '🎥'}
-        </button>
-        <button
-          onClick={handleShareScreen}
-          className="p-3 rounded-full bg-gray-600 hover:bg-gray-700"
-        >
-          📺
-        </button>
+          {/* Camera */}
+          <button
+            onClick={toggleCamera}
+            className={`relative flex items-center justify-center w-12 h-12 rounded-full transition-all duration-200 ${
+              camOn 
+                ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                : 'bg-red-500 hover:bg-red-600 text-white animate-pulse'
+            }`}
+            title={camOn ? 'Turn off camera' : 'Turn on camera'}
+          >
+            <span className="text-xl">{camOn ? '📹' : '🎥'}</span>
+            {!camOn && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full"></div>
+            )}
+          </button>
+
+          {/* Screen Share */}
+          <button
+            onClick={handleShareScreen}
+            className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-700 hover:bg-gray-600 text-white transition-all duration-200"
+            title="Share screen"
+          >
+            <span className="text-xl">📺</span>
+          </button>
+
+          {/* More Menu Toggle */}
+          <button
+            onClick={() => setShowMoreMenu(!showMoreMenu)}
+            className={`flex items-center justify-center w-12 h-12 rounded-full transition-all duration-200 ${
+              showMoreMenu 
+                ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                : 'bg-gray-700 hover:bg-gray-600 text-white'
+            }`}
+            title="More options"
+          >
+            <span className="text-xl">⋯</span>
+          </button>
+        </div>
+
+        {/* Leave Meeting Button */}
         <button
           onClick={confirmLeaveRoom}
-          className="p-3 rounded-full bg-red-500 hover:bg-red-600"
+          className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500 hover:bg-red-600 text-white transition-all duration-200 shadow-lg hover:shadow-red-500/25"
           title="End Meeting"
         >
-          ✕
+          <span className="text-xl font-bold">✕</span>
         </button>
       </div>
+
+      {/* More Menu */}
+      <MoreMenu
+        isOpen={showMoreMenu}
+        onClose={() => setShowMoreMenu(false)}
+        onSendReaction={handleSendReaction}
+        reactions={reactions}
+        onRaiseHand={handleRaiseHand}
+        onLowerHand={handleLowerHand}
+        raisedHands={raisedHands}
+        userInfo={userInfo}
+        isHost={isHost}
+        onTogglePolls={togglePolls}
+        onToggleQA={toggleQA}
+        onToggleAdvancedLayout={() => setUseAdvancedLayout(!useAdvancedLayout)}
+        useAdvancedLayout={useAdvancedLayout}
+      />
 
       {/* Leave Confirmation Dialog */}
       {showLeaveConfirm && (
@@ -628,7 +805,7 @@ const Room = () => {
       )}
 
       {/* Video Grid */}
-      <div className="mb-20">
+      <div className="pt-28 pb-24 px-4">
         {useAdvancedLayout ? (
           <VideoLayout
             localStream={stream}
@@ -667,6 +844,7 @@ const Room = () => {
           </div>
         )}
       </div>
+      </div>
 
       {/* Chat Component */}
       <Chat
@@ -675,6 +853,46 @@ const Room = () => {
         isOpen={showChat}
         onToggle={toggleChat}
         userInfo={userInfo}
+      />
+
+      {/* Polls Component */}
+      <Polls
+        isOpen={showPolls}
+        onToggle={togglePolls}
+        onCreatePoll={handleCreatePoll}
+        onVote={handleVotePoll}
+        polls={polls}
+        userInfo={userInfo}
+        isHost={isHost}
+      />
+
+      {/* Q&A Component */}
+      <QA
+        isOpen={showQA}
+        onToggle={toggleQA}
+        onSubmitQuestion={handleSubmitQuestion}
+        onVoteQuestion={handleVoteQuestion}
+        onAnswerQuestion={handleAnswerQuestion}
+        questions={questions}
+        userInfo={userInfo}
+        isHost={isHost}
+      />
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={handleFeedbackClose}
+        onSubmit={handleFeedbackSubmit}
+        roomId={roomId}
+        callDuration={Math.round((Date.now() - callStartTime) / 1000)}
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        roomId={roomId}
+        roomUrl={`${window.location.origin}/room/${roomId}`}
       />
     </div>
   );
