@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: video-chat
+  labels:
+    name: video-chat
+    app.kubernetes.io/name: video-chat
+    app.kubernetes.io/component: namespace

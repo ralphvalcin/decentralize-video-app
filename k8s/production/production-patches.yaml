@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: video-chat-frontend
+  namespace: production
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 1
+  template:
+    spec:
+      containers:
+      - name: frontend
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        env:
+        - name: ENABLE_MONITORING
+          value: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: video-chat-backend
+  namespace: production
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 3
+      maxUnavailable: 1
+  template:
+    spec:
+      containers:
+      - name: backend
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        env:
+        - name: ENABLE_MONITORING
+          value: "true"
+        - name: ENABLE_CLUSTER_MODE
+          value: "true"
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: video-chat-ingress
+  namespace: production
+  annotations:
+    # Production-specific annotations
+    alb.ingress.kubernetes.io/load-balancer-attributes: |
+      idle_timeout.timeout_seconds=120
+      routing.http2.enabled=true
+      access_logs.s3.enabled=true
+      access_logs.s3.bucket=video-chat-prod-access-logs
+      access_logs.s3.prefix=alb
+    alb.ingress.kubernetes.io/rate-limit-requests-per-second: "1000"
+    alb.ingress.kubernetes.io/wafv2-acl-arn: arn:aws:wafv2:REGION:ACCOUNT:regional/webacl/video-chat-prod/ID
+spec:
+  rules:
+  - host: video-chat.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: video-chat-frontend-service
+            port:
+              number: 80
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: video-chat-backend-service
+            port:
+              number: 5001
+      - path: /socket.io
+        pathType: Prefix
+        backend:
+          service:
+            name: video-chat-backend-service
+            port:
+              number: 5001

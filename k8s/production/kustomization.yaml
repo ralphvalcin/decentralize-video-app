@@ -1,0 +1,43 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: video-chat-production
+
+namespace: production
+
+resources:
+- ../base
+
+namePrefix: prod-
+
+patchesStrategicMerge:
+- production-patches.yaml
+
+configMapGenerator:
+- name: video-chat-config
+  behavior: merge
+  literals:
+  - NODE_ENV=production
+  - FRONTEND_URL=https://video-chat.example.com
+  - LOG_LEVEL=info
+  - MAX_ROOM_SIZE=100
+
+secretGenerator:
+- name: video-chat-secrets
+  behavior: merge
+  files:
+  - JWT_SECRET=secrets/jwt-secret.txt
+  - REDIS_PASSWORD=secrets/redis-password.txt
+
+replicas:
+- name: video-chat-frontend
+  count: 5
+- name: video-chat-backend
+  count: 10
+
+images:
+- name: ghcr.io/YOUR_USERNAME/decentralized-video-app-frontend
+  newTag: ${FRONTEND_IMAGE_TAG}
+- name: ghcr.io/YOUR_USERNAME/decentralized-video-app-backend
+  newTag: ${BACKEND_IMAGE_TAG}

@@ -1,0 +1,479 @@
+# Prometheus Alert Rules for Video Chat Application
+groups:
+  - name: video-chat-alerts
+    rules:
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: (100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is above 80% on {{ $labels.instance }} for more than 5 minutes"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is above 85% on {{ $labels.instance }} for more than 5 minutes"
+
+      # High Disk Usage
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 90
+        for: 10m
+        labels:
+          severity: critical
+          component: infrastructure
+        annotations:
+          summary: "High disk usage on {{ $labels.instance }}"
+          description: "Disk usage is above 90% on {{ $labels.instance }} for more than 10 minutes"
+
+  - name: video-chat-application-alerts
+    rules:
+      # High Error Rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          component: application
+        annotations:
+          summary: "High error rate in {{ $labels.job }}"
+          description: "Error rate is above 5% for {{ $labels.job }} for more than 5 minutes"
+
+      # High Response Time
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 10m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "High response time in {{ $labels.job }}"
+          description: "95th percentile response time is above 1 second for {{ $labels.job }}"
+
+      # Low Socket.IO Connections (potential issue)
+      - alert: LowSocketConnections
+        expr: socket_io_connections < 1
+        for: 15m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "Low Socket.IO connections"
+          description: "Socket.IO connections have been below 1 for more than 15 minutes, which might indicate an issue"
+
+      # High Socket.IO Connection Rate
+      - alert: HighSocketConnectionRate
+        expr: rate(socket_io_connections_total[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "High Socket.IO connection rate"
+          description: "Socket.IO connection rate is above 100 per second, potential DDoS or high load"
+
+  - name: video-chat-redis-alerts
+    rules:
+      # Redis Down
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: redis
+        annotations:
+          summary: "Redis instance is down"
+          description: "Redis instance {{ $labels.instance }} has been down for more than 1 minute"
+
+      # High Redis Memory Usage
+      - alert: HighRedisMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          component: redis
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Redis memory usage is above 90% on {{ $labels.instance }}"
+
+      # High Redis Connection Count
+      - alert: HighRedisConnections
+        expr: redis_connected_clients > 100
+        for: 10m
+        labels:
+          severity: warning
+          component: redis
+        annotations:
+          summary: "High Redis connection count"
+          description: "Redis has more than 100 connected clients on {{ $labels.instance }}"
+
+  - name: video-chat-kubernetes-alerts
+    rules:
+      # Pod Crash Looping
+      - alert: PodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total[5m]) * 60 * 5 > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: kubernetes
+        annotations:
+          summary: "Pod is crash looping"
+          description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping"
+
+      # Pod Not Ready
+      - alert: PodNotReady
+        expr: kube_pod_status_ready{condition="false"} == 1
+        for: 10m
+        labels:
+          severity: warning
+          component: kubernetes
+        annotations:
+          summary: "Pod not ready"
+          description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has been not ready for more than 10 minutes"
+
+      # High Pod Memory Usage
+      - alert: HighPodMemoryUsage
+        expr: container_memory_working_set_bytes{container!="POD",container!=""} / container_spec_memory_limit_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          component: kubernetes
+        annotations:
+          summary: "High pod memory usage"
+          description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} memory usage is above 90%"
+
+      # High Pod CPU Usage
+      - alert: HighPodCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{container!="POD",container!=""}[5m]) / container_spec_cpu_quota * container_spec_cpu_period * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          component: kubernetes
+        annotations:
+          summary: "High pod CPU usage"
+          description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} CPU usage is above 90%"
+
+  - name: video-chat-business-alerts
+    rules:
+      # No Active Rooms
+      - alert: NoActiveRooms
+        expr: active_rooms_count == 0
+        for: 30m
+        labels:
+          severity: info
+          component: business
+        annotations:
+          summary: "No active rooms"
+          description: "There have been no active rooms for more than 30 minutes"
+
+      # High Room Creation Rate
+      - alert: HighRoomCreationRate
+        expr: rate(rooms_created_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "High room creation rate"
+          description: "Room creation rate is above 10 per second, potential spam or high usage"
+
+      # JWT Token Errors
+      - alert: HighJWTErrors
+        expr: rate(jwt_errors_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "High JWT token errors"
+          description: "JWT token error rate is above 5 per second, potential security issue"
+
+  - name: video-chat-external-alerts
+    rules:
+      # External Service Down
+      - alert: ExternalServiceDown
+        expr: probe_success{job="blackbox"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: external
+        annotations:
+          summary: "External service is down"
+          description: "External service {{ $labels.instance }} has been down for more than 5 minutes"
+
+      # High External Service Response Time
+      - alert: HighExternalServiceResponseTime
+        expr: probe_duration_seconds{job="blackbox"} > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: external
+        annotations:
+          summary: "High external service response time"
+          description: "External service {{ $labels.instance }} response time is above 5 seconds"
+
+      # SSL Certificate Expiring
+      - alert: SSLCertificateExpiring
+        expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 30
+        for: 1h
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "SSL certificate for {{ $labels.instance }} will expire in less than 30 days"
+
+  # WebRTC Performance Alerts
+  - name: webrtc-performance-alerts
+    rules:
+      # High Packet Loss
+      - alert: HighWebRTCPacketLoss
+        expr: avg(webrtc_packet_loss_percentage) * 100 > 5
+        for: 2m
+        labels:
+          severity: warning
+          component: webrtc
+        annotations:
+          summary: "High WebRTC packet loss detected"
+          description: "WebRTC packet loss is above 5% ({{ $value }}%) for more than 2 minutes"
+
+      # Critical Packet Loss
+      - alert: CriticalWebRTCPacketLoss
+        expr: avg(webrtc_packet_loss_percentage) * 100 > 10
+        for: 1m
+        labels:
+          severity: critical
+          component: webrtc
+        annotations:
+          summary: "Critical WebRTC packet loss detected"
+          description: "WebRTC packet loss is above 10% ({{ $value }}%) for more than 1 minute"
+
+      # High Round Trip Time
+      - alert: HighWebRTCRTT
+        expr: avg(webrtc_connection_rtt_milliseconds) > 300
+        for: 5m
+        labels:
+          severity: warning
+          component: webrtc
+        annotations:
+          summary: "High WebRTC round trip time"
+          description: "WebRTC RTT is above 300ms ({{ $value }}ms) for more than 5 minutes"
+
+      # Low Video Frame Rate
+      - alert: LowVideoFrameRate
+        expr: avg(webrtc_video_framerate_fps) < 15
+        for: 3m
+        labels:
+          severity: warning
+          component: webrtc
+        annotations:
+          summary: "Low video frame rate detected"
+          description: "Video frame rate is below 15 FPS ({{ $value }} FPS) for more than 3 minutes"
+
+      # High Jitter
+      - alert: HighWebRTCJitter
+        expr: avg(webrtc_jitter_milliseconds) > 50
+        for: 5m
+        labels:
+          severity: warning
+          component: webrtc
+        annotations:
+          summary: "High WebRTC jitter detected"
+          description: "WebRTC jitter is above 50ms ({{ $value }}ms) for more than 5 minutes"
+
+      # Connection Failures
+      - alert: HighWebRTCConnectionFailures
+        expr: rate(webrtc_connection_failures_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: critical
+          component: webrtc
+        annotations:
+          summary: "High WebRTC connection failure rate"
+          description: "WebRTC connection failure rate is above 0.1 per second for more than 3 minutes"
+
+  # Frontend Performance Alerts
+  - name: frontend-performance-alerts
+    rules:
+      # High Browser Memory Usage
+      - alert: HighBrowserMemoryUsage
+        expr: avg(browser_memory_usage_mb) > 200
+        for: 5m
+        labels:
+          severity: warning
+          component: frontend
+        annotations:
+          summary: "High browser memory usage"
+          description: "Browser memory usage is above 200MB ({{ $value }}MB) for more than 5 minutes"
+
+      # Slow React Render Time
+      - alert: SlowReactRenderTime
+        expr: avg(react_render_time_ms) > 50
+        for: 3m
+        labels:
+          severity: warning
+          component: frontend
+        annotations:
+          summary: "Slow React render times detected"
+          description: "React render time is above 50ms ({{ $value }}ms) for more than 3 minutes"
+
+      # Poor Core Web Vitals - LCP
+      - alert: PoorLargestContentfulPaint
+        expr: avg(web_vitals_lcp_milliseconds) > 4000
+        for: 5m
+        labels:
+          severity: warning
+          component: frontend
+        annotations:
+          summary: "Poor Largest Contentful Paint performance"
+          description: "LCP is above 4000ms ({{ $value }}ms) for more than 5 minutes"
+
+      # Poor Core Web Vitals - INP
+      - alert: PoorInteractionToNextPaint
+        expr: avg(web_vitals_inp_milliseconds) > 500
+        for: 5m
+        labels:
+          severity: warning
+          component: frontend
+        annotations:
+          summary: "Poor Interaction to Next Paint performance"
+          description: "INP is above 500ms ({{ $value }}ms) for more than 5 minutes"
+
+      # Poor Core Web Vitals - CLS
+      - alert: PoorCumulativeLayoutShift
+        expr: avg(web_vitals_cls_score) > 0.25
+        for: 5m
+        labels:
+          severity: warning
+          component: frontend
+        annotations:
+          summary: "Poor Cumulative Layout Shift performance"
+          description: "CLS is above 0.25 ({{ $value }}) for more than 5 minutes"
+
+      # High JavaScript Error Rate
+      - alert: HighJavaScriptErrorRate
+        expr: rate(javascript_errors_total[5m]) > 1
+        for: 3m
+        labels:
+          severity: critical
+          component: frontend
+        annotations:
+          summary: "High JavaScript error rate"
+          description: "JavaScript error rate is above 1 per second for more than 3 minutes"
+
+  # Socket.IO Performance Alerts
+  - name: socketio-performance-alerts
+    rules:
+      # High Socket.IO Message Latency
+      - alert: HighSocketIOLatency
+        expr: avg(socketio_message_latency_ms) > 500
+        for: 5m
+        labels:
+          severity: warning
+          component: socketio
+        annotations:
+          summary: "High Socket.IO message latency"
+          description: "Socket.IO message latency is above 500ms ({{ $value }}ms) for more than 5 minutes"
+
+      # High Socket.IO Disconnection Rate
+      - alert: HighSocketIODisconnectionRate
+        expr: rate(socketio_disconnections_total[5m]) > 5
+        for: 3m
+        labels:
+          severity: warning
+          component: socketio
+        annotations:
+          summary: "High Socket.IO disconnection rate"
+          description: "Socket.IO disconnection rate is above 5 per second for more than 3 minutes"
+
+      # Socket.IO Message Queue Backlog
+      - alert: SocketIOMessageBacklog
+        expr: socketio_message_queue_size > 1000
+        for: 2m
+        labels:
+          severity: warning
+          component: socketio
+        annotations:
+          summary: "Socket.IO message queue backlog"
+          description: "Socket.IO message queue has more than 1000 pending messages"
+
+  # User Experience Alerts
+  - name: user-experience-alerts
+    rules:
+      # Short Average Session Duration
+      - alert: ShortSessionDuration
+        expr: avg_over_time(user_session_duration_minutes[1h]) < 5
+        for: 30m
+        labels:
+          severity: info
+          component: ux
+        annotations:
+          summary: "Short average session duration"
+          description: "Average session duration is below 5 minutes ({{ $value }} min) over the last hour"
+
+      # High User Interaction Latency
+      - alert: HighUserInteractionLatency
+        expr: avg(user_interaction_latency_ms) > 200
+        for: 5m
+        labels:
+          severity: warning
+          component: ux
+        annotations:
+          summary: "High user interaction latency"
+          description: "User interaction latency is above 200ms ({{ $value }}ms) for more than 5 minutes"
+
+      # High Feature Error Rate
+      - alert: HighFeatureErrorRate
+        expr: rate(feature_errors_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          component: ux
+        annotations:
+          summary: "High feature error rate"
+          description: "Feature error rate is above 0.1 per second for more than 3 minutes"
+
+  # Performance Budget Violation Alerts
+  - name: performance-budget-alerts
+    rules:
+      # Critical Performance Budget Violations
+      - alert: CriticalPerformanceBudgetViolations
+        expr: rate(performance_budget_violations_total{severity="critical"}[5m]) > 1
+        for: 2m
+        labels:
+          severity: critical
+          component: performance
+        annotations:
+          summary: "Critical performance budget violations detected"
+          description: "Critical performance budget violations are occurring at a rate above 1 per second"
+
+      # High Performance Budget Violations
+      - alert: HighPerformanceBudgetViolations
+        expr: rate(performance_budget_violations_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "High rate of performance budget violations"
+          description: "Performance budget violations are occurring at a rate above 5 per second"
+
+      # Quality Degradation Events
+      - alert: HighQualityDegradationEvents
+        expr: rate(webrtc_quality_degradation_events_total[5m]) > 2
+        for: 3m
+        labels:
+          severity: warning
+          component: webrtc
+        annotations:
+          summary: "High rate of quality degradation events"
+          description: "WebRTC quality degradation events are occurring at a rate above 2 per second"

@@ -24,7 +24,7 @@ const layoutPresets = {
   ]
 };
 
-export default function VideoLayout({ localStream, peers, userInfo, onLayoutChange }) {
+export default function VideoLayout({ localStream, peers, userInfo, localHandRaised, onLayoutChange }) {
   const [selectedLayout, setSelectedLayout] = useState('grid');
   const [layout, setLayout] = useState(() => {
     const saved = localStorage.getItem('video-layout');
@@ -84,21 +84,29 @@ export default function VideoLayout({ localStream, peers, userInfo, onLayoutChan
   });
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-center gap-2 mb-4">
-        {Object.keys(layoutPresets).map((preset) => (
-          <button
-            key={preset}
-            onClick={() => setSelectedLayout(preset)}
-            className={`px-3 py-1 rounded text-sm border ${
-              selectedLayout === preset
-                ? 'bg-indigo-600 text-white border-indigo-600'
-                : 'bg-white text-gray-700 border-gray-300'
-            }`}
-          >
-            {preset.charAt(0).toUpperCase() + preset.slice(1)} View
-          </button>
-        ))}
+    <div className="space-y-6">
+      {/* Layout Selector */}
+      <div className="flex justify-center">
+        <div className="flex items-center gap-2 bg-surface-800/50 rounded-xl p-2 border border-surface-700/50">
+          {Object.keys(layoutPresets).map((preset) => (
+            <button
+              key={preset}
+              onClick={() => setSelectedLayout(preset)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                selectedLayout === preset
+                  ? 'bg-primary-600 text-white shadow-glow'
+                  : 'text-surface-300 hover:bg-surface-700 hover:text-white'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <span>
+                  {preset === 'grid' ? '⊞' : preset === 'podcast' ? '🎙️' : '⭐'}
+                </span>
+                {preset.charAt(0).toUpperCase() + preset.slice(1)}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <ResponsiveGridLayout
@@ -113,21 +121,23 @@ export default function VideoLayout({ localStream, peers, userInfo, onLayoutChan
         margin={[8, 8]}
       >
         {/* Local Video */}
-        <div key="local" className="relative aspect-video bg-gray-800 rounded-lg overflow-hidden">
+        <div key="local" className="video-container aspect-video animate-fade-in">
           <Video 
             stream={localStream} 
             name={userInfo?.name || 'You'} 
             isLocal={true} 
+            handRaised={localHandRaised}
           />
         </div>
 
         {/* Peer Videos */}
         {peers.map((peer, index) => (
-          <div key={`peer${index + 1}`} className="relative aspect-video bg-gray-800 rounded-lg overflow-hidden">
+          <div key={`peer${index + 1}`} className="video-container aspect-video animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
             <Video
               stream={peer.stream}
               name={peer.name || `Peer ${index + 1}`}
               isLocal={false}
+              handRaised={peer.handRaised}
             />
           </div>
         ))}

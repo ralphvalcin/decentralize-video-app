@@ -10,8 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "buffer": "^6.0.3",
+    "dompurify": "^3.2.6",
     "ipfs-http-client": "^56.0.2",
+    "jsdom": "^26.1.0",
+    "jsonwebtoken": "^9.0.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-grid-layout": "^1.5.1",

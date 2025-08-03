@@ -2,42 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Add these styles */
-.layout {
-  min-height: 100%;
-  background: transparent;
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.react-grid-item {
-  background: #1f2937;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
-  overflow: hidden;
-  border: 1px solid #374151;
-}
-
-.dark .react-grid-item {
-  background: #1f2937;
-}
-
-.react-resizable-handle {
-  background-color: rgba(255, 255, 255, 0.3);
-  border-radius: 2px;
-}
-
-.dark .react-resizable-handle {
-  background-color: rgba(255, 255, 255, 0.3);
-}
-
-/* Video layout specific styles */
-.react-grid-item.react-grid-placeholder {
-  background: rgba(59, 130, 246, 0.3);
-  border: 2px dashed #3b82f6;
-  border-radius: 0.5rem;
-}
-
-/* Ensure video containers maintain aspect ratio */
-.react-grid-item > div {
-  height: 100%;
-  width: 100%;
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
 }

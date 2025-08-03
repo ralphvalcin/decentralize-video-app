@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: video-chat-config
+  namespace: video-chat
+  labels:
+    app.kubernetes.io/name: video-chat
+    app.kubernetes.io/component: configmap
+data:
+  NODE_ENV: "production"
+  FRONTEND_URL: "https://video-chat.example.com"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  LOG_LEVEL: "info"
+  MAX_ROOM_SIZE: "50"
+  SESSION_TIMEOUT: "86400"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: video-chat
+  labels:
+    app.kubernetes.io/name: video-chat
+    app.kubernetes.io/component: nginx-config
+data:
+  nginx.conf: |
+    user nginx;
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+    
+    worker_rlimit_nofile 65535;
+    
+    events {
+        worker_connections 4096;
+        use epoll;
+        multi_accept on;
+    }
+    
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+        
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" "$http_x_forwarded_for"';
+        
+        access_log /var/log/nginx/access.log main;
+        
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        types_hash_max_size 2048;
+        server_tokens off;
+        
+        gzip on;
+        gzip_vary on;
+        gzip_min_length 1024;
+        gzip_comp_level 6;
+        gzip_types
+            text/plain
+            text/css
+            text/xml
+            text/javascript
+            application/json
+            application/javascript
+            application/xml+rss
+            application/atom+xml
+            image/svg+xml;
+        
+        limit_req_zone $binary_remote_addr zone=general:10m rate=10r/s;
+        limit_req_zone $binary_remote_addr zone=api:10m rate=5r/s;
+        
+        client_body_buffer_size 128k;
+        client_max_body_size 16m;
+        client_header_buffer_size 1k;
+        large_client_header_buffers 4 4k;
+        
+        client_body_timeout 12;
+        client_header_timeout 12;
+        send_timeout 10;
+        
+        include /etc/nginx/conf.d/*.conf;
+    }

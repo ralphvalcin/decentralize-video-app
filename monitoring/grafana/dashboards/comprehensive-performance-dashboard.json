@@ -1,0 +1,504 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Video Chat App - Comprehensive Performance Dashboard",
+    "tags": ["video-chat", "performance", "webrtc", "monitoring"],
+    "style": "dark",
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "System Overview",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=\"video-chat-frontend\"}",
+            "legendFormat": "Frontend Status"
+          },
+          {
+            "expr": "up{job=\"video-chat-backend\"}",
+            "legendFormat": "Backend Status"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {
+                "options": {
+                  "0": {
+                    "text": "DOWN",
+                    "color": "red"
+                  },
+                  "1": {
+                    "text": "UP",
+                    "color": "green"
+                  }
+                },
+                "type": "value"
+              }
+            ],
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "green",
+                  "value": 1
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "Active Users & Sessions",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(websocket_connections_total)",
+            "legendFormat": "Active Connections"
+          },
+          {
+            "expr": "sum(video_chat_active_rooms)",
+            "legendFormat": "Active Rooms"
+          },
+          {
+            "expr": "sum(video_chat_active_participants)",
+            "legendFormat": "Total Participants"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "WebRTC Connection Quality",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "avg(webrtc_connection_rtt_milliseconds)",
+            "legendFormat": "Average RTT (ms)"
+          },
+          {
+            "expr": "avg(webrtc_packet_loss_percentage) * 100",
+            "legendFormat": "Packet Loss (%)"
+          },
+          {
+            "expr": "avg(webrtc_jitter_milliseconds)",
+            "legendFormat": "Jitter (ms)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "thresholdsStyle": {
+                "mode": "line"
+              }
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 100
+                },
+                {
+                  "color": "red",
+                  "value": 300
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 8
+        }
+      },
+      {
+        "id": 4,
+        "title": "Video Quality Metrics",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "avg(webrtc_video_framerate_fps)",
+            "legendFormat": "Frame Rate (FPS)"
+          },
+          {
+            "expr": "avg(webrtc_video_resolution_width)",
+            "legendFormat": "Video Width (px)"
+          },
+          {
+            "expr": "avg(webrtc_video_bitrate_kbps)",
+            "legendFormat": "Video Bitrate (Kbps)"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        }
+      },
+      {
+        "id": 5,
+        "title": "Audio Quality Metrics",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "avg(webrtc_audio_level_db)",
+            "legendFormat": "Audio Level (dB)"
+          },
+          {
+            "expr": "avg(webrtc_audio_bitrate_kbps)",
+            "legendFormat": "Audio Bitrate (Kbps)"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 16
+        }
+      },
+      {
+        "id": 6,
+        "title": "Frontend Performance",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "avg(browser_memory_usage_mb)",
+            "legendFormat": "Memory Usage (MB)"
+          },
+          {
+            "expr": "avg(browser_cpu_usage_percentage)",
+            "legendFormat": "CPU Usage (%)"
+          },
+          {
+            "expr": "avg(react_render_time_ms)",
+            "legendFormat": "Render Time (ms)"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 24
+        }
+      },
+      {
+        "id": 7,
+        "title": "Core Web Vitals",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "avg(web_vitals_lcp_milliseconds)",
+            "legendFormat": "LCP"
+          },
+          {
+            "expr": "avg(web_vitals_inp_milliseconds)",
+            "legendFormat": "INP"
+          },
+          {
+            "expr": "avg(web_vitals_cls_score)",
+            "legendFormat": "CLS"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 2500
+                },
+                {
+                  "color": "red",
+                  "value": 4000
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 32
+        }
+      },
+      {
+        "id": 8,
+        "title": "Error Rates",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(javascript_errors_total[5m])",
+            "legendFormat": "JavaScript Errors"
+          },
+          {
+            "expr": "rate(webrtc_connection_failures_total[5m])",
+            "legendFormat": "WebRTC Connection Failures"
+          },
+          {
+            "expr": "rate(websocket_disconnections_total[5m])",
+            "legendFormat": "WebSocket Disconnections"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 32
+        }
+      },
+      {
+        "id": 9,
+        "title": "Socket.IO Performance",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "avg(socketio_message_latency_ms)",
+            "legendFormat": "Message Latency (ms)"
+          },
+          {
+            "expr": "rate(socketio_messages_sent_total[1m])",
+            "legendFormat": "Messages Sent/sec"
+          },
+          {
+            "expr": "rate(socketio_messages_received_total[1m])",
+            "legendFormat": "Messages Received/sec"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 40
+        }
+      },
+      {
+        "id": 10,
+        "title": "Bandwidth Usage",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "avg(webrtc_total_bandwidth_kbps)",
+            "legendFormat": "Total Bandwidth (Kbps)"
+          },
+          {
+            "expr": "avg(webrtc_incoming_bandwidth_kbps)",
+            "legendFormat": "Incoming Bandwidth (Kbps)"
+          },
+          {
+            "expr": "avg(webrtc_outgoing_bandwidth_kbps)",
+            "legendFormat": "Outgoing Bandwidth (Kbps)"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 48
+        }
+      },
+      {
+        "id": 11,
+        "title": "Server Resource Usage",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "avg(node_memory_MemAvailable_bytes / 1024 / 1024)",
+            "legendFormat": "Available Memory (MB)"
+          },
+          {
+            "expr": "avg(rate(node_cpu_seconds_total[5m])) * 100",
+            "legendFormat": "CPU Usage (%)"
+          },
+          {
+            "expr": "avg(node_filesystem_avail_bytes / 1024 / 1024 / 1024)",
+            "legendFormat": "Available Disk (GB)"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 48
+        }
+      },
+      {
+        "id": 12,
+        "title": "User Experience Metrics",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "avg_over_time(user_session_duration_minutes[1h])",
+            "legendFormat": "Avg Session Duration (min)"
+          },
+          {
+            "expr": "avg_over_time(user_interaction_latency_ms[1h])",
+            "legendFormat": "Avg Interaction Latency (ms)"
+          },
+          {
+            "expr": "sum(increase(feature_usage_total[1h]))",
+            "legendFormat": "Feature Usage Count"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 56
+        }
+      },
+      {
+        "id": 13,
+        "title": "Performance Budget Violations",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(increase(performance_budget_violations_total[5m]))",
+            "legendFormat": "Total Violations"
+          },
+          {
+            "expr": "sum(increase(performance_budget_violations_total{severity=\"critical\"}[5m]))",
+            "legendFormat": "Critical Violations"
+          },
+          {
+            "expr": "sum(increase(performance_budget_violations_total{severity=\"warning\"}[5m]))",
+            "legendFormat": "Warning Violations"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 64
+        }
+      },
+      {
+        "id": 14,
+        "title": "Quality Adaptation Events",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(increase(webrtc_resolution_changes_total[5m]))",
+            "legendFormat": "Resolution Changes"
+          },
+          {
+            "expr": "sum(increase(webrtc_bitrate_adaptations_total[5m]))",
+            "legendFormat": "Bitrate Adaptations"
+          },
+          {
+            "expr": "sum(increase(webrtc_freeze_events_total[5m]))",
+            "legendFormat": "Video Freeze Events"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 64
+        }
+      }
+    ],
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "templating": {
+      "list": [
+        {
+          "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          "hide": 0,
+          "includeAll": true,
+          "label": "Environment",
+          "multi": false,
+          "name": "environment",
+          "options": [],
+          "query": "label_values(environment)",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "type": "query"
+        },
+        {
+          "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          "hide": 0,
+          "includeAll": true,
+          "label": "Room",
+          "multi": false,
+          "name": "room",
+          "options": [],
+          "query": "label_values(room_id)",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "type": "query"
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": "-- Grafana --",
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        },
+        {
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "ALERTS{alertstate=\"firing\"}",
+          "iconColor": "red",
+          "name": "Performance Alerts",
+          "tagKeys": "alertname",
+          "textFormat": "{{alertname}}: {{description}}",
+          "titleFormat": "Alert"
+        }
+      ]
+    },
+    "refresh": "30s",
+    "schemaVersion": 27,
+    "version": 1,
+    "links": []
+  }
+}
