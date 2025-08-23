@@ -55,7 +55,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: wss: ws: https:; media-src 'self' blob: data:; connect-src 'self' https: wss: ws:;"
+          "value": "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: wss: ws: https: *.onrender.com; media-src 'self' blob: data:; connect-src 'self' https: wss: ws: *.onrender.com wss://*.onrender.com;"
         }
       ]
     }
