@@ -443,7 +443,7 @@ class PerformanceMonitor {
         // Monitor Cumulative Layout Shift (CLS)
         let clsValue = 0;
         const clsObserver = new PerformanceObserver((entryList) => {
-          entries = entryList.getEntries();
+          const entries = entryList.getEntries();
           entries.forEach(entry => {
             if (!entry.hadRecentInput) {
               clsValue += entry.value;
