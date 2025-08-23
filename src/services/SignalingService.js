@@ -7,7 +7,7 @@ class SignalingService {
     this.eventListeners = new Map();
   }
 
-  connect(serverUrl = 'http://localhost:5001') {
+  connect(serverUrl = import.meta.env.VITE_SIGNALING_SERVER_URL || 'wss://decentralize-video-app-2.onrender.com') {
     if (this.socket && this.socket.connected) {
       return this.socket;
     }

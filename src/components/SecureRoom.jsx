@@ -32,7 +32,7 @@ import {
 } from '../utils/security';
 
 // SECURITY ENHANCEMENT: Use environment variable for signaling server URL
-const SIGNALING_SERVER_URL = import.meta.env.VITE_SIGNALING_SERVER_URL || 'ws://localhost:5001';
+const SIGNALING_SERVER_URL = import.meta.env.VITE_SIGNALING_SERVER_URL || 'wss://decentralize-video-app-2.onrender.com';
 
 // SECURITY ENHANCEMENT: Initialize secure socket connection
 let socket = null;
