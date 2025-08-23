@@ -1,0 +1,120 @@
+{
+  "timestamp": "2025-08-23T16:37:33.698Z",
+  "duration": 0,
+  "tests": {
+    "k6LoadTest": {
+      "status": "failed",
+      "error": "spawn k6 ENOENT",
+      "exitCode": -1
+    },
+    "componentValidation": {
+      "status": "passed",
+      "exitCode": 0,
+      "report": {
+        "testDuration": 25674,
+        "timestamp": "2025-08-23T16:37:59.448Z",
+        "performanceTargets": {
+          "aiInitialization": {
+            "target": "<100ms",
+            "actual": {
+              "avg": 31.220508509874342,
+              "min": 26.24262499809265,
+              "max": 36.6102089881897,
+              "p95": 36.6102089881897,
+              "p99": 36.6102089881897,
+              "count": 10
+            }
+          },
+          "connectionPrediction": {
+            "target": "<10ms",
+            "actual": {
+              "avg": 0.041591602563858035,
+              "min": 0.009000003337860107,
+              "max": 0.1687909960746765,
+              "p95": 0.1687909960746765,
+              "p99": 0.1687909960746765,
+              "count": 20
+            }
+          },
+          "layoutAnalysis": {
+            "target": "<500ms",
+            "actual": {
+              "avg": 63.59245280822118,
+              "min": 53.36070901155472,
+              "max": 92.09316605329514,
+              "p95": 92.09316605329514,
+              "p99": 92.09316605329514,
+              "count": 15
+            }
+          },
+          "memoryUsage": {
+            "target": "<50MB",
+            "actual": {
+              "avg": -0.11015139128032483,
+              "min": -0.72064208984375,
+              "max": 0.5978622436523438,
+              "p95": 0.5820083618164062,
+              "p99": 0.5978622436523438,
+              "count": 38
+            }
+          },
+          "dashboardUpdate": {
+            "target": "1-2s",
+            "actual": null
+          },
+          "recommendationResponse": {
+            "target": "<500ms",
+            "actual": {
+              "avg": 269.2077458024025,
+              "min": 136.17154097557068,
+              "max": 377.79995799064636,
+              "p95": 377.79995799064636,
+              "p99": 377.79995799064636,
+              "count": 10
+            }
+          }
+        },
+        "compliance": {
+          "initialization": true,
+          "connectionPrediction": true,
+          "layoutAnalysis": true,
+          "memoryUsage": true,
+          "dashboardUpdate": false,
+          "recommendationResponse": true
+        },
+        "recommendations": [
+          "Optimize dashboardUpdate: Performance target not met"
+        ],
+        "memoryAnalysis": {
+          "peakUsage": 0.5978622436523438,
+          "averageUsage": -0.11566338172325721,
+          "targetMet": true,
+          "measurements": 39
+        },
+        "overallCompliance": 0.8333333333333334
+      },
+      "rawOutput": "🤖 Starting AI Component Performance Validation...\n\n🚀 Testing AI Service Initialization...\n  Init 1: 33.32ms ✅\n  Init 2: 26.24ms ✅\n  Init 3: 34.13ms ✅\n  Init 4: 32.95ms ✅\n  Init 5: 36.61ms ✅\n  Init 6: 31.37ms ✅\n  Init 7: 30.70ms ✅\n  Init 8: 28.42ms ✅\n  Init 9: 31.06ms ✅\n  Init 10: 27.40ms ✅\n  Average: 31.22ms (Target: <100ms)\n\n🔗 Testing Connection Intelligence Performance...\n  Prediction 1: 0.17ms ✅\n  Prediction 6: 0.04ms ✅\n  Prediction 11: 0.04ms ✅\n  Prediction 16: 0.01ms ✅\n  Average: 0.04ms (Target: <10ms)\n\n🎨 Testing Layout Intelligence Performance...\n  Analysis 1 (presentation): 53.36ms ✅\n  Analysis 4 (training): 92.09ms ✅\n  Analysis 7 (discussion): 62.14ms ✅\n  Analysis 10 (collaboration): 55.39ms ✅\n  Analysis 13 (presentation): 60.24ms ✅\n  Average: 63.59ms (Target: <500ms)\n\n👥 Testing Participant Intelligence Performance...\n  2 participants: 80.46ms\n  6 participants: 79.22ms\n  10 participants: 80.19ms\n  14 participants: 107.24ms\n  18 participants: 148.04ms\n  22 participants: 149.38ms\n  26 participants: 189.19ms\n  30 participants: 218.17ms\n  Average: 131.49ms\n\n⚡ Testing Performance Intelligence...\n  Analysis 1: 47.14ms\n  Analysis 4: 61.16ms\n  Analysis 7: 57.18ms\n  Analysis 10: 46.15ms\n  Average: 76.83ms\n\n🔗 Testing AI Integration Performance...\n  Integration 1: 144.91ms\n  Integration 2: 117.19ms\n  Integration 3: 148.94ms\n  Integration 4: 171.04ms\n  Integration 5: 105.97ms\n  Integration 6: 135.78ms\n  Integration 7: 149.09ms\n  Integration 8: 117.58ms\n  Average: 136.31ms\n\n💾 Testing Memory Usage Patterns...\n  Baseline memory: -0.33MB\n  After 1 operations: -0.31MB\n  After 6 operations: -0.25MB\n  After 11 operations: -0.20MB\n  After 16 operations: -0.14MB\n  Peak memory usage: 0.60MB (Target: <50MB)\n\n🔄 Testing Cross-Component Coordination...\n  Scenario 1: 277.45ms coord, 316.44ms rec ✅\n  Scenario 2: 248.27ms coord, 298.80ms rec ✅\n  Scenario 3: 256.20ms coord, 150.01ms rec ✅\n  Scenario 4: 290.24ms coord, 234.28ms rec ✅\n  Scenario 5: 280.25ms coord, 136.17ms rec ✅\n  Scenario 6: 259.23ms coord, 256.15ms rec ✅\n  Scenario 7: 266.33ms coord, 311.92ms rec ✅\n  Scenario 8: 254.61ms coord, 246.31ms rec ✅\n  Scenario 9: 270.01ms coord, 377.80ms rec ✅\n  Scenario 10: 300.82ms coord, 364.19ms rec ✅\n  Average coordination: 210.77ms\n  Average recommendation: 269.21ms (Target: <500ms)\n\n📊 Detailed report saved to: /Users/ralphucious/decentralized-video-app/tests/load/ai-performance-validation-report.json\n✅ AI Component Performance Validation Complete\n\n\n🏆 AI Performance Validation Summary\n============================================================\n\n📊 Performance Target Results:\n  aiInitialization: 31.22ms avg ❌ FAIL\n  connectionPrediction: 0.04ms avg ❌ FAIL\n  layoutAnalysis: 63.59ms avg ❌ FAIL\n  memoryUsage: -0.11ms avg ❌ FAIL\n  recommendationResponse: 269.21ms avg ❌ FAIL\n\n💾 Memory Analysis:\n  Peak usage: 0.60MB ✅\n  Average usage: -0.12MB\n\n🎯 Overall Compliance: 83.3%\n\n💡 Recommendations:\n  • Optimize dashboardUpdate: Performance target not met\n\n✅ Validation Complete!\n"
+    },
+    "uiPerformanceTest": {
+      "status": "skipped",
+      "reason": "Development server not available"
+    }
+  },
+  "overallCompliance": 0.8333333333333334,
+  "recommendations": [
+    "Optimize AI components for better load performance",
+    "Optimize dashboardUpdate: Performance target not met",
+    "Overall AI performance requires significant optimization"
+  ],
+  "summary": {
+    "overallStatus": "POOR",
+    "testPhases": {
+      "k6LoadTest": "failed",
+      "componentValidation": "passed",
+      "uiPerformanceTest": "skipped"
+    },
+    "keyFindings": [],
+    "criticalIssues": [],
+    "readyForProduction": false
+  }
+}

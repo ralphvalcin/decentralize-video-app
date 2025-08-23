@@ -1,0 +1,28 @@
+# Auto-assign configuration for pull requests
+addReviewers: true
+addAssignees: false
+
+reviewers:
+  - ralphucious
+
+# Number of reviewers to assign
+numberOfReviewers: 1
+
+# Skip PRs created by these users
+skipUsers:
+  - dependabot[bot]
+  - github-actions[bot]
+
+# Skip PRs with these labels
+skipLabels:
+  - skip-review
+  - work-in-progress
+  - draft
+
+# Skip PRs in these branches
+skipBranches:
+  - main
+  - master
+
+# Skip PRs that are drafts
+skipDrafts: true

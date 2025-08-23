@@ -1,9 +1,15 @@
 import { useRef, useEffect, useState, forwardRef, memo } from 'react';
+import { useMobileGestures, useMobileDetection } from '../hooks/useMobileGestures';
 
 const Video = memo(forwardRef(({ stream, name = 'Participant', isLocal = false, handRaised = false }, ref) => {
   const videoRef = useRef();
+  const containerRef = useRef();
   const [isPiP, setIsPiP] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showControls, setShowControls] = useState(false);
+  
+  const getMobileInfo = useMobileDetection();
+  const mobileInfo = getMobileInfo();
 
   useEffect(() => {
     if (!videoRef.current) return;
@@ -67,9 +73,29 @@ const Video = memo(forwardRef(({ stream, name = 'Participant', isLocal = false, 
     }
   };
 
+  // Mobile gesture handlers
+  const { touchHandlers } = useMobileGestures({
+    onDoubleTap: () => {
+      if (mobileInfo.isMobile) {
+        handleFullscreen();
+      }
+    },
+    onSwipeUp: () => {
+      if (mobileInfo.isMobile) {
+        setShowControls(true);
+        setTimeout(() => setShowControls(false), 3000);
+      }
+    },
+    onSwipeDown: () => {
+      if (mobileInfo.isMobile && isFullscreen) {
+        handleFullscreen(); // Exit fullscreen
+      }
+    }
+  });
+
   useEffect(() => {
     const onFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement && document.fullscreenElement === videoRef.current);
+      setIsFullscreen(!!document.fullscreenElement && document.fullscreenElement === containerRef.current);
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => {
@@ -77,8 +103,21 @@ const Video = memo(forwardRef(({ stream, name = 'Participant', isLocal = false, 
     };
   }, []);
 
+  // Auto-hide controls on mobile
+  useEffect(() => {
+    if (mobileInfo.isMobile && showControls) {
+      const timer = setTimeout(() => setShowControls(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showControls, mobileInfo.isMobile]);
+
   return (
-    <div className="relative w-full h-full group">
+    <div 
+      ref={containerRef}
+      className={`relative w-full h-full ${mobileInfo.isMobile ? 'touch-manipulation' : 'group'}`}
+      {...(mobileInfo.isMobile ? touchHandlers : {})}
+      onClick={() => mobileInfo.isMobile && setShowControls(!showControls)}
+    >
       <video
         ref={videoRef}
         muted={isLocal}
@@ -87,8 +126,12 @@ const Video = memo(forwardRef(({ stream, name = 'Participant', isLocal = false, 
         className="w-full h-full object-cover transition-all duration-300"
       />
       
-      {/* Video Overlay Controls - Show on hover */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-gradient-to-t from-black/60 via-transparent to-black/40">
+      {/* Video Overlay Controls - Show on hover or mobile tap */}
+      <div className={`absolute inset-0 transition-all duration-300 bg-gradient-to-t from-black/60 via-transparent to-black/40 ${
+        mobileInfo.isMobile 
+          ? (showControls ? 'opacity-100' : 'opacity-0') 
+          : 'opacity-0 group-hover:opacity-100'
+      }`}>
         {/* Top Controls */}
         <div className="absolute top-3 left-3 right-3 flex items-start justify-between">
           {/* Hand Raised Indicator */}

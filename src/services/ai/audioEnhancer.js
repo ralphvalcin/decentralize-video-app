@@ -212,7 +212,8 @@ class AudioEnhancer {
     
     // Spectral subtraction noise reduction
     const bufferLength = inputData.length;
-    const fftSize = Math.pow(2, Math.ceil(Math.log2(bufferLength)));
+    // Note: fftSize calculated but not used in current simple noise gate implementation
+    // const fftSize = Math.pow(2, Math.ceil(Math.log2(bufferLength)));
     
     // Simple noise gate implementation
     const threshold = -50 + (this.noiseCancellation.intensity * 20);
@@ -249,7 +250,7 @@ class AudioEnhancer {
   }
 
   applyAudioEffects(audioData) {
-    const length = audioData.length;
+    // Note: length variable removed - not used in current effects implementation
     
     // Apply echo effect
     if (this.effects.echo.enabled) {

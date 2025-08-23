@@ -1,7 +1,7 @@
 // PRIORITY 4: Performance Monitoring and Analytics
 // Enhanced comprehensive performance monitoring system
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
 // Global performance tracking
 const GlobalPerformanceTracker = {
@@ -131,7 +131,7 @@ const useRenderPerformanceMonitor = (componentName) => {
         slowRenders
       });
     }
-  });
+  }, [componentName]);
 
   return performanceStats;
 };
@@ -171,7 +171,7 @@ const useWebRTCAnalytics = () => {
   const recordConnectionAttempt = useCallback(() => {
     metricsRef.current.connectionAttempts++;
     updateAnalytics();
-  }, []);
+  }, [updateAnalytics]);
 
   const recordConnectionSuccess = useCallback((connectionTime) => {
     metricsRef.current.successfulConnections++;
@@ -183,18 +183,18 @@ const useWebRTCAnalytics = () => {
     }
     
     updateAnalytics();
-  }, []);
+  }, [updateAnalytics]);
 
   const recordConnectionFailure = useCallback(() => {
     metricsRef.current.failedConnections++;
     updateAnalytics();
-  }, []);
+  }, [updateAnalytics]);
 
   const recordDataTransfer = useCallback((bytes) => {
     metricsRef.current.bytesTransferred += bytes;
     GlobalPerformanceTracker.track('dataTransfer', bytes);
     updateAnalytics();
-  }, []);
+  }, [updateAnalytics]);
   
   const recordWebRTCStats = useCallback((stats) => {
     if (stats.video) {
@@ -226,7 +226,7 @@ const useWebRTCAnalytics = () => {
     }
     
     updateAnalytics();
-  }, []);
+  }, [updateAnalytics]);
   
   const recordQualityEvent = useCallback((eventType, data) => {
     switch (eventType) {
@@ -251,12 +251,12 @@ const useWebRTCAnalytics = () => {
         break;
     }
     updateAnalytics();
-  }, []);
+  }, [updateAnalytics]);
 
   const recordQualityDrop = useCallback(() => {
     metricsRef.current.qualityDrops++;
     updateAnalytics();
-  }, []);
+  }, [updateAnalytics]);
 
   const updateAnalytics = useCallback(() => {
     const current = metricsRef.current;
@@ -310,7 +310,7 @@ const PerformanceDashboard = ({ isVisible, onToggle }) => {
     fps: 0
   });
 
-  const [webrtcStats, setWebrtcStats] = useState({
+  const [webrtcStats, _setWebrtcStats] = useState({
     activePeers: 0,
     totalBandwidth: 0,
     packetLoss: 0,
@@ -355,8 +355,8 @@ const PerformanceDashboard = ({ isVisible, onToggle }) => {
         window.lastFrameTime = Date.now();
 
         // Core Web Vitals monitoring
-        const navigation = performance.getEntriesByType('navigation')[0];
-        const paintEntries = performance.getEntriesByType('paint');
+        const _navigation = performance.getEntriesByType('navigation')[0];
+        const _paintEntries = performance.getEntriesByType('paint');
         const lcpEntries = performance.getEntriesByType('largest-contentful-paint');
         
         const coreWebVitals = {
@@ -526,13 +526,13 @@ const PerformanceDashboard = ({ isVisible, onToggle }) => {
 
 // 4. Performance budget monitoring
 const usePerformanceBudget = () => {
-  const budgets = {
+  const budgets = useMemo(() => ({
     renderTime: 16, // 60fps
     memoryUsage: 100, // MB
     connectionTime: 3000, // 3 seconds
     packetLoss: 5, // 5%
     latency: 200 // 200ms
-  };
+  }), []);
 
   const [violations, setViolations] = useState([]);
 

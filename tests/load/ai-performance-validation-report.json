@@ -1,0 +1,83 @@
+{
+  "testDuration": 25617,
+  "timestamp": "2025-08-23T17:05:22.567Z",
+  "performanceTargets": {
+    "aiInitialization": {
+      "target": "<100ms",
+      "actual": {
+        "avg": 29.388045805692673,
+        "min": 18.327750027179718,
+        "max": 35.89741599559784,
+        "p95": 35.89741599559784,
+        "p99": 35.89741599559784,
+        "count": 10
+      }
+    },
+    "connectionPrediction": {
+      "target": "<10ms",
+      "actual": {
+        "avg": 0.03342704772949219,
+        "min": 0.0074160099029541016,
+        "max": 0.1361669898033142,
+        "p95": 0.1361669898033142,
+        "p99": 0.1361669898033142,
+        "count": 20
+      }
+    },
+    "layoutAnalysis": {
+      "target": "<500ms",
+      "actual": {
+        "avg": 58.25644166469574,
+        "min": 51.17812502384186,
+        "max": 71.95899999141693,
+        "p95": 71.95899999141693,
+        "p99": 71.95899999141693,
+        "count": 15
+      }
+    },
+    "memoryUsage": {
+      "target": "<50MB",
+      "actual": {
+        "avg": -0.25559033845600326,
+        "min": -0.7381973266601562,
+        "max": 0.5978927612304688,
+        "p95": 0.5823135375976562,
+        "p99": 0.5978927612304688,
+        "count": 38
+      }
+    },
+    "dashboardUpdate": {
+      "target": "1-2s",
+      "actual": null
+    },
+    "recommendationResponse": {
+      "target": "<500ms",
+      "actual": {
+        "avg": 260.1086875915527,
+        "min": 144.18183302879333,
+        "max": 357.2039589881897,
+        "p95": 357.2039589881897,
+        "p99": 357.2039589881897,
+        "count": 10
+      }
+    }
+  },
+  "compliance": {
+    "initialization": true,
+    "connectionPrediction": true,
+    "layoutAnalysis": true,
+    "memoryUsage": true,
+    "dashboardUpdate": false,
+    "recommendationResponse": true
+  },
+  "recommendations": [
+    "Optimize dashboardUpdate: Performance target not met"
+  ],
+  "memoryAnalysis": {
+    "peakUsage": 0.5978927612304688,
+    "averageUsage": -0.2626544267703325,
+    "targetMet": true,
+    "measurements": 39
+  },
+  "overallCompliance": 0.8333333333333334
+}

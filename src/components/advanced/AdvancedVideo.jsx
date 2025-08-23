@@ -22,7 +22,7 @@ const AdvancedVideo = memo(forwardRef(({
   const [isPiP, setIsPiP] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showAIControls, setShowAIControls] = useState(false);
-  const [connectionQuality, setConnectionQuality] = useState('good');
+  const [connectionQuality, setConnectionQualityState] = useState('good');
   const [processingEnabled, setProcessingEnabled] = useState(false);
 
   // Advanced WebRTC features

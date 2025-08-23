@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import DOMPurify from 'dompurify';
+import SidePanel from './SidePanel';
 
-const Chat = ({ messages, onSendMessage, isOpen, onToggle, userInfo }) => {
+const Chat = ({ messages, onSendMessage, isOpen, onToggle, userInfo, stackPosition = 0, totalOpenPanels = 1 }) => {
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -58,38 +60,32 @@ const Chat = ({ messages, onSendMessage, isOpen, onToggle, userInfo }) => {
     return colors[Math.abs(hash) % colors.length];
   };
 
-  return (
-    <div className={`fixed top-16 right-0 bottom-20 bg-slate-900 border-l border-slate-700 transition-all duration-300 ease-in-out z-40 ${
-      isOpen ? 'w-80 md:w-96' : 'w-0'
-    } overflow-hidden flex flex-col`}>
-      {/* Chat Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800/50">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-500/20 rounded-lg layout-flex-center">
-            <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-white">Team Chat</h3>
-            <p className="text-xs text-slate-400">
-              {messages.length} message{messages.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-        </div>
-        
-        {/* Toggle Button */}
-        <button
-          onClick={onToggle}
-          className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-          aria-label="Close chat"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+  const chatIcon = (
+    <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+      <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+    </svg>
+  );
 
+  const chatTitle = (
+    <div>
+      <h3 className="text-sm font-semibold text-white">Team Chat</h3>
+      <p className="text-xs text-slate-400">
+        {messages.length} message{messages.length !== 1 ? 's' : ''}
+      </p>
+    </div>
+  );
+
+  return (
+    <SidePanel
+      isOpen={isOpen}
+      onToggle={onToggle}
+      title={chatTitle}
+      icon={chatIcon}
+      position="right"
+      stackPosition={stackPosition}
+      totalOpenPanels={totalOpenPanels}
+      zIndex="z-40"
+    >
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-900">
         {messages.length === 0 ? (
@@ -209,7 +205,7 @@ const Chat = ({ messages, onSendMessage, isOpen, onToggle, userInfo }) => {
           </div>
         </form>
       </div>
-    </div>
+    </SidePanel>
   );
 };
 

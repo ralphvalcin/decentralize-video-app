@@ -3,7 +3,7 @@ import { Responsive, WidthProvider } from 'react-grid-layout';
 import Video from './VideoChat';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -83,26 +83,52 @@ export default function VideoLayout({ localStream, peers, userInfo, localHandRai
     streams[`peer${index + 1}`] = peer.stream;
   });
 
+  // Touch gesture handling for mobile
+  const [isDragging, setIsDragging] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Handle touch gestures
+  const handleDragStart = useCallback(() => {
+    setIsDragging(true);
+  }, []);
+
+  const handleDragStop = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
   return (
-    <div className="space-y-6">
-      {/* Layout Selector */}
+    <div className="space-y-4 sm:space-y-6">
+      {/* Mobile-Optimized Layout Selector */}
       <div className="flex justify-center">
-        <div className="flex items-center gap-2 bg-surface-800/50 rounded-xl p-2 border border-surface-700/50">
+        <div className="flex items-center gap-1 sm:gap-2 bg-surface-800/50 rounded-xl p-1 sm:p-2 border border-surface-700/50 max-w-full overflow-x-auto mobile-nav-scroll">
           {Object.keys(layoutPresets).map((preset) => (
             <button
               key={preset}
               onClick={() => setSelectedLayout(preset)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 whitespace-nowrap touch-manipulation ${
                 selectedLayout === preset
                   ? 'bg-primary-600 text-white shadow-glow'
                   : 'text-surface-300 hover:bg-surface-700 hover:text-white'
               }`}
             >
-              <span className="flex items-center gap-2">
-                <span>
+              <span className="flex items-center gap-1 sm:gap-2">
+                <span className="text-sm sm:text-base">
                   {preset === 'grid' ? '⊞' : preset === 'podcast' ? '🎙️' : '⭐'}
                 </span>
-                {preset.charAt(0).toUpperCase() + preset.slice(1)}
+                <span className="hidden xs:inline">
+                  {preset.charAt(0).toUpperCase() + preset.slice(1)}
+                </span>
               </span>
             </button>
           ))}
@@ -110,35 +136,66 @@ export default function VideoLayout({ localStream, peers, userInfo, localHandRai
       </div>
 
       <ResponsiveGridLayout
-        className="layout"
-        layouts={{ lg: layout }}
-        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480 }}
-        cols={{ lg: 12, md: 10, sm: 6, xs: 4 }}
-        rowHeight={100}
-        isResizable
-        isDraggable
+        className={`layout ${isDragging ? 'dragging' : ''}`}
+        layouts={{ 
+          lg: layout, 
+          md: layout, 
+          sm: layout.map(item => ({ ...item, w: Math.min(item.w, 6) })),
+          xs: layout.map(item => ({ ...item, w: 4, x: 0 })) 
+        }}
+        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+        cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+        rowHeight={isMobile ? 80 : 100}
+        isResizable={!isMobile}
+        isDraggable={true}
+        onDragStart={handleDragStart}
+        onDragStop={handleDragStop}
         onLayoutChange={handleLayoutChange}
-        margin={[8, 8]}
+        margin={isMobile ? [4, 4] : [8, 8]}
+        containerPadding={isMobile ? [8, 8] : [16, 16]}
+        // Mobile touch optimization
+        useCSSTransforms={true}
+        preventCollision={false}
+        compactType="vertical"
       >
         {/* Local Video */}
-        <div key="local" className="video-container aspect-video animate-fade-in">
+        <div 
+          key="local" 
+          className={`video-container aspect-video animate-fade-in ${isMobile ? 'mobile-video-container' : ''} ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        >
           <Video 
             stream={localStream} 
             name={userInfo?.name || 'You'} 
             isLocal={true} 
             handRaised={localHandRaised}
           />
+          {/* Mobile drag indicator */}
+          {isMobile && (
+            <div className="absolute top-2 right-2 text-white/60 text-xs bg-black/20 px-2 py-1 rounded">
+              📱 Drag to move
+            </div>
+          )}
         </div>
 
         {/* Peer Videos */}
         {peers.map((peer, index) => (
-          <div key={`peer${index + 1}`} className="video-container aspect-video animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
+          <div 
+            key={`peer${index + 1}`} 
+            className={`video-container aspect-video animate-fade-in ${isMobile ? 'mobile-video-container' : ''} ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`} 
+            style={{ animationDelay: `${index * 100}ms` }}
+          >
             <Video
               stream={peer.stream}
               name={peer.name || `Peer ${index + 1}`}
               isLocal={false}
               handRaised={peer.handRaised}
             />
+            {/* Mobile drag indicator */}
+            {isMobile && (
+              <div className="absolute top-2 right-2 text-white/60 text-xs bg-black/20 px-2 py-1 rounded">
+                📱 Drag to move
+              </div>
+            )}
           </div>
         ))}
       </ResponsiveGridLayout>

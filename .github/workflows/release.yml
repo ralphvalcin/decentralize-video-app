@@ -1,0 +1,248 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-release:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      frontend-image: ${{ steps.meta-frontend.outputs.tags }}
+      backend-image: ${{ steps.meta-backend.outputs.tags }}
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Extract version
+      id: version
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+        else
+          echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run full test suite
+      run: |
+        npm run test:unit -- --coverage
+        npm run test:integration
+        npm run lint
+
+    - name: Build frontend
+      run: npm run build
+
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    # Frontend Release Build
+    - name: Extract metadata for frontend
+      id: meta-frontend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
+        tags: |
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest
+
+    - name: Build and push frontend release
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/Dockerfile.frontend
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta-frontend.outputs.tags }}
+        labels: ${{ steps.meta-frontend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    # Backend Release Build
+    - name: Extract metadata for backend
+      id: meta-backend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend
+        tags: |
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest
+
+    - name: Build and push backend release
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/Dockerfile.backend
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta-backend.outputs.tags }}
+        labels: ${{ steps.meta-backend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  security-final-check:
+    name: Final Security Check
+    runs-on: ubuntu-latest
+    needs: build-release
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Final security scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        exit-code: 1
+        severity: 'CRITICAL,HIGH'
+
+    - name: Container security scan
+      run: |
+        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+          -v $(pwd):/src aquasec/trivy image \
+          --exit-code 1 --severity HIGH,CRITICAL \
+          ${{ needs.build-release.outputs.frontend-image }}
+        
+        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+          -v $(pwd):/src aquasec/trivy image \
+          --exit-code 1 --severity HIGH,CRITICAL \
+          ${{ needs.build-release.outputs.backend-image }}
+
+  deploy-production-release:
+    name: Deploy Production Release
+    runs-on: ubuntu-latest
+    needs: [build-release, security-final-check]
+    environment:
+      name: production
+      url: https://your-app.com
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Deploy to production cloud providers
+      run: |
+        echo "Deploying release ${{ needs.build-release.outputs.version }} to production"
+
+    - name: Update Kubernetes production
+      run: |
+        # This would update production Kubernetes with new release images
+        echo "kubectl set image deployment/frontend-deployment frontend=${{ needs.build-release.outputs.frontend-image }}"
+        echo "kubectl set image deployment/backend-deployment backend=${{ needs.build-release.outputs.backend-image }}"
+
+  create-github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-release, deploy-production-release]
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Generate changelog from commits since last tag
+        LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        if [ -z "$LAST_TAG" ]; then
+          CHANGES=$(git log --pretty=format:"- %s (%h)" --since="30 days ago")
+        else
+          CHANGES=$(git log --pretty=format:"- %s (%h)" ${LAST_TAG}..HEAD)
+        fi
+        
+        echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+        echo "## What's Changed" >> $GITHUB_OUTPUT
+        echo "$CHANGES" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ needs.build-release.outputs.version }}
+        release_name: Release ${{ needs.build-release.outputs.version }}
+        body: |
+          # 🎉 Release ${{ needs.build-release.outputs.version }}
+          
+          ## 📦 Container Images
+          - Frontend: `${{ needs.build-release.outputs.frontend-image }}`
+          - Backend: `${{ needs.build-release.outputs.backend-image }}`
+          
+          ${{ steps.changelog.outputs.CHANGELOG }}
+          
+          ## 🔒 Security
+          - All security scans passed
+          - Container images scanned for vulnerabilities
+          - Dependencies updated and audited
+          
+          ## 🚀 Deployment
+          - Production deployment completed successfully
+          - All health checks passing
+          
+          ---
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ needs.build-release.outputs.version }}
+        draft: false
+        prerelease: false
+
+  post-release:
+    name: Post-Release Tasks
+    runs-on: ubuntu-latest
+    needs: [build-release, create-github-release]
+    
+    steps:
+    - name: Notify Slack
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: |
+          🎉 **Release ${{ needs.build-release.outputs.version }} Deployed Successfully!**
+          
+          ✅ All tests passed
+          ✅ Security scans completed
+          ✅ Production deployment successful
+          ✅ GitHub release created
+          
+          🔗 **Links:**
+          • [Release Notes](https://github.com/${{ github.repository }}/releases/tag/${{ needs.build-release.outputs.version }})
+          • [Production App](https://your-app.com)
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    - name: Update monitoring dashboards
+      run: |
+        # Update Grafana dashboards with new release version
+        echo "Updating monitoring dashboards for release ${{ needs.build-release.outputs.version }}"

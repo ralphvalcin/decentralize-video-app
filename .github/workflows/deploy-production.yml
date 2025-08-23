@@ -1,0 +1,194 @@
+name: 🚀 Deploy to Production
+
+on:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.gitignore'
+  release:
+    types: [published]
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  # Quality checks
+  quality:
+    name: 🔍 Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🧹 Run linting
+        run: npm run lint
+
+      - name: 🧪 Run tests
+        run: npm test --if-present
+
+      - name: 🏗️ Test build
+        run: npm run build
+
+      - name: 📊 Bundle analysis
+        run: |
+          npm run build
+          du -sh dist/
+          echo "Bundle size:" >> $GITHUB_STEP_SUMMARY
+          ls -lah dist/assets/ >> $GITHUB_STEP_SUMMARY
+
+  # Deploy frontend to Vercel
+  deploy-frontend:
+    name: 🎯 Deploy Frontend (Vercel)
+    needs: quality
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Build for production
+        env:
+          VITE_APP_ENV: production
+          VITE_ANALYTICS_ENABLED: true
+          VITE_PWA_ENABLED: true
+        run: npm run build
+
+      - name: 🚀 Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+
+  # Deploy signaling server to Railway
+  deploy-backend:
+    name: 🚂 Deploy Backend (Railway)
+    needs: quality
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🚀 Deploy to Railway
+        uses: bervProject/railway-deploy@main
+        with:
+          railway_token: ${{ secrets.RAILWAY_TOKEN }}
+          service: 'signaling-server'
+
+  # Mobile testing with browser stack
+  mobile-testing:
+    name: 📱 Mobile Testing
+    needs: [deploy-frontend, deploy-backend]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🧪 Run mobile tests
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: |
+          npx playwright install
+          npm run test:mobile --if-present
+
+  # Performance audit
+  performance-audit:
+    name: 📈 Performance Audit
+    needs: deploy-frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 🔍 Lighthouse audit
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          urls: |
+            ${{ secrets.VERCEL_URL }}
+          configPath: '.lighthouserc.js'
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: 📊 Performance report
+        run: |
+          echo "## 📈 Performance Results" >> $GITHUB_STEP_SUMMARY
+          echo "Lighthouse audit completed for production deployment" >> $GITHUB_STEP_SUMMARY
+
+  # Notify deployment success
+  notify:
+    name: 📢 Notify Deployment
+    needs: [deploy-frontend, deploy-backend]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: 📤 Deployment notification
+        uses: 8398a7/action-slack@v3
+        if: always()
+        with:
+          status: ${{ job.status }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          text: |
+            🚀 Decentralized Video App Deployment
+            Frontend: ${{ needs.deploy-frontend.result }}
+            Backend: ${{ needs.deploy-backend.result }}
+            URL: ${{ secrets.VERCEL_URL }}
+
+  # Security scan
+  security-scan:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Run security audit
+        run: npm audit --audit-level=high
+
+      - name: 🛡️ CodeQL analysis
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript
+
+      - name: 🏗️ Autobuild
+        uses: github/codeql-action/autobuild@v2
+
+      - name: 📊 Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v2

@@ -1,0 +1,82 @@
+version: 2
+updates:
+  # Enable version updates for npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "ralphucious"
+    assignees:
+      - "ralphucious"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+    # Group dependency updates
+    groups:
+      development-dependencies:
+        patterns:
+          - "@types/*"
+          - "eslint*"
+          - "prettier*"
+          - "jest*"
+          - "playwright*"
+          - "vitest*"
+          - "vite*"
+          - "@vitejs/*"
+        update-types:
+          - "minor"
+          - "patch"
+      react-dependencies:
+        patterns:
+          - "react*"
+          - "@react*"
+        update-types:
+          - "minor"
+          - "patch"
+      build-dependencies:
+        patterns:
+          - "webpack*"
+          - "babel*"
+          - "postcss*"
+          - "tailwindcss*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Enable version updates for Docker
+  - package-ecosystem: "docker"
+    directory: "/docker"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "06:00"
+      timezone: "UTC"
+    reviewers:
+      - "ralphucious"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "automated"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "06:00"
+      timezone: "UTC"
+    reviewers:
+      - "ralphucious"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "automated"

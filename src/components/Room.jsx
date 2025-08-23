@@ -1,7 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
-import Peer from 'simple-peer';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import Video from './VideoChat'; // Changed from './Videochat'
 import VideoLayout from './VideoLayout';
 import Chat from './Chat';
@@ -14,52 +12,19 @@ import FeedbackModal from './FeedbackModal';
 import ShareModal from './ShareModal';
 import ConnectionStatus from './ConnectionStatus';
 import SessionHeader from './SessionHeader';
+import PerformanceDashboard from './PerformanceDashboard';
 import toast from 'react-hot-toast';
-
-const PROJECT_ID = import.meta.env.VITE_INFURA_PROJECT_ID;
-const API_KEY = import.meta.env.VITE_INFURA_API_SECRET;
-
-const socket = io('http://localhost:5001', { // Fixed port to match signaling server
-  reconnectionDelayMax: 10000,
-  reconnection: true,
-  reconnectionAttempts: 10
-});
-
-// Add error handling
-socket.on('connect_error', (error) => {
-  console.error('Connection Error:', error);
-  toast.error(`Connection Error: ${error.message}`);
-});
-
-socket.on('connect', () => {
-  console.log('Connected to signaling server');
-  toast.success('Connected to signaling server');
-});
-
-socket.on('disconnect', (reason) => {
-  console.log('Disconnected from signaling server:', reason);
-  toast.error(`Disconnected: ${reason}`);
-});
-
-socket.on('connect_timeout', () => {
-  console.error('Connection timeout');
-  toast.error('Connection timeout - please check your network');
-});
+import { useRoomServices } from '../hooks/useRoomServices';
+import { usePerformanceOptimization } from '../hooks/usePerformanceOptimization';
+import { useMobileOptimization, useAdaptiveQuality, useMobileUI } from '../hooks/useMobileOptimization';
+import { usePageTracking, useCallAnalytics, useMobileAnalytics } from '../hooks/useAnalytics';
 
 const Room = () => {
   const { roomId } = useParams();
-  const navigate = useNavigate();
-  const [stream, setStream] = useState(null);
-  const [peers, setPeers] = useState([]);
-  const [micOn, setMicOn] = useState(true);
-  const [camOn, setCamOn] = useState(true);
-  const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [useAdvancedLayout, setUseAdvancedLayout] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [messages, setMessages] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   
   // Engagement features state
   const [showPolls, setShowPolls] = useState(false);
@@ -77,8 +42,10 @@ const Room = () => {
   // Share modal state
   const [showShareModal, setShowShareModal] = useState(false);
 
+  // Performance dashboard state
+  const [showPerformanceDashboard, setShowPerformanceDashboard] = useState(false);
+
   const userVideo = useRef();
-  const peersRef = useRef(new Map());
   const [userInfo] = useState(() => {
     // Get user name from localStorage or generate a random one
     const savedName = localStorage.getItem('userName');
@@ -88,66 +55,51 @@ const Room = () => {
     };
   });
 
-  const toggleMic = () => {
-    if (stream) {
-      const audioTrack = stream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setMicOn(audioTrack.enabled);
-        toast.success(
-          audioTrack.enabled ? '🎤 Microphone unmuted' : '🔇 Microphone muted'
-        );
-      }
-    }
-  };
+  // Initialize room services
+  const {
+    stream,
+    peers,
+    messages,
+    unreadCount,
+    micOn,
+    camOn,
+    connectionStatus,
+    toggleMic,
+    toggleCamera,
+    handleShareScreen: serviceShareScreen,
+    handleSendMessage,
+    toggleChat: serviceToggleChat,
+    handleLeaveRoom: serviceLeaveRoom,
+    services
+  } = useRoomServices(roomId, userInfo);
 
-  const toggleCamera = () => {
-    if (stream) {
-      const videoTrack = stream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        setCamOn(videoTrack.enabled);
-        toast.success(
-          videoTrack.enabled ? '📹 Camera turned on' : '🎥 Camera turned off'
-        );
-      }
-    }
-  };
+  // Initialize performance optimization
+  const {
+    optimizePeerConnections,
+    applyPerformanceConstraints
+  } = usePerformanceOptimization({
+    peers,
+    stream,
+    roomId,
+    enabled: true
+  });
+
+  // Mobile-specific optimizations
+  const deviceCapabilities = useMobileOptimization();
+  const { qualitySettings } = useAdaptiveQuality({ 
+    stream, 
+    peers, 
+    deviceCapabilities 
+  });
+  const mobileUI = useMobileUI();
+
+  // Analytics integration
+  usePageTracking(`room_${roomId}`);
+  const callAnalytics = useCallAnalytics();
+  useMobileAnalytics();
 
   const handleShareScreen = async () => {
-    try {
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: true
-      });
-      userVideo.current.srcObject = screenStream;
-      toast.success('🖥️ Screen sharing started');
-
-      // Update all peer connections with the new stream
-      peersRef.current.forEach(({ peer }) => {
-        peer.replaceTrack(
-          stream.getVideoTracks()[0],
-          screenStream.getVideoTracks()[0],
-          stream
-        );
-      });
-
-      // Handle screen sharing stop
-      screenStream.getVideoTracks()[0].onended = () => {
-        userVideo.current.srcObject = stream;
-        peersRef.current.forEach(({ peer }) => {
-          peer.replaceTrack(
-            screenStream.getVideoTracks()[0],
-            stream.getVideoTracks()[0],
-            stream
-          );
-        });
-        toast.info('📤 Screen sharing ended');
-      };
-    } catch (err) {
-      console.error('Error sharing screen:', err);
-      toast.error('❌ Failed to share screen');
-    }
+    await serviceShareScreen();
   };
 
   const handleLeaveRoom = () => {
@@ -165,37 +117,14 @@ const Room = () => {
   };
 
   const performLeaveRoom = () => {
-    // Stop all tracks
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-    }
-    
-    // Destroy all peer connections
-    peersRef.current.forEach(({ peer }) => {
-      if (peer) {
-        peer.destroy();
-      }
-    });
-    
-    // Notify other users that we're leaving
-    socket.emit('user-leaving', { roomId, userId: socket.id, userName: userInfo.name });
-    
-    // Disconnect socket
-    socket.disconnect();
-    
-    // Clear state
-    setPeers([]);
-    setStream(null);
-    setConnectionStatus('disconnected');
+    // Track call end
+    callAnalytics.endCall(roomId);
     
     // Clear any stored layout preferences
     localStorage.removeItem('video-layout');
     localStorage.removeItem('layout-preset');
     
-    toast.success('Meeting ended successfully');
-    
-    // Navigate back to home page
-    navigate('/');
+    serviceLeaveRoom();
   };
 
   const handleFeedbackSubmit = (feedbackData) => {
@@ -209,30 +138,6 @@ const Room = () => {
     performLeaveRoom();
   };
 
-  const handleReconnect = () => {
-    toast.loading('Reconnecting...', { duration: 2000 });
-    
-    // Simple reconnection attempt
-    if (socket.disconnected) {
-      socket.connect();
-    }
-    
-    // Refresh media stream if needed
-    if (!stream) {
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        .then((currentStream) => {
-          setStream(currentStream);
-          if (userVideo.current) {
-            userVideo.current.srcObject = currentStream;
-          }
-          toast.success('Reconnected successfully!');
-        })
-        .catch((error) => {
-          console.error('Error reconnecting media:', error);
-          toast.error('Failed to reconnect media');
-        });
-    }
-  };
 
   const confirmLeaveRoom = () => {
     setShowLeaveConfirm(true);
@@ -242,48 +147,102 @@ const Room = () => {
     setShowLeaveConfirm(false);
   };
 
-  const handleSendMessage = (text) => {
-    socket.emit('send-message', { text });
-  };
+  // Apply performance constraints when stream is available
+  useEffect(() => {
+    if (stream) {
+      applyPerformanceConstraints(stream);
+      
+      // Apply mobile-specific quality settings
+      if (deviceCapabilities.isLowEndDevice || deviceCapabilities.batteryLevel < 0.3) {
+        const videoTrack = stream.getVideoTracks()[0];
+        if (videoTrack) {
+          videoTrack.applyConstraints(qualitySettings.video);
+        }
+      }
+    }
+  }, [stream, applyPerformanceConstraints, deviceCapabilities, qualitySettings]);
 
-  const toggleChat = () => {
-    setShowChat(!showChat);
-    if (!showChat) {
-      setUnreadCount(0); // Clear unread count when opening chat
+  // Optimize peer connections periodically
+  useEffect(() => {
+    if (peers.length > 0) {
+      const optimizationInterval = setInterval(() => {
+        const optimizations = optimizePeerConnections();
+        if (optimizations.length > 0) {
+          console.log('🔧 Peer optimizations available:', optimizations);
+        }
+      }, 30000); // Check every 30 seconds
+
+      return () => clearInterval(optimizationInterval);
+    }
+  }, [peers, optimizePeerConnections]);
+
+  // Performance dashboard toggle
+  const togglePerformanceDashboard = useCallback(() => {
+    setShowPerformanceDashboard(prev => !prev);
+  }, []);
+
+  // Engagement feature handlers (placeholders - to be implemented with actual backend integration)
+  const handleSendReaction = useCallback((emoji) => {
+    const reaction = {
+      id: Date.now(),
+      emoji,
+      userId: userInfo.name,
+      timestamp: Date.now()
+    };
+    setReactions(prev => [...prev, reaction]);
+    toast.success(`Sent reaction: ${emoji}`);
+  }, [userInfo.name]);
+
+  const handleRaiseHand = useCallback(() => {
+    const hand = {
+      userId: userInfo.name,
+      userName: userInfo.name,
+      timestamp: Date.now()
+    };
+    setRaisedHands(prev => [...prev, hand]);
+    toast.success('Hand raised');
+  }, [userInfo.name]);
+
+  const handleLowerHand = useCallback((userId) => {
+    setRaisedHands(prev => prev.filter(hand => hand.userId !== userId));
+    toast.success('Hand lowered');
+  }, []);
+
+  const toggleChat = useCallback(() => {
+    const newShowChat = !showChat;
+    setShowChat(newShowChat);
+    serviceToggleChat(newShowChat);
+  }, [showChat, serviceToggleChat]);
+
+  // Engagement handlers - using services (updated to use signaling service)
+  const handleCreatePoll = (pollData) => {
+    if (services.signaling) {
+      services.signaling.createPoll(pollData);
     }
   };
 
-  // Engagement handlers
-  const handleSendReaction = (emoji) => {
-    socket.emit('send-reaction', { emoji });
-  };
-
-  const handleCreatePoll = (pollData) => {
-    socket.emit('create-poll', pollData);
-  };
-
   const handleVotePoll = (pollId, optionIndex) => {
-    socket.emit('vote-poll', { pollId, optionIndex });
+    if (services.signaling) {
+      services.signaling.votePoll({ pollId, optionIndex });
+    }
   };
 
   const handleSubmitQuestion = (questionData) => {
-    socket.emit('submit-question', questionData);
+    if (services.signaling) {
+      services.signaling.submitQuestion(questionData);
+    }
   };
 
   const handleVoteQuestion = (questionId, userId) => {
-    socket.emit('vote-question', { questionId, userId });
+    if (services.signaling) {
+      services.signaling.voteQuestion({ questionId, userId });
+    }
   };
 
   const handleAnswerQuestion = (questionId, answerData) => {
-    socket.emit('answer-question', { questionId, ...answerData });
-  };
-
-  const handleRaiseHand = (handData) => {
-    socket.emit('raise-hand', handData);
-  };
-
-  const handleLowerHand = (userId) => {
-    socket.emit('lower-hand', { userId });
+    if (services.signaling) {
+      services.signaling.answerQuestion({ questionId, ...answerData });
+    }
   };
 
   const togglePolls = () => {
@@ -294,212 +253,96 @@ const Room = () => {
     setShowQA(!showQA);
   };
 
-  // Update the initial media stream effect
+  // Set up user video stream reference
   useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then((mediaStream) => {
-        setStream(mediaStream);
-        if (userVideo.current) {
-          userVideo.current.srcObject = mediaStream;
-        }
+    if (stream && userVideo.current) {
+      userVideo.current.srcObject = stream;
+      // Track call start when stream is available
+      callAnalytics.startCall(roomId);
+    }
+  }, [stream, callAnalytics, roomId]);
 
-        console.log('Joining room:', roomId, 'with user info:', userInfo);
-        socket.emit('join-room', { ...userInfo, roomId });
+  // Set up engagement event listeners
+  useEffect(() => {
+    if (!services.signaling) return;
 
-        socket.on('all-users', users => {
-          console.log('Received all-users:', users);
-          // First user in room is the host
-          setIsHost(users.length === 0);
-          const peers = [];
-          users.forEach(user => {
-            if (!peersRef.current.has(user.id)) {
-              try {
-                console.log('Creating peer for user:', user);
-                const peer = createPeer(user.id, socket.id, mediaStream);
-                peersRef.current.set(user.id, {
-                  peerID: user.id,
-                  peer,
-                  name: user.name,
-                  role: user.role,
-                  signaled: false
-                });
-                peers.push({
-                  peerID: user.id,
-                  peer,
-                  name: user.name,
-                  role: user.role
-                });
-              } catch (err) {
-                console.error('Error creating peer:', err);
-                toast.error(`Failed to connect to ${user.name}: ${err.message}`);
-              }
-            }
-          });
-          setPeers(Array.from(peersRef.current.values()));
-          setConnectionStatus('connected');
-          toast.success(`Connected to ${peers.length} participant(s)`);
-        });
+    // Set up engagement event listeners
+    services.signaling.on('polls-history', (pollsHistory) => {
+      setPolls(pollsHistory);
+    });
 
-        socket.on('user-joined', payload => {
-          console.log('User joined:', payload);
-          if (!peersRef.current.has(payload.callerID)) {
-            try {
-              const peer = addPeer(payload.signal, payload.callerID, mediaStream);
-              peersRef.current.set(payload.callerID, {
-                peerID: payload.callerID,
-                peer,
-                name: payload.name,
-                role: payload.role,
-                signaled: false
-              });
-              setPeers(Array.from(peersRef.current.values()));
-              toast.success(`${payload.name} joined the room`);
-            } catch (err) {
-              console.error('Error adding peer:', err);
-              toast.error(`Failed to connect to ${payload.name}: ${err.message}`);
-            }
-          }
-        });
+    services.signaling.on('questions-history', (questionsHistory) => {
+      setQuestions(questionsHistory);
+    });
 
-        socket.on('receiving-returned-signal', payload => {
-          console.log('Receiving returned signal:', payload);
-          const item = peersRef.current.get(payload.id);
-          if (item && !item.peer.destroyed && !item.signaled) {
-            try {
-              item.peer.signal(payload.signal);
-              item.signaled = true;
-            } catch (err) {
-              console.error('Error signaling peer:', err);
-              toast.error('Connection signal error');
-            }
-          }
-        });
+    services.signaling.on('raised-hands-history', (handsHistory) => {
+      setRaisedHands(handsHistory);
+    });
 
-        socket.on('user-left', (userId) => {
-          console.log('User left:', userId);
-          if (peersRef.current.has(userId)) {
-            const peerName = peersRef.current.get(userId).name;
-            peersRef.current.delete(userId);
-            setPeers(Array.from(peersRef.current.values()));
-            toast.info(`${peerName} left the room`);
-          }
-        });
+    services.signaling.on('new-reaction', (reaction) => {
+      setReactions(prev => [...prev, reaction]);
+    });
 
-        // Chat event listeners
-        socket.on('chat-history', (chatHistory) => {
-          setMessages(chatHistory);
-        });
+    services.signaling.on('new-poll', (poll) => {
+      setPolls(prev => [...prev, poll]);
+      toast.success(`New poll: ${poll.question}`);
+    });
 
-        socket.on('new-message', (message) => {
-          setMessages(prev => [...prev, message]);
-          // Increment unread count if chat is not open
-          if (!showChat) {
-            setUnreadCount(prev => prev + 1);
-          }
-        });
+    services.signaling.on('poll-updated', (updatedPoll) => {
+      setPolls(prev => prev.map(poll => 
+        poll.id === updatedPoll.id ? updatedPoll : poll
+      ));
+    });
 
-        // Engagement event listeners
-        socket.on('polls-history', (pollsHistory) => {
-          setPolls(pollsHistory);
-        });
+    services.signaling.on('new-question', (question) => {
+      setQuestions(prev => [...prev, question]);
+      toast.success(`New question from ${question.author}`);
+    });
 
-        socket.on('questions-history', (questionsHistory) => {
-          setQuestions(questionsHistory);
-        });
+    services.signaling.on('question-updated', (updatedQuestion) => {
+      setQuestions(prev => prev.map(question => 
+        question.id === updatedQuestion.id ? updatedQuestion : question
+      ));
+    });
 
-        socket.on('raised-hands-history', (handsHistory) => {
-          setRaisedHands(handsHistory);
-        });
+    services.signaling.on('hand-raised', (hand) => {
+      setRaisedHands(prev => [...prev, hand]);
+      toast.success(`${hand.userName} raised their hand`);
+    });
 
-        socket.on('new-reaction', (reaction) => {
-          setReactions(prev => [...prev, reaction]);
-        });
+    services.signaling.on('hand-lowered', (data) => {
+      setRaisedHands(prev => prev.filter(hand => hand.userId !== data.userId));
+    });
 
-        socket.on('new-poll', (poll) => {
-          setPolls(prev => [...prev, poll]);
-          toast.success(`New poll: ${poll.question}`);
-        });
+    // Determine if user is host (first user in room)
+    services.signaling.on('all-users', users => {
+      setIsHost(users.length === 0);
+    });
 
-        socket.on('poll-updated', (updatedPoll) => {
-          setPolls(prev => prev.map(poll => 
-            poll.id === updatedPoll.id ? updatedPoll : poll
-          ));
-        });
+    services.signaling.on('user-joined', () => {
+      callAnalytics.trackParticipantJoin();
+    });
 
-        socket.on('new-question', (question) => {
-          setQuestions(prev => [...prev, question]);
-          toast.success(`New question from ${question.author}`);
-        });
-
-        socket.on('question-updated', (updatedQuestion) => {
-          setQuestions(prev => prev.map(question => 
-            question.id === updatedQuestion.id ? updatedQuestion : question
-          ));
-        });
-
-        socket.on('hand-raised', (hand) => {
-          setRaisedHands(prev => [...prev, hand]);
-          toast.success(`${hand.userName} raised their hand`);
-        });
-
-        socket.on('hand-lowered', (data) => {
-          setRaisedHands(prev => prev.filter(hand => hand.userId !== data.userId));
-        });
-      })
-      .catch((error) => {
-        console.error('Error accessing media devices:', error);
-        let errorMessage = 'Failed to access camera or microphone';
-        
-        if (error.name === 'NotAllowedError') {
-          errorMessage = 'Camera/microphone access denied. Please allow permissions.';
-        } else if (error.name === 'NotFoundError') {
-          errorMessage = 'No camera or microphone found.';
-        } else if (error.name === 'NotReadableError') {
-          errorMessage = 'Camera or microphone is already in use.';
-        }
-        
-        toast.error(`❌ ${errorMessage}`);
-        setConnectionStatus('error');
-      });
+    services.signaling.on('user-left', () => {
+      callAnalytics.trackParticipantLeave();
+    });
 
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-      socket.off('all-users');
-      socket.off('user-joined');
-      socket.off('receiving-returned-signal');
-      socket.off('user-left');
-      socket.off('chat-history');
-      socket.off('new-message');
-      socket.off('polls-history');
-      socket.off('questions-history');
-      socket.off('raised-hands-history');
-      socket.off('new-reaction');
-      socket.off('new-poll');
-      socket.off('poll-updated');
-      socket.off('new-question');
-      socket.off('question-updated');
-      socket.off('hand-raised');
-      socket.off('hand-lowered');
+      services.signaling.off('polls-history');
+      services.signaling.off('questions-history');
+      services.signaling.off('raised-hands-history');
+      services.signaling.off('new-reaction');
+      services.signaling.off('new-poll');
+      services.signaling.off('poll-updated');
+      services.signaling.off('new-question');
+      services.signaling.off('question-updated');
+      services.signaling.off('hand-raised');
+      services.signaling.off('hand-lowered');
+      services.signaling.off('all-users');
     };
-  }, [roomId]);
+  }, [services.signaling]);
 
-  useEffect(() => {
-    if (stream) {
-      const monitor = setInterval(() => {
-        peersRef.current.forEach(({ peer }) => {
-          const stats = peer.getStats();
-          // Monitor connection quality
-          if (stats && stats.bandwidth < 100000) { // Less than 100 Kbps
-            toast.warning('Poor connection detected');
-          }
-        });
-      }, 5000);
-
-      return () => clearInterval(monitor);
-    }
-  }, [stream]);
+  // Connection monitoring is now handled by the services
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -516,137 +359,20 @@ const Room = () => {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [showLeaveConfirm, showChat]);
+  }, [showLeaveConfirm, showChat, toggleChat]);
 
-  function createPeer(userToSignal, callerID, stream) {
-    const peer = new Peer({
-      initiator: true,
-      trickle: false,
-      stream: stream,
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:global.stun.twilio.com:3478' }
-        ]
-      }
-    });
-
-    // Add stream handling
-    peer.on('stream', peerStream => {
-      setPeers(prevPeers => {
-        const peerIndex = prevPeers.findIndex(p => p.peerID === callerID);
-        if (peerIndex >= 0) {
-          const updatedPeers = [...prevPeers];
-          updatedPeers[peerIndex] = {
-            ...updatedPeers[peerIndex],
-            stream: peerStream
-          };
-          return updatedPeers;
-        }
-        return prevPeers;
-      });
-    });
-
-    peer.on('error', (err) => {
-      console.error('Peer error:', err);
-      toast.error(`Peer connection error: ${err.message || err.type}`);
-      
-      // Remove the failed peer
-      const peerIndex = peersRef.current.findIndex(p => p.peer === peer);
-      if (peerIndex !== -1) {
-        const peerName = peersRef.current[peerIndex].name;
-        peersRef.current.splice(peerIndex, 1);
-        setPeers(prev => prev.filter(p => p.peer !== peer));
-        toast.info(`Lost connection to ${peerName}`);
-      }
-    });
-
-    peer.on('close', () => {
-      console.log('Peer connection closed');
-      peer.destroy();
-    });
-
-    peer.on('connect', () => {
-      console.log('Peer connection established');
-    });
-
-    peer.on('signal', signal => {
-      if (!peer.destroyed) {
-        socket.emit('sending-signal', { userToSignal, callerID, signal });
-      }
-    });
-
-    return peer;
-  }
-
-  function addPeer(incomingSignal, callerID, stream) {
-    const peer = new Peer({
-      initiator: false,
-      trickle: false,
-      stream: stream,
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:global.stun.twilio.com:3478' }
-        ]
-      }
-    });
-
-    peer.on('signal', signal => {
-      if (!peer.destroyed) {
-        socket.emit('returning-signal', { signal, callerID });
-      }
-    });
-
-    peer.on('stream', peerStream => {
-      setPeers(prevPeers => {
-        const peerIndex = prevPeers.findIndex(p => p.peerID === callerID);
-        if (peerIndex >= 0) {
-          const updatedPeers = [...prevPeers];
-          updatedPeers[peerIndex] = {
-            ...updatedPeers[peerIndex],
-            stream: peerStream
-          };
-          return updatedPeers;
-        }
-        return prevPeers;
-      });
-    });
-
-    peer.on('error', (err) => {
-      console.error('Peer error:', err);
-      toast.error(`Peer connection error: ${err.message || err.type}`);
-      
-      // Remove the failed peer
-      const peerIndex = peersRef.current.findIndex(p => p.peer === peer);
-      if (peerIndex !== -1) {
-        const peerName = peersRef.current[peerIndex].name;
-        peersRef.current.splice(peerIndex, 1);
-        setPeers(prev => prev.filter(p => p.peer !== peer));
-        toast.info(`Lost connection to ${peerName}`);
-      }
-    });
-
-    peer.on('close', () => {
-      console.log('Peer connection closed');
-      peer.destroy();
-    });
-
-    peer.on('connect', () => {
-      console.log('Peer connection established');
-    });
-
-    // Only signal once
-    let signaled = false;
-    if (!signaled) {
-      peer.signal(incomingSignal);
-      signaled = true;
-    }
-    return peer;
-  }
+  // Peer connection functions are now handled by PeerConnectionService
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div 
+      className={`min-h-screen bg-gray-900 ${mobileUI.isKeyboardOpen ? 'mobile-keyboard-open' : ''}`}
+      style={{
+        paddingTop: mobileUI.safeAreaInsets.top,
+        paddingBottom: mobileUI.safeAreaInsets.bottom,
+        paddingLeft: mobileUI.safeAreaInsets.left,
+        paddingRight: mobileUI.safeAreaInsets.right
+      }}
+    >
       {/* Professional Session Header */}
       <SessionHeader
         roomId={roomId}
@@ -657,21 +383,30 @@ const Room = () => {
         connectionStatus={connectionStatus}
       />
 
-      {/* Main Content with Chat Panel Spacing */}
-      <div className={`transition-all duration-300 ${showChat ? 'mr-80 md:mr-96' : 'mr-0'}`}>
-        {/* Secondary Navigation for Additional Features */}
-        <div className="fixed top-16 left-4 right-4 flex items-center justify-center z-30 mt-1">
-        <div className="flex items-center gap-2 bg-gray-800/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-gray-700">
+      {/* Main Content with Panel Spacing */}
+      <div className={`transition-all duration-300 ${
+        (() => {
+          const openPanels = [showChat, showPolls, showQA].filter(Boolean).length;
+          if (openPanels === 0) return 'mr-0';
+          if (openPanels === 1) return 'mr-80 md:mr-96';
+          if (openPanels === 2) return 'mr-[480px] md:mr-[576px]'; // 2 * (240px on mobile, 288px on desktop)  
+          if (openPanels === 3) return 'mr-[720px] md:mr-[864px]'; // 3 * (240px on mobile, 288px on desktop)
+          return 'mr-0';
+        })()
+      }`}>
+        {/* Mobile-First Secondary Navigation */}
+        <div className="fixed top-16 left-2 right-2 sm:left-4 sm:right-4 flex items-center justify-center z-30 mt-1">
+        <div className="flex items-center gap-1 sm:gap-2 bg-gray-800/90 backdrop-blur-sm px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-700 max-w-full overflow-x-auto">
           <button
             onClick={toggleChat}
-            className={`flex items-center space-x-1 px-3 py-2 rounded-md transition-colors text-sm relative ${
+            className={`flex items-center space-x-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md transition-colors text-xs sm:text-sm relative whitespace-nowrap ${
               showChat 
                 ? 'text-white bg-blue-600 hover:bg-blue-700' 
                 : 'text-gray-300 hover:text-white hover:bg-gray-700'
             }`}
           >
-            <span>💬</span>
-            <span className="hidden sm:inline">Chat</span>
+            <span className="text-base sm:text-lg">💬</span>
+            <span className="hidden xs:inline sm:inline">Chat</span>
             <svg 
               className={`w-3 h-3 ml-1 transition-transform ${showChat ? 'rotate-180' : ''}`}
               fill="none" 
@@ -687,24 +422,64 @@ const Room = () => {
             )}
           </button>
 
+          <button
+            onClick={togglePolls}
+            className={`flex items-center space-x-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md transition-colors text-xs sm:text-sm relative whitespace-nowrap ${
+              showPolls 
+                ? 'text-white bg-green-600 hover:bg-green-700' 
+                : 'text-gray-300 hover:text-white hover:bg-gray-700'
+            }`}
+          >
+            <span className="text-base sm:text-lg">📊</span>
+            <span className="hidden xs:inline sm:inline">Polls</span>
+            <svg 
+              className={`w-3 h-3 ml-1 transition-transform ${showPolls ? 'rotate-180' : ''}`}
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <button
+            onClick={toggleQA}
+            className={`flex items-center space-x-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md transition-colors text-xs sm:text-sm relative whitespace-nowrap ${
+              showQA 
+                ? 'text-white bg-purple-600 hover:bg-purple-700' 
+                : 'text-gray-300 hover:text-white hover:bg-gray-700'
+            }`}
+          >
+            <span className="text-base sm:text-lg">❓</span>
+            <span className="hidden xs:inline sm:inline">Q&A</span>
+            <svg 
+              className={`w-3 h-3 ml-1 transition-transform ${showQA ? 'rotate-180' : ''}`}
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
         </div>
       </div>
 
-      {/* Simplified Controls Bar */}
-      <div className="fixed bottom-0 left-0 right-0 h-20 bg-gray-900/95 backdrop-blur-sm border-t border-gray-700 flex items-center justify-center gap-6 px-8 z-50">
+      {/* Mobile-Optimized Controls Bar */}
+      <div className="fixed bottom-0 left-0 right-0 h-16 sm:h-20 bg-gray-900/95 backdrop-blur-sm border-t border-gray-700 flex items-center justify-between sm:justify-center gap-2 sm:gap-6 px-2 sm:px-8 z-50">
         {/* Essential Controls */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1 sm:gap-4 flex-1 sm:flex-none justify-center sm:justify-start">
           {/* Microphone */}
           <button
             onClick={toggleMic}
-            className={`relative flex items-center justify-center w-12 h-12 rounded-full transition-all duration-200 ${
+            className={`relative flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full transition-all duration-200 touch-manipulation ${
               micOn 
-                ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-                : 'bg-red-500 hover:bg-red-600 text-white animate-pulse'
+                ? 'bg-gray-700 hover:bg-gray-600 active:bg-gray-500 text-white' 
+                : 'bg-red-500 hover:bg-red-600 active:bg-red-700 text-white animate-pulse'
             }`}
             title={micOn ? 'Mute microphone' : 'Unmute microphone'}
           >
-            <span className="text-xl">{micOn ? '🎤' : '🔇'}</span>
+            <span className="text-base sm:text-xl">{micOn ? '🎤' : '🔇'}</span>
             {!micOn && (
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full"></div>
             )}
@@ -713,49 +488,49 @@ const Room = () => {
           {/* Camera */}
           <button
             onClick={toggleCamera}
-            className={`relative flex items-center justify-center w-12 h-12 rounded-full transition-all duration-200 ${
+            className={`relative flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full transition-all duration-200 touch-manipulation ${
               camOn 
-                ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-                : 'bg-red-500 hover:bg-red-600 text-white animate-pulse'
+                ? 'bg-gray-700 hover:bg-gray-600 active:bg-gray-500 text-white' 
+                : 'bg-red-500 hover:bg-red-600 active:bg-red-700 text-white animate-pulse'
             }`}
             title={camOn ? 'Turn off camera' : 'Turn on camera'}
           >
-            <span className="text-xl">{camOn ? '📹' : '🎥'}</span>
+            <span className="text-base sm:text-xl">{camOn ? '📹' : '🎥'}</span>
             {!camOn && (
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full"></div>
             )}
           </button>
 
-          {/* Screen Share */}
+          {/* Screen Share - Hidden on smallest screens */}
           <button
             onClick={handleShareScreen}
-            className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-700 hover:bg-gray-600 text-white transition-all duration-200"
+            className="hidden xs:flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-700 hover:bg-gray-600 active:bg-gray-500 text-white transition-all duration-200 touch-manipulation"
             title="Share screen"
           >
-            <span className="text-xl">📺</span>
+            <span className="text-base sm:text-xl">📺</span>
           </button>
 
           {/* More Menu Toggle */}
           <button
             onClick={() => setShowMoreMenu(!showMoreMenu)}
-            className={`flex items-center justify-center w-12 h-12 rounded-full transition-all duration-200 ${
+            className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full transition-all duration-200 touch-manipulation ${
               showMoreMenu 
-                ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                : 'bg-gray-700 hover:bg-gray-600 text-white'
+                ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white' 
+                : 'bg-gray-700 hover:bg-gray-600 active:bg-gray-500 text-white'
             }`}
             title="More options"
           >
-            <span className="text-xl">⋯</span>
+            <span className="text-base sm:text-xl">⋯</span>
           </button>
         </div>
 
         {/* Leave Meeting Button */}
         <button
           onClick={confirmLeaveRoom}
-          className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500 hover:bg-red-600 text-white transition-all duration-200 shadow-lg hover:shadow-red-500/25"
+          className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-500 hover:bg-red-600 active:bg-red-700 text-white transition-all duration-200 shadow-lg hover:shadow-red-500/25 touch-manipulation"
           title="End Meeting"
         >
-          <span className="text-xl font-bold">✕</span>
+          <span className="text-base sm:text-xl font-bold">✕</span>
         </button>
       </div>
 
@@ -774,6 +549,8 @@ const Room = () => {
         onToggleQA={toggleQA}
         onToggleAdvancedLayout={() => setUseAdvancedLayout(!useAdvancedLayout)}
         useAdvancedLayout={useAdvancedLayout}
+        onTogglePerformanceDashboard={togglePerformanceDashboard}
+        showPerformanceDashboard={showPerformanceDashboard}
       />
 
       {/* Leave Confirmation Dialog */}
@@ -804,8 +581,8 @@ const Room = () => {
         </div>
       )}
 
-      {/* Video Grid */}
-      <div className="pt-28 pb-24 px-4">
+      {/* Mobile-Optimized Video Grid */}
+      <div className="pt-20 sm:pt-28 pb-16 sm:pb-24 px-2 sm:px-4">
         {useAdvancedLayout ? (
           <VideoLayout
             localStream={stream}
@@ -816,9 +593,9 @@ const Room = () => {
             }}
           />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-4">
             {/* Local Video */}
-            <div className="relative aspect-video bg-gray-800 rounded-lg overflow-hidden">
+            <div className="relative aspect-video bg-gray-800 rounded-lg overflow-hidden touch-pan-y">
               <video
                 ref={userVideo}
                 muted
@@ -826,14 +603,14 @@ const Room = () => {
                 playsInline
                 className="w-full h-full object-cover"
               />
-              <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded text-white text-sm">
+              <div className="absolute bottom-1 sm:bottom-2 left-1 sm:left-2 bg-black/60 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-white text-xs sm:text-sm">
                 {userInfo.name} (You)
               </div>
             </div>
 
             {/* Peer Videos */}
             {peers.map((peer, index) => (
-              <div key={index} className="relative aspect-video bg-gray-800 rounded-lg overflow-hidden">
+              <div key={index} className="relative aspect-video bg-gray-800 rounded-lg overflow-hidden touch-pan-y">
                 <Video
                   stream={peer.stream}
                   name={peer.name || `Peer ${index + 1}`}
@@ -847,36 +624,70 @@ const Room = () => {
       </div>
 
       {/* Chat Component */}
-      <Chat
-        messages={messages}
-        onSendMessage={handleSendMessage}
-        isOpen={showChat}
-        onToggle={toggleChat}
-        userInfo={userInfo}
-      />
+      {(() => {
+        const openPanels = [showChat, showPolls, showQA].filter(Boolean).length;
+        let stackPosition = 0;
+        if (showPolls && showQA) stackPosition = 2; // Chat is rightmost when all are open
+        else if (showPolls || showQA) stackPosition = 1; // Chat is rightmost when one other is open
+        
+        return (
+          <Chat
+            messages={messages}
+            onSendMessage={handleSendMessage}
+            isOpen={showChat}
+            onToggle={toggleChat}
+            userInfo={userInfo}
+            stackPosition={stackPosition}
+            totalOpenPanels={openPanels}
+          />
+        );
+      })()}
 
       {/* Polls Component */}
-      <Polls
-        isOpen={showPolls}
-        onToggle={togglePolls}
-        onCreatePoll={handleCreatePoll}
-        onVote={handleVotePoll}
-        polls={polls}
-        userInfo={userInfo}
-        isHost={isHost}
-      />
+      {(() => {
+        const openPanels = [showChat, showPolls, showQA].filter(Boolean).length;
+        let stackPosition = 0;
+        if (showChat && showQA) stackPosition = 1; // Polls is in middle when all are open
+        else if (showChat) stackPosition = 1; // Polls is leftmost when chat is open
+        else if (showQA) stackPosition = 1; // Polls is rightmost when only QA is also open
+        
+        return (
+          <Polls
+            isOpen={showPolls}
+            onToggle={togglePolls}
+            onCreatePoll={handleCreatePoll}
+            onVote={handleVotePoll}
+            polls={polls}
+            userInfo={userInfo}
+            isHost={isHost}
+            stackPosition={stackPosition}
+            totalOpenPanels={openPanels}
+          />
+        );
+      })()}
 
       {/* Q&A Component */}
-      <QA
-        isOpen={showQA}
-        onToggle={toggleQA}
-        onSubmitQuestion={handleSubmitQuestion}
-        onVoteQuestion={handleVoteQuestion}
-        onAnswerQuestion={handleAnswerQuestion}
-        questions={questions}
-        userInfo={userInfo}
-        isHost={isHost}
-      />
+      {(() => {
+        const openPanels = [showChat, showPolls, showQA].filter(Boolean).length;
+        let stackPosition = 0;
+        if (showChat && showPolls) stackPosition = 0; // QA is leftmost when all are open
+        else if (showChat || showPolls) stackPosition = 0; // QA is leftmost when others are open
+        
+        return (
+          <QA
+            isOpen={showQA}
+            onToggle={toggleQA}
+            onSubmitQuestion={handleSubmitQuestion}
+            onVoteQuestion={handleVoteQuestion}
+            onAnswerQuestion={handleAnswerQuestion}
+            questions={questions}
+            userInfo={userInfo}
+            isHost={isHost}
+            stackPosition={stackPosition}
+            totalOpenPanels={openPanels}
+          />
+        );
+      })()}
 
       {/* Feedback Modal */}
       <FeedbackModal
@@ -893,6 +704,14 @@ const Room = () => {
         onClose={() => setShowShareModal(false)}
         roomId={roomId}
         roomUrl={`${window.location.origin}/room/${roomId}`}
+      />
+
+      {/* Performance Dashboard */}
+      <PerformanceDashboard
+        peers={peers}
+        isOpen={showPerformanceDashboard}
+        onToggle={togglePerformanceDashboard}
+        position="bottom-right"
       />
     </div>
   );

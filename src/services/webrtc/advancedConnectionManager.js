@@ -4,7 +4,6 @@
  */
 
 import Peer from 'simple-peer';
-import { getStats } from 'webrtc-stats';
 
 class AdvancedConnectionManager {
   constructor(options = {}) {
@@ -297,7 +296,7 @@ class AdvancedConnectionManager {
         
         if (!pc) continue;
 
-        const stats = await getStats(pc);
+        const stats = await this.getWebRTCStats(pc);
         this.updateConnectionStats(peerId, stats);
 
       } catch (error) {
@@ -306,6 +305,72 @@ class AdvancedConnectionManager {
     }
 
     this.updatePerformanceMetrics();
+  }
+
+  async getWebRTCStats(peerConnection) {
+    try {
+      const statsReport = await peerConnection.getStats();
+      const stats = {
+        video: { local: {}, remote: {} },
+        audio: { local: {}, remote: {} },
+        connection: {}
+      };
+
+      statsReport.forEach(report => {
+        if (report.type === 'outbound-rtp') {
+          if (report.kind === 'video') {
+            stats.video.local = {
+              bytesSent: report.bytesSent || 0,
+              packetsSent: report.packetsSent || 0,
+              framesPerSecond: report.framesPerSecond || 0,
+              frameWidth: report.frameWidth || 0,
+              frameHeight: report.frameHeight || 0
+            };
+          } else if (report.kind === 'audio') {
+            stats.audio.local = {
+              bytesSent: report.bytesSent || 0,
+              packetsSent: report.packetsSent || 0
+            };
+          }
+        } else if (report.type === 'inbound-rtp') {
+          if (report.kind === 'video') {
+            stats.video.remote = {
+              bytesReceived: report.bytesReceived || 0,
+              packetsReceived: report.packetsReceived || 0,
+              packetsLost: report.packetsLost || 0,
+              jitter: report.jitter || 0,
+              framesPerSecond: report.framesPerSecond || 0,
+              frameWidth: report.frameWidth || 0,
+              frameHeight: report.frameHeight || 0
+            };
+          } else if (report.kind === 'audio') {
+            stats.audio.remote = {
+              bytesReceived: report.bytesReceived || 0,
+              packetsReceived: report.packetsReceived || 0,
+              packetsLost: report.packetsLost || 0,
+              jitter: report.jitter || 0
+            };
+          }
+        } else if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+          stats.connection = {
+            rtt: report.currentRoundTripTime ? report.currentRoundTripTime * 1000 : 0,
+            availableIncomingBitrate: report.availableIncomingBitrate || 0,
+            availableOutgoingBitrate: report.availableOutgoingBitrate || 0,
+            bytesReceived: report.bytesReceived || 0,
+            bytesSent: report.bytesSent || 0
+          };
+        }
+      });
+
+      return stats;
+    } catch (error) {
+      console.error('Failed to get WebRTC stats:', error);
+      return {
+        video: { local: {}, remote: {} },
+        audio: { local: {}, remote: {} },
+        connection: {}
+      };
+    }
   }
 
   updateConnectionStats(peerId, rawStats) {

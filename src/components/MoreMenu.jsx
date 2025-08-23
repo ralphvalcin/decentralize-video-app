@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import EmojiReactions from './EmojiReactions';
 import RaiseHand from './RaiseHand';
 
@@ -18,7 +18,9 @@ const MoreMenu = ({
   onTogglePolls,
   onToggleQA,
   onToggleAdvancedLayout,
-  useAdvancedLayout
+  useAdvancedLayout,
+  onTogglePerformanceDashboard,
+  showPerformanceDashboard
 }) => {
   const menuRef = useRef(null);
 
@@ -63,6 +65,15 @@ const MoreMenu = ({
       icon: useAdvancedLayout ? '📱' : '🎛️',
       onClick: () => {
         onToggleAdvancedLayout();
+        onClose();
+      }
+    },
+    {
+      id: 'performance',
+      label: showPerformanceDashboard ? 'Hide Performance' : 'Performance Dashboard',
+      icon: '📊',
+      onClick: () => {
+        onTogglePerformanceDashboard();
         onClose();
       }
     }

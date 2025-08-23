@@ -61,12 +61,13 @@ const Home = () => {
           reject(new Error(error.message || 'Authentication failed'));
         });
         
-        socket.on('connect_error', (error) => {
+        socket.on('connect_error', () => {
           clearTimeout(timeout);
           reject(new Error('Failed to connect to server'));
         });
       });
     } catch (error) {
+      console.error('Connection error:', error);
       throw error;
     } finally {
       setIsConnecting(false);
@@ -149,7 +150,7 @@ const Home = () => {
       try {
         await navigator.clipboard.writeText(roomId);
         toast.success('Room ID copied to clipboard!');
-      } catch (err) {
+      } catch {
         toast.error('Failed to copy room ID');
       }
     }

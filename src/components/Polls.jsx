@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import DraggableWindow from './DraggableWindow';
+import { useState } from 'react';
+import SidePanel from './SidePanel';
 
-const Polls = ({ isOpen, onToggle, onCreatePoll, onVote, polls = [], userInfo, isHost = false }) => {
+const Polls = ({ isOpen, onToggle, onCreatePoll, onVote, polls = [], userInfo, isHost = false, stackPosition = 0, totalOpenPanels = 1 }) => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newPoll, setNewPoll] = useState({
     question: '',
@@ -84,26 +84,25 @@ const Polls = ({ isOpen, onToggle, onCreatePoll, onVote, polls = [], userInfo, i
     return poll.votes && poll.votes[userInfo.id];
   };
 
+  const pollsIcon = (
+    <svg className="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+      <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+    </svg>
+  );
+
   const pollsTitle = (
     <div className="flex items-center justify-between w-full">
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
-          </svg>
-        </div>
-        <div>
-          <h3 className="text-surface-900 font-semibold text-sm">Polls</h3>
-          <p className="text-xs text-surface-500">
-            {polls.length} poll{polls.length !== 1 ? 's' : ''}
-          </p>
-        </div>
+      <div>
+        <h3 className="text-sm font-semibold text-white">Polls</h3>
+        <p className="text-xs text-slate-400">
+          {polls.length} poll{polls.length !== 1 ? 's' : ''}
+        </p>
       </div>
       <div className="flex items-center gap-2">
         {isHost && (
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="btn-ghost p-2 text-surface-500 hover:text-surface-700"
+            className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
             title="Create new poll"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,12 +115,14 @@ const Polls = ({ isOpen, onToggle, onCreatePoll, onVote, polls = [], userInfo, i
   );
 
   return (
-    <DraggableWindow
-      title={pollsTitle}
+    <SidePanel
       isOpen={isOpen}
-      onClose={onToggle}
-      defaultPosition={{ x: 20, y: 80 }}
-      width="w-96"
+      onToggle={onToggle}
+      title={pollsTitle}
+      icon={pollsIcon}
+      position="right"
+      stackPosition={stackPosition}
+      totalOpenPanels={totalOpenPanels}
       zIndex="z-40"
     >
 
@@ -129,17 +130,17 @@ const Polls = ({ isOpen, onToggle, onCreatePoll, onVote, polls = [], userInfo, i
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {/* Create Poll Form */}
         {showCreateForm && isHost && (
-          <div className="p-4 border-b border-gray-200">
-            <h4 className="text-gray-900 font-medium mb-3">Create New Poll</h4>
+          <div className="p-4 border-b border-slate-700">
+            <h4 className="text-white font-medium mb-3">Create New Poll</h4>
             
             <div className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Question</label>
+                <label className="block text-sm text-slate-300 mb-1">Question</label>
                 <textarea
                   value={newPoll.question}
                   onChange={(e) => setNewPoll(prev => ({ ...prev, question: e.target.value }))}
                   placeholder="What's your question?"
-                  className="input resize-none"
+                  className="w-full px-3 py-2 text-sm bg-slate-700 border border-slate-600 rounded-lg resize-none text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   rows={2}
                   maxLength={200}
                 />
@@ -150,7 +151,7 @@ const Polls = ({ isOpen, onToggle, onCreatePoll, onVote, polls = [], userInfo, i
                 <select
                   value={newPoll.type}
                   onChange={(e) => setNewPoll(prev => ({ ...prev, type: e.target.value }))}
-                  className="input"
+                  className="w-full px-3 py-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 >
                   <option value="multiple-choice">Multiple Choice</option>
                   <option value="yes-no">Yes/No</option>
@@ -168,13 +169,13 @@ const Polls = ({ isOpen, onToggle, onCreatePoll, onVote, polls = [], userInfo, i
                         value={option}
                         onChange={(e) => updateOption(index, e.target.value)}
                         placeholder={`Option ${index + 1}`}
-                        className="input flex-1"
+                        className="w-full px-3 py-2 text-sm bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors flex-1"
                         maxLength={100}
                       />
                       {newPoll.options.length > 2 && (
                         <button
                           onClick={() => removeOption(index)}
-                          className="btn-ghost p-2 text-red-400 hover:text-red-300"
+                          className="p-2 text-red-400 hover:text-red-300 hover:bg-slate-700 rounded-lg transition-colors"
                         >
                           ✕
                         </button>
@@ -184,7 +185,7 @@ const Polls = ({ isOpen, onToggle, onCreatePoll, onVote, polls = [], userInfo, i
                   {newPoll.options.length < 6 && (
                     <button
                       onClick={addOption}
-                      className="btn-secondary text-sm"
+                      className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white rounded-lg transition-colors text-sm"
                     >
                       + Add Option
                     </button>
@@ -193,7 +194,7 @@ const Polls = ({ isOpen, onToggle, onCreatePoll, onVote, polls = [], userInfo, i
               )}
 
               <div className="flex items-center gap-4 text-sm">
-                <label className="flex items-center gap-2 text-surface-300">
+                <label className="flex items-center gap-2 text-slate-300">
                   <input
                     type="checkbox"
                     checked={newPoll.allowMultiple}
@@ -202,7 +203,7 @@ const Polls = ({ isOpen, onToggle, onCreatePoll, onVote, polls = [], userInfo, i
                   />
                   Allow multiple choices
                 </label>
-                <label className="flex items-center gap-2 text-surface-300">
+                <label className="flex items-center gap-2 text-slate-300">
                   <input
                     type="checkbox"
                     checked={newPoll.anonymous}
@@ -216,13 +217,13 @@ const Polls = ({ isOpen, onToggle, onCreatePoll, onVote, polls = [], userInfo, i
               <div className="flex gap-2 pt-2">
                 <button
                   onClick={() => setShowCreateForm(false)}
-                  className="btn-secondary flex-1"
+                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white rounded-lg transition-colors flex-1"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCreatePoll}
-                  className="btn-primary flex-1"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex-1"
                   disabled={!newPoll.question.trim() || !newPoll.options.every(opt => opt.trim())}
                 >
                   Create Poll
@@ -236,16 +237,16 @@ const Polls = ({ isOpen, onToggle, onCreatePoll, onVote, polls = [], userInfo, i
         <div className="p-4 space-y-4">
           {polls.length === 0 ? (
             <div className="text-center py-8">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+              <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
                 </svg>
               </div>
-              <p className="text-gray-600 text-sm mb-2">No polls yet</p>
+              <p className="text-slate-300 text-sm mb-2">No polls yet</p>
               {isHost ? (
-                <p className="text-gray-400 text-xs">Create a poll to engage your audience!</p>
+                <p className="text-slate-500 text-xs">Create a poll to engage your audience!</p>
               ) : (
-                <p className="text-gray-400 text-xs">Waiting for the host to create polls</p>
+                <p className="text-slate-500 text-xs">Waiting for the host to create polls</p>
               )}
             </div>
           ) : (
@@ -262,12 +263,12 @@ const Polls = ({ isOpen, onToggle, onCreatePoll, onVote, polls = [], userInfo, i
           )}
         </div>
       </div>
-    </DraggableWindow>
+    </SidePanel>
   );
 };
 
 // Individual Poll Card Component
-const PollCard = ({ poll, onVote, hasVoted, results, userInfo }) => {
+const PollCard = ({ poll, onVote, hasVoted, results, userInfo: _userInfo }) => {
   const [selectedOptions, setSelectedOptions] = useState([]);
 
   const handleOptionSelect = (optionIndex) => {
@@ -353,7 +354,7 @@ const PollCard = ({ poll, onVote, hasVoted, results, userInfo }) => {
       {!hasVoted && selectedOptions.length > 0 && (
         <button
           onClick={submitVote}
-          className="btn-primary w-full mt-3 text-sm"
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors w-full mt-3 text-sm"
         >
           Submit Vote
         </button>

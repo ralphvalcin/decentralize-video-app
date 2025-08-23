@@ -2,9 +2,44 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Favicon and Icons -->
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+    
+    <!-- Mobile Meta Tags -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="VideoConf" />
+    
+    <!-- Theme Colors -->
+    <meta name="theme-color" content="#1F2937" />
+    <meta name="msapplication-TileColor" content="#1F2937" />
+    <meta name="msapplication-navbutton-color" content="#1F2937" />
+    
+    <!-- SEO Meta Tags -->
+    <title>Decentralized Video Conference - Secure P2P Video Calls</title>
+    <meta name="description" content="Secure, decentralized video conferencing with enterprise-grade features. No servers, maximum privacy." />
+    <meta name="keywords" content="video conference, webrtc, decentralized, secure, privacy" />
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Decentralized Video Conference" />
+    <meta property="og:description" content="Secure, decentralized video conferencing with enterprise-grade features" />
+    <meta property="og:image" content="/icons/icon-512x512.png" />
+    
+    <!-- Performance Hints -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+    <link rel="preconnect" href="//fonts.googleapis.com" crossorigin />
+    
+    <!-- Security Headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: wss: ws: https:; media-src 'self' blob:; camera; microphone;" />
   </head>
   <body>
     <div id="root"></div>

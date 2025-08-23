@@ -242,7 +242,7 @@ class BackgroundProcessor {
   }
 
   async applyBackgroundBlur(outputCanvas, mask, intensity) {
-    const outputCtx = outputCanvas.getContext('2d');
+    // Note: outputCtx variable removed - not used in current implementation
     
     if (this.gl && this.program) {
       // Use WebGL for better performance
@@ -363,15 +363,16 @@ class BackgroundProcessor {
     const bgCtx = bgCanvas.getContext('2d');
     
     switch (type) {
-      case 'gradient':
+      case 'gradient': {
         const gradient = bgCtx.createLinearGradient(0, 0, width, height);
         gradient.addColorStop(0, '#667eea');
         gradient.addColorStop(1, '#764ba2');
         bgCtx.fillStyle = gradient;
         bgCtx.fillRect(0, 0, width, height);
         break;
+      }
         
-      case 'office':
+      case 'office': {
         // Generate office-like background
         bgCtx.fillStyle = '#f0f0f0';
         bgCtx.fillRect(0, 0, width, height);
@@ -379,8 +380,9 @@ class BackgroundProcessor {
         bgCtx.fillStyle = '#d0d0d0';
         bgCtx.fillRect(width * 0.1, height * 0.2, width * 0.8, height * 0.6);
         break;
+      }
         
-      case 'nature':
+      case 'nature': {
         // Generate nature-like background
         const natureGrad = bgCtx.createLinearGradient(0, 0, 0, height);
         natureGrad.addColorStop(0, '#87CEEB');
@@ -389,6 +391,7 @@ class BackgroundProcessor {
         bgCtx.fillStyle = natureGrad;
         bgCtx.fillRect(0, 0, width, height);
         break;
+      }
         
       default:
         // Abstract background

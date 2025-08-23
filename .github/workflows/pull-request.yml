@@ -1,0 +1,338 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches: [ main, staging ]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==========================================
+  # PR Information and Labeling
+  # ==========================================
+  pr-info:
+    name: PR Information
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: PR Size Labeler
+      uses: codelytv/pr-size-labeler@v1
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        xs_label: 'size/xs'
+        s_label: 'size/s'
+        m_label: 'size/m'
+        l_label: 'size/l'
+        xl_label: 'size/xl'
+        message_if_xl: 'This PR is very large. Consider breaking it down into smaller PRs for easier review.'
+
+    - name: Auto-assign reviewers
+      uses: kentaro-m/auto-assign-action@v2.0.0
+      with:
+        configuration-path: '.github/auto-assign.yml'
+
+  # ==========================================
+  # Fast Feedback - Linting and Type Checking
+  # ==========================================
+  quick-checks:
+    name: Quick Checks
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run ESLint
+      run: npm run lint
+
+    - name: TypeScript check
+      run: npx tsc --noEmit
+
+    - name: Check for security issues
+      run: npm audit --audit-level=high
+
+  # ==========================================
+  # Unit Tests with Coverage
+  # ==========================================
+  test-coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests with coverage
+      run: npm run test:coverage
+
+    - name: Coverage Comment
+      uses: romeovs/lcov-reporter-action@v0.3.1
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        lcov-file: ./coverage/lcov.info
+        delete-old-comments: true
+
+    - name: Coverage Check
+      uses: VeryGoodOpenSource/very_good_coverage@v2
+      with:
+        path: './coverage/lcov.info'
+        min_coverage: 80
+        exclude: '**/*.test.js **/*.test.jsx **/*.spec.js **/*.config.js'
+
+  # ==========================================
+  # Build Verification
+  # ==========================================
+  build-check:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build application
+      run: npm run build
+
+    - name: Check bundle size
+      uses: andresz1/size-limit-action@v1
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        package_manager: npm
+
+  # ==========================================
+  # E2E Tests (Smoke Tests for PRs)
+  # ==========================================
+  e2e-smoke:
+    name: E2E Smoke Tests
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright
+      run: npx playwright install --with-deps
+
+    - name: Start services
+      run: |
+        npm run start:signaling &
+        npm run dev &
+        sleep 10
+
+    - name: Run smoke tests
+      run: npx playwright test --grep="@smoke"
+
+    - name: Upload test results
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: playwright-report
+        path: playwright-report/
+
+  # ==========================================
+  # Security Scanning
+  # ==========================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH,MEDIUM'
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # ==========================================
+  # Docker Build Test
+  # ==========================================
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build frontend image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/Dockerfile.frontend
+        push: false
+        tags: test-frontend:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build backend image  
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/Dockerfile.backend
+        push: false
+        tags: test-backend:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # ==========================================
+  # Lighthouse Performance Audit
+  # ==========================================
+  lighthouse:
+    name: Lighthouse Audit
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false && contains(github.event.pull_request.labels.*.name, 'needs-performance-check')
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run Lighthouse CI
+      run: |
+        npm install -g @lhci/cli
+        lhci autorun
+      env:
+        LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+  # ==========================================
+  # All Checks Complete
+  # ==========================================
+  all-checks:
+    name: All Checks Complete
+    runs-on: ubuntu-latest
+    needs: [quick-checks, test-coverage, build-check, e2e-smoke, security-scan, docker-build]
+    if: github.event.pull_request.draft == false
+    
+    steps:
+    - name: All checks passed
+      run: echo "✅ All PR checks have passed successfully!"
+
+    - name: Comment on PR
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { owner, repo, number } = context.issue;
+          await github.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: number,
+            body: `## ✅ All Checks Passed!
+            
+            Your pull request has successfully passed all required checks:
+            
+            - ✅ Code quality and linting
+            - ✅ TypeScript type checking  
+            - ✅ Unit tests with coverage
+            - ✅ Build verification
+            - ✅ E2E smoke tests
+            - ✅ Security scanning
+            - ✅ Docker build tests
+            
+            Your PR is ready for review! 🎉`
+          });
+
+  # ==========================================
+  # PR Failure Notification
+  # ==========================================
+  pr-failure:
+    name: PR Failure Notification
+    runs-on: ubuntu-latest
+    needs: [quick-checks, test-coverage, build-check, e2e-smoke, security-scan, docker-build]
+    if: failure() && github.event.pull_request.draft == false
+    
+    steps:
+    - name: Comment on failed PR
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { owner, repo, number } = context.issue;
+          await github.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: number,
+            body: `## ❌ Some Checks Failed
+            
+            Your pull request has some failing checks that need to be addressed:
+            
+            Please check the [Actions tab](https://github.com/${owner}/${repo}/actions/runs/${{ github.run_id }}) for detailed information about the failures.
+            
+            Once you've fixed the issues, the checks will run again automatically.`
+          });
+
+    - name: Add failed label
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { owner, repo, number } = context.issue;
+          await github.rest.issues.addLabels({
+            owner,
+            repo,
+            issue_number: number,
+            labels: ['needs-fixes']
+          });
