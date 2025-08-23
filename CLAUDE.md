@@ -12,8 +12,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Server Commands
 - `node signaling-server.js` - Start WebRTC signaling server (port 5001)
+- `npm run start:signaling` - Start signaling server via npm script
 
-Both the signaling server and frontend dev server must be running for the application to work properly.
+### Production Deployment
+- `./scripts/deploy-production.sh` - Automated production deployment script
+- `vercel --prod` - Deploy frontend to Vercel
+- `railway up` - Deploy backend to Railway/Render
+
+Both the signaling server and frontend dev server must be running for the application to work properly in development.
+
+## Production URLs
+- **Frontend**: https://decentralized-video-nvf0257p1-ralph-s-projects-676f1f6e.vercel.app
+- **Backend**: https://decentralize-video-app-2.onrender.com
+- **WebSocket**: wss://decentralize-video-app-2.onrender.com
+- **Health Check**: https://decentralize-video-app-2.onrender.com/health
 
 ## Architecture Overview
 
