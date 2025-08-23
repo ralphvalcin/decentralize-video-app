@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: signaling-server
+    env: node
+    plan: free
+    buildCommand: npm install --production
+    startCommand: node signaling-server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        fromService:
+          type: web
+          name: signaling-server
+          property: port
+      - key: FRONTEND_URL
+        value: https://decentralized-video-nvf0257p1-ralph-s-projects-676f1f6e.vercel.app
+      - key: JWT_SECRET
+        generateValue: true
