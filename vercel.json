@@ -55,7 +55,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: wss: ws: https: *.onrender.com; media-src 'self' blob: data:; connect-src 'self' https: wss: ws: *.onrender.com wss://*.onrender.com;"
+          "value": "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https: wss: ws: https://*.onrender.com wss://*.onrender.com https://decentralize-video-app-2.onrender.com wss://decentralize-video-app-2.onrender.com; script-src 'self' 'unsafe-inline' 'unsafe-eval';"
         }
       ]
     }

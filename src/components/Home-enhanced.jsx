@@ -28,7 +28,7 @@ const Home = () => {
     setIsConnecting(true);
     
     try {
-      const socket = io('http://localhost:5001');
+      const socket = io(import.meta.env.VITE_SIGNALING_SERVER_URL || 'wss://decentralize-video-app-2.onrender.com');
       
       return new Promise((resolve, reject) => {
         // Set timeout for connection
