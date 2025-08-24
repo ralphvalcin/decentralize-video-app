@@ -7,6 +7,7 @@ import crypto from 'crypto';
 // import bcrypt from 'bcryptjs'; // Currently unused
 import { EventEmitter } from 'events';
 import cron from 'node-cron';
+import { TURNCredentialService } from './src/services/TURNCredentialService.js';
 
 const window = new JSDOM('').window;
 const purify = DOMPurify(window);
@@ -400,6 +401,14 @@ const performanceMonitor = new PerformanceMonitor();
 const connectionPool = new ConnectionPoolManager(performanceMonitor);
 const roomManager = new RoomManager(performanceMonitor);
 
+// Initialize TURN Credential Service
+const turnCredentialService = new TURNCredentialService({
+  twilio: config.NODE_ENV === 'production' && process.env.TWILIO_ACCOUNT_SID ? {
+    accountSid: process.env.TWILIO_ACCOUNT_SID,
+    authToken: process.env.TWILIO_AUTH_TOKEN
+  } : null
+});
+
 // Create HTTP server for health checks and metrics
 const server = http.createServer((req, res) => {
   // Enable CORS for metrics endpoints
@@ -598,7 +607,8 @@ class RateLimiter {
       'vote-poll': { limit: 20, window: 60000 },
       'submit-question': { limit: 10, window: 300000 },
       'vote-question': { limit: 30, window: 60000 },
-      'answer-question': { limit: 10, window: 300000 }
+      'answer-question': { limit: 10, window: 300000 },
+      'turn-credentials': { limit: 10, window: 60000 } // 10 per minute
     };
     
     // Cleanup old entries every 5 minutes
@@ -958,6 +968,59 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error('Error in request-room-token:', error);
       socket.emit('error', { message: 'Server error processing token request', code: 'SERVER_ERROR' });
+      performanceMonitor.recordError();
+    }
+  });
+
+  // Handle TURN credentials request
+  socket.on('request-turn-credentials', async () => {
+    const requestStart = Date.now();
+    
+    if (!rateLimiter.checkLimit(socket.id, 'turn-credentials', 10)) {
+      socket.emit('turn-credentials-error', { message: 'Rate limit exceeded for TURN credentials', code: 'RATE_LIMIT_EXCEEDED' });
+      performanceMonitor.recordError();
+      return;
+    }
+
+    try {
+      const user = users[socket.id];
+      const userId = user?.id || socket.id;
+      
+      logSecurityEvent('TURN_CREDENTIALS_REQUESTED', userId, {
+        userAgent: socket.handshake.headers['user-agent'],
+        ip: socket.handshake.address
+      });
+
+      const turnConfig = await turnCredentialService.getTURNCredentials(userId);
+      
+      if (turnConfig && turnConfig.servers.length > 0) {
+        socket.emit('turn-credentials', turnConfig);
+        
+        logSecurityEvent('TURN_CREDENTIALS_PROVIDED', userId, {
+          serverCount: turnConfig.servers.length,
+          hasAuthentication: turnConfig.servers.every(s => s.username && s.credential)
+        });
+        
+        performanceMonitor.recordMessage(Date.now() - requestStart);
+      } else {
+        socket.emit('turn-credentials-error', { 
+          message: 'No TURN servers configured', 
+          code: 'NO_TURN_SERVERS' 
+        });
+        performanceMonitor.recordError();
+      }
+    } catch (error) {
+      console.error('Error providing TURN credentials:', error);
+      
+      logSecurityEvent('TURN_CREDENTIALS_ERROR', socket.id, {
+        error: error.message,
+        severity: 'high'
+      });
+      
+      socket.emit('turn-credentials-error', { 
+        message: 'Failed to generate TURN credentials', 
+        code: 'SERVER_ERROR' 
+      });
       performanceMonitor.recordError();
     }
   });

@@ -229,20 +229,144 @@ export function setupCSPViolationReporting() {
   });
 }
 
-// Secure WebRTC configuration
-export function getSecureWebRTCConfig() {
-  return {
-    iceServers: [
-      // Use TURN servers with authentication in production
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:global.stun.twilio.com:3478' }
-    ],
+// Generate time-based TURN credentials
+export function generateTURNCredentials(secret, ttl = 86400) {
+  const unixTimeStamp = Math.floor(Date.now() / 1000) + ttl; // TTL in seconds
+  const username = unixTimeStamp.toString();
+  
+  // Create HMAC-SHA1 hash for the password
+  const hmac = CryptoJS.HmacSHA1(username, secret);
+  const password = CryptoJS.enc.Base64.stringify(hmac);
+  
+  return { username, password };
+}
+
+// Secure WebRTC configuration with authenticated TURN servers
+export function getSecureWebRTCConfig(turnConfig = {}) {
+  const config = {
+    iceServers: [],
     iceCandidatePoolSize: 10,
     // Enhanced security settings
     bundlePolicy: 'max-bundle',
     rtcpMuxPolicy: 'require',
-    sdpSemantics: 'unified-plan'
+    sdpSemantics: 'unified-plan',
+    // Security constraints
+    iceTransportPolicy: 'all', // Can be set to 'relay' for TURN-only in high-security environments
+    rtcpMuxPolicy: 'require',
   };
+
+  // Always include STUN servers for initial connectivity
+  config.iceServers.push(
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:global.stun.twilio.com:3478' }
+  );
+
+  // Add TURN servers with authentication if provided
+  if (turnConfig.servers && turnConfig.servers.length > 0) {
+    turnConfig.servers.forEach(server => {
+      if (server.urls && server.username && server.credential) {
+        config.iceServers.push({
+          urls: server.urls,
+          username: server.username,
+          credential: server.credential,
+          credentialType: server.credentialType || 'password'
+        });
+      }
+    });
+  }
+
+  // Production TURN servers (examples - replace with your actual servers)
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production') {
+    // Add production TURN servers with environment-based credentials
+    const prodTurnServers = getProdTURNServers();
+    config.iceServers.push(...prodTurnServers);
+  }
+
+  return config;
+}
+
+// Get production TURN servers configuration
+function getProdTURNServers() {
+  const turnServers = [];
+  
+  // Environment-based TURN server configuration
+  if (typeof process !== 'undefined') {
+    const env = process.env;
+    
+    // Primary TURN server
+    if (env.TURN_SERVER_URL && env.TURN_SECRET) {
+      const credentials = generateTURNCredentials(env.TURN_SECRET, 86400);
+      turnServers.push({
+        urls: [
+          `turn:${env.TURN_SERVER_URL}:3478?transport=udp`,
+          `turn:${env.TURN_SERVER_URL}:3478?transport=tcp`,
+          `turns:${env.TURN_SERVER_URL}:5349?transport=tcp`
+        ],
+        username: credentials.username,
+        credential: credentials.password,
+        credentialType: 'password'
+      });
+    }
+    
+    // Secondary TURN server for redundancy
+    if (env.TURN_SERVER_URL_2 && env.TURN_SECRET_2) {
+      const credentials = generateTURNCredentials(env.TURN_SECRET_2, 86400);
+      turnServers.push({
+        urls: [
+          `turn:${env.TURN_SERVER_URL_2}:3478?transport=udp`,
+          `turn:${env.TURN_SERVER_URL_2}:3478?transport=tcp`,
+          `turns:${env.TURN_SERVER_URL_2}:5349?transport=tcp`
+        ],
+        username: credentials.username,
+        credential: credentials.password,
+        credentialType: 'password'
+      });
+    }
+
+    // Twilio TURN servers (if using Twilio)
+    if (env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN) {
+      // Note: In a real implementation, you'd fetch these from Twilio's API
+      // This is a placeholder for the structure
+      turnServers.push({
+        urls: 'turn:global.turn.twilio.com:3478?transport=udp',
+        username: env.TWILIO_USERNAME || '', // Generated from Twilio API
+        credential: env.TWILIO_CREDENTIAL || '', // Generated from Twilio API
+        credentialType: 'password'
+      });
+    }
+  }
+  
+  return turnServers;
+}
+
+// Validate TURN server configuration
+export function validateTURNConfig(turnConfig) {
+  if (!turnConfig || !Array.isArray(turnConfig.servers)) {
+    return { isValid: false, error: 'TURN config must have servers array' };
+  }
+
+  if (turnConfig.servers.length === 0) {
+    return { isValid: false, error: 'TURN config must have at least one server' };
+  }
+
+  for (const server of turnConfig.servers) {
+    if (!server.urls) {
+      return { isValid: false, error: 'TURN server missing URLs' };
+    }
+    if (!server.username || !server.credential) {
+      return { isValid: false, error: 'TURN server missing credentials' };
+    }
+    
+    // Validate URL format
+    const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+    for (const url of urls) {
+      if (!url.match(/^turns?:[^:\/]+:\d+(\?transport=\w+)?$/)) {
+        return { isValid: false, error: `Invalid TURN URL format: ${url}` };
+      }
+    }
+  }
+
+  return { isValid: true };
 }
 
 // Check for security vulnerabilities in WebRTC connection

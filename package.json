@@ -48,7 +48,8 @@
     "docs:serve": "npx http-server docs -p 8080 -o",
     "ai:validate": "npm run test:ai:quick && npm run test:ai:components",
     "security:full": "npm audit && npm run security:scan && node scripts/security-compliance-check.js",
-    "team:sync": "node scripts/team-sync-check.js"
+    "team:sync": "node scripts/team-sync-check.js",
+    "test:turn": "node scripts/test-turn-configuration.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -57,7 +58,6 @@
     "crypto-js": "^4.2.0",
     "dompurify": "^3.2.6",
     "eventemitter3": "^5.0.1",
-    "ipfs-http-client": "^56.0.2",
     "jsdom": "^26.1.0",
     "jsonwebtoken": "^9.0.2",
     "lodash-es": "^4.17.21",
@@ -94,6 +94,7 @@
     "autoprefixer": "^10.4.16",
     "babel-jest": "^30.0.5",
     "concurrently": "^8.2.2",
+    "dotenv": "^17.2.1",
     "eslint": "^9.31.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
@@ -108,6 +109,6 @@
     "tailwindcss": "^3.3.5",
     "ts-jest": "^29.4.1",
     "typescript": "^5.3.3",
-    "vite": "^4.4.5"
+    "vite": "^6.3.5"
   }
 }

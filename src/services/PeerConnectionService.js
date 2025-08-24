@@ -1,5 +1,6 @@
 import Peer from 'simple-peer';
 import toast from 'react-hot-toast';
+import { getSecureWebRTCConfig, validateTURNConfig, SecurityLogger } from '../utils/security.js';
 
 class PeerConnectionService {
   constructor(signalingService) {
@@ -7,12 +8,85 @@ class PeerConnectionService {
     this.peers = new Map(); // Map of userId -> peer data
     this.onPeersUpdated = null;
     this.onStreamReceived = null;
+    
+    // Initialize secure WebRTC configuration
+    this.webrtcConfig = null;
+    this.turnConfig = null;
+    this.initializeSecureConfig();
+  }
 
-    // ICE servers configuration
-    this.iceServers = [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:global.stun.twilio.com:3478' }
-    ];
+  // Initialize secure WebRTC configuration with TURN servers
+  initializeSecureConfig() {
+    try {
+      // Get TURN configuration from signaling service or environment
+      this.requestTURNConfig().then(turnConfig => {
+        this.turnConfig = turnConfig;
+        this.webrtcConfig = getSecureWebRTCConfig(turnConfig);
+        
+        SecurityLogger.logSecurityEvent('WEBRTC_CONFIG_INITIALIZED', {
+          turnServersCount: turnConfig?.servers?.length || 0,
+          stunServersCount: this.webrtcConfig.iceServers.filter(s => s.urls.includes('stun')).length,
+          iceTransportPolicy: this.webrtcConfig.iceTransportPolicy
+        });
+      }).catch(error => {
+        console.warn('Failed to get TURN config, using STUN-only:', error);
+        this.webrtcConfig = getSecureWebRTCConfig();
+        
+        SecurityLogger.logSecurityEvent('WEBRTC_CONFIG_FALLBACK', {
+          error: error.message,
+          fallbackToStun: true
+        });
+      });
+    } catch (error) {
+      console.error('Error initializing WebRTC config:', error);
+      this.webrtcConfig = getSecureWebRTCConfig();
+    }
+  }
+
+  // Request TURN server configuration from signaling server
+  async requestTURNConfig() {
+    try {
+      return new Promise((resolve, reject) => {
+        if (!this.signalingService?.socket) {
+          reject(new Error('Signaling service not available'));
+          return;
+        }
+
+        // Request TURN credentials from signaling server
+        this.signalingService.socket.emit('request-turn-credentials');
+        
+        const timeout = setTimeout(() => {
+          reject(new Error('TURN credentials request timeout'));
+        }, 5000);
+
+        this.signalingService.socket.once('turn-credentials', (turnData) => {
+          clearTimeout(timeout);
+          
+          if (turnData && turnData.servers) {
+            const validation = validateTURNConfig(turnData);
+            if (validation.isValid) {
+              resolve(turnData);
+            } else {
+              reject(new Error(`Invalid TURN config: ${validation.error}`));
+            }
+          } else {
+            reject(new Error('Invalid TURN credentials received'));
+          }
+        });
+
+        this.signalingService.socket.once('turn-credentials-error', (error) => {
+          clearTimeout(timeout);
+          reject(new Error(error.message || 'Failed to get TURN credentials'));
+        });
+      });
+    } catch (error) {
+      throw new Error(`TURN config request failed: ${error.message}`);
+    }
+  }
+
+  // Get current WebRTC configuration
+  getWebRTCConfig() {
+    return this.webrtcConfig || getSecureWebRTCConfig();
   }
 
   // Set callback functions
@@ -22,13 +96,12 @@ class PeerConnectionService {
   }
 
   createPeer(userToSignal, callerID, stream) {
+    const config = this.getWebRTCConfig();
     const peer = new Peer({
       initiator: true,
       trickle: false,
       stream: stream,
-      config: {
-        iceServers: this.iceServers
-      }
+      config: config
     });
 
     this.setupPeerEventHandlers(peer, callerID);
@@ -43,13 +116,12 @@ class PeerConnectionService {
   }
 
   addPeer(incomingSignal, callerID, stream) {
+    const config = this.getWebRTCConfig();
     const peer = new Peer({
       initiator: false,
       trickle: false,
       stream: stream,
-      config: {
-        iceServers: this.iceServers
-      }
+      config: config
     });
 
     this.setupPeerEventHandlers(peer, callerID);
