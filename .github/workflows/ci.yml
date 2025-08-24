@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0
 
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -87,7 +87,7 @@ jobs:
         node-version: ['16', '18', '20']
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
@@ -120,7 +120,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -170,7 +170,7 @@ jobs:
       backend-digest: ${{ steps.build-backend.outputs.digest }}
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -255,7 +255,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Deploy Frontend to Vercel
       uses: amondnet/vercel-action@v25
@@ -281,7 +281,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
