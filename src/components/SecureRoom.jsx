@@ -119,6 +119,7 @@ const SecureRoom = () => {
   });
 
   // SECURITY ENHANCEMENT: Secure authentication flow
+   
   useEffect(() => {
     const authenticateUser = async () => {
       try {
@@ -196,6 +197,7 @@ const SecureRoom = () => {
   }, [roomId, userInfo.name]);
 
   // SECURITY ENHANCEMENT: Secure media stream initialization
+   
   useEffect(() => {
     if (!isAuthenticated || !roomToken || !socket) return;
 

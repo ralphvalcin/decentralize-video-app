@@ -1,0 +1,364 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: video-chat-config
+  namespace: video-chat
+  labels:
+    app.kubernetes.io/name: video-chat
+    app.kubernetes.io/component: config
+data:
+  # Environment configuration
+  NODE_ENV: "production"
+  
+  # Regional configuration (to be replaced by deployment script)
+  AWS_REGION: "REGION_PLACEHOLDER"
+  CLUSTER_REGION: "REGION_PLACEHOLDER"
+  IS_PRIMARY_REGION: "IS_PRIMARY_PLACEHOLDER"
+  
+  # Frontend URLs (region-specific)
+  FRONTEND_URL: "https://REGION_PLACEHOLDER.video-chat.example.com"
+  
+  # Redis configuration
+  REDIS_HOST: "REDIS_ENDPOINT_PLACEHOLDER"
+  REDIS_PORT: "6379"
+  REDIS_CLUSTER_ENABLED: "true"
+  REDIS_TLS_ENABLED: "true"
+  
+  # Cross-region synchronization
+  CROSS_REGION_SYNC_ENABLED: "true"
+  PRIMARY_REDIS_ENDPOINT: "PRIMARY_REDIS_PLACEHOLDER"
+  SECONDARY_REGIONS: "SECONDARY_REGIONS_PLACEHOLDER"
+  
+  # Global Accelerator configuration
+  GLOBAL_ACCELERATOR_ENDPOINT: "GLOBAL_ACCELERATOR_PLACEHOLDER"
+  ENABLE_GLOBAL_ACCELERATOR: "true"
+  
+  # WebRTC optimization settings
+  WEBRTC_STUN_SERVERS: |
+    [
+      {"urls": "stun:stun.l.google.com:19302"},
+      {"urls": "stun:stun1.l.google.com:19302"},
+      {"urls": "stun:stun2.l.google.com:19302"},
+      {"urls": "stun:global-stun.video-chat.example.com:3478"}
+    ]
+  
+  WEBRTC_TURN_SERVERS: |
+    [
+      {
+        "urls": "turn:REGION_PLACEHOLDER-turn.video-chat.example.com:3478",
+        "username": "webrtc-user",
+        "credential": "TURN_CREDENTIAL_PLACEHOLDER"
+      }
+    ]
+  
+  # Connection limits and optimization
+  MAX_CONNECTIONS_PER_POD: "100"
+  CONNECTION_TIMEOUT: "30000"
+  HEARTBEAT_INTERVAL: "25000"
+  HEARTBEAT_TIMEOUT: "5000"
+  PING_INTERVAL: "25000"
+  PING_TIMEOUT: "5000"
+  
+  # Room management
+  MAX_USERS_PER_ROOM: "50"
+  ROOM_CLEANUP_INTERVAL: "300000"  # 5 minutes
+  EMPTY_ROOM_TIMEOUT: "900000"     # 15 minutes
+  
+  # Performance monitoring
+  ENABLE_METRICS: "true"
+  METRICS_PORT: "5001"
+  METRICS_PATH: "/metrics"
+  ENABLE_DETAILED_METRICS: "true"
+  
+  # Logging configuration
+  LOG_LEVEL: "info"
+  ENABLE_ACCESS_LOGS: "true"
+  LOG_FORMAT: "json"
+  
+  # Security settings
+  CORS_ORIGINS: |
+    [
+      "https://video-chat.example.com",
+      "https://*.video-chat.example.com",
+      "https://us-west-2.video-chat.example.com",
+      "https://eu-west-1.video-chat.example.com",
+      "https://ap-southeast-1.video-chat.example.com"
+    ]
+  
+  # Rate limiting
+  RATE_LIMIT_WINDOW: "60000"       # 1 minute
+  RATE_LIMIT_MAX_REQUESTS: "1000"  # per window per IP
+  WEBSOCKET_RATE_LIMIT: "100"      # messages per second per connection
+  
+  # Health check configuration
+  HEALTH_CHECK_TIMEOUT: "5000"
+  READY_CHECK_TIMEOUT: "3000"
+  
+  # Database configuration (if needed)
+  DATABASE_POOL_MIN: "5"
+  DATABASE_POOL_MAX: "20"
+  DATABASE_TIMEOUT: "30000"
+  
+  # Cache configuration
+  CACHE_TTL_DEFAULT: "300"         # 5 minutes
+  CACHE_TTL_USER_SESSION: "1800"   # 30 minutes
+  CACHE_TTL_ROOM_STATE: "600"      # 10 minutes
+  
+  # Feature flags
+  ENABLE_ROOM_RECORDING: "false"
+  ENABLE_CHAT_HISTORY: "true"
+  ENABLE_USER_ANALYTICS: "true"
+  ENABLE_CONNECTION_QUALITY_MONITORING: "true"
+  
+  # Regional failover configuration
+  FAILOVER_ENABLED: "true"
+  FAILOVER_TIMEOUT: "10000"        # 10 seconds
+  FAILOVER_RETRY_ATTEMPTS: "3"
+  FAILOVER_BACKOFF_MULTIPLIER: "2"
+  
+  # Load balancing
+  STICKY_SESSIONS: "true"
+  SESSION_AFFINITY_TIMEOUT: "1800" # 30 minutes
+  LOAD_BALANCE_ALGORITHM: "least_connections"
+  
+  # Bandwidth optimization
+  ENABLE_ADAPTIVE_BITRATE: "true"
+  DEFAULT_VIDEO_BITRATE: "1000000" # 1 Mbps
+  MAX_VIDEO_BITRATE: "2500000"     # 2.5 Mbps
+  MIN_VIDEO_BITRATE: "300000"      # 300 Kbps
+  
+  # Audio optimization
+  DEFAULT_AUDIO_BITRATE: "128000"  # 128 Kbps
+  AUDIO_CODEC_PREFERENCE: "opus"
+  ENABLE_ECHO_CANCELLATION: "true"
+  ENABLE_NOISE_SUPPRESSION: "true"
+  
+  # Network optimization
+  TCP_KEEPALIVE_ENABLED: "true"
+  TCP_KEEPALIVE_INTERVAL: "30"
+  TCP_KEEPALIVE_PROBES: "3"
+  TCP_KEEPALIVE_TIME: "7200"
+  
+  # Scaling triggers
+  SCALE_UP_CPU_THRESHOLD: "60"
+  SCALE_UP_MEMORY_THRESHOLD: "70"
+  SCALE_UP_CONNECTION_THRESHOLD: "80"
+  SCALE_DOWN_DELAY: "300"          # 5 minutes
+  
+  # Regional routing preferences
+  REGION_ROUTING_WEIGHTS: |
+    {
+      "us-west-2": 40,
+      "eu-west-1": 30,
+      "ap-southeast-1": 30
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: video-chat-nginx-config
+  namespace: video-chat
+  labels:
+    app.kubernetes.io/name: video-chat
+    app.kubernetes.io/component: nginx-config
+data:
+  nginx.conf: |
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+    
+    events {
+        worker_connections 4096;
+        use epoll;
+        multi_accept on;
+    }
+    
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+        
+        # Logging format
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                       '$status $body_bytes_sent "$http_referer" '
+                       '"$http_user_agent" "$http_x_forwarded_for" '
+                       'rt=$request_time uct="$upstream_connect_time" '
+                       'uht="$upstream_header_time" urt="$upstream_response_time"';
+        
+        access_log /var/log/nginx/access.log main;
+        
+        # Basic optimization
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        types_hash_max_size 2048;
+        client_max_body_size 10M;
+        
+        # Gzip compression
+        gzip on;
+        gzip_vary on;
+        gzip_proxied any;
+        gzip_comp_level 6;
+        gzip_types
+            text/plain
+            text/css
+            text/xml
+            text/javascript
+            application/javascript
+            application/xml+rss
+            application/json
+            application/xml
+            image/svg+xml;
+        
+        # Rate limiting for WebSocket connections
+        limit_req_zone $binary_remote_addr zone=websocket:10m rate=10r/s;
+        limit_req_zone $binary_remote_addr zone=api:10m rate=100r/m;
+        
+        # Upstream for backend services
+        upstream backend {
+            least_conn;
+            server video-chat-backend-service:5001 max_fails=3 fail_timeout=30s;
+            keepalive 32;
+        }
+        
+        # WebSocket upgrade configuration
+        map $http_upgrade $connection_upgrade {
+            default upgrade;
+            '' close;
+        }
+        
+        server {
+            listen 80 default_server;
+            server_name _;
+            
+            # Health check endpoint
+            location /health {
+                access_log off;
+                return 200 "healthy\n";
+                add_header Content-Type text/plain;
+            }
+            
+            # Metrics endpoint for monitoring
+            location /nginx-metrics {
+                access_log off;
+                return 200 "# TYPE nginx_up gauge\nnginx_up 1\n";
+                add_header Content-Type text/plain;
+            }
+            
+            # WebSocket proxy for Socket.IO
+            location /socket.io/ {
+                limit_req zone=websocket burst=20 nodelay;
+                
+                proxy_pass http://backend;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection $connection_upgrade;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                
+                # WebSocket-specific timeouts
+                proxy_connect_timeout 60s;
+                proxy_send_timeout 60s;
+                proxy_read_timeout 300s;
+                
+                # Disable buffering for real-time communication
+                proxy_buffering off;
+                proxy_cache off;
+            }
+            
+            # API endpoints
+            location /api/ {
+                limit_req zone=api burst=50 nodelay;
+                
+                proxy_pass http://backend;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                
+                # API-specific timeouts
+                proxy_connect_timeout 30s;
+                proxy_send_timeout 30s;
+                proxy_read_timeout 30s;
+            }
+            
+            # Health and metrics endpoints
+            location ~ ^/(health|ready|metrics)$ {
+                proxy_pass http://backend;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                
+                access_log off;
+            }
+            
+            # Static file serving (if needed)
+            location /static/ {
+                expires 1y;
+                add_header Cache-Control "public, immutable";
+                add_header X-Content-Type-Options nosniff;
+            }
+            
+            # Default location for health checks
+            location / {
+                return 200 "Video Chat Backend - Region: REGION_PLACEHOLDER\n";
+                add_header Content-Type text/plain;
+            }
+        }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: video-chat-monitoring-config
+  namespace: video-chat
+  labels:
+    app.kubernetes.io/name: video-chat
+    app.kubernetes.io/component: monitoring-config
+data:
+  # Prometheus configuration for custom metrics
+  prometheus-rules.yaml: |
+    groups:
+    - name: video-chat-webrtc
+      rules:
+      - alert: HighWebRTCConnectionFailureRate
+        expr: rate(webrtc_failed_connections_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: video-chat
+        annotations:
+          summary: "High WebRTC connection failure rate"
+          description: "WebRTC connection failure rate is {{ $value }} per second"
+      
+      - alert: WebRTCSignalingLatencyHigh
+        expr: histogram_quantile(0.95, webrtc_signaling_duration_seconds) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: video-chat
+        annotations:
+          summary: "WebRTC signaling latency is high"
+          description: "95th percentile signaling latency is {{ $value }}s"
+      
+      - alert: TooManyActiveConnections
+        expr: socket_io_active_connections > 80
+        for: 2m
+        labels:
+          severity: warning
+          service: video-chat
+        annotations:
+          summary: "Too many active connections per pod"
+          description: "Pod has {{ $value }} active connections"
+      
+      - alert: RegionUnhealthy
+        expr: up{job="video-chat-backend"} < 0.8
+        for: 5m
+        labels:
+          severity: critical
+          service: video-chat
+        annotations:
+          summary: "Less than 80% of backend pods are healthy"
+          description: "Only {{ $value }}% of backend pods are responding"

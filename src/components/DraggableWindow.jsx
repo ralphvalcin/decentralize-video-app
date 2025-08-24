@@ -48,6 +48,7 @@ const DraggableWindow = ({
     setIsDragging(false);
   };
 
+   
   useEffect(() => {
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove);
@@ -65,6 +66,7 @@ const DraggableWindow = ({
   }, [isDragging, dragStart, position]);
 
   // Reset position when window opens
+   
   useEffect(() => {
     if (isOpen && position.x === 0 && position.y === 0) {
       setPosition(defaultPosition);

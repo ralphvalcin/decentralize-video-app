@@ -71,7 +71,7 @@ const PERFORMANCE_CONFIG = {
     // Google Analytics 4
     googleAnalytics: {
       enabled: false,
-      measurementId: process.env.REACT_APP_GA_MEASUREMENT_ID,
+      measurementId: (typeof process !== 'undefined' && process.env?.REACT_APP_GA_MEASUREMENT_ID) || null,
       trackPerformance: true,
       trackErrors: true,
       trackUserFlow: true
@@ -80,8 +80,8 @@ const PERFORMANCE_CONFIG = {
     // Sentry for error tracking
     sentry: {
       enabled: false,
-      dsn: process.env.REACT_APP_SENTRY_DSN,
-      environment: process.env.NODE_ENV,
+      dsn: (typeof process !== 'undefined' && process.env?.REACT_APP_SENTRY_DSN) || null,
+      environment: (typeof process !== 'undefined' && process.env?.NODE_ENV) || 'production',
       tracesSampleRate: 0.1,
       profilesSampleRate: 0.1
     },
@@ -89,11 +89,11 @@ const PERFORMANCE_CONFIG = {
     // DataDog Real User Monitoring
     datadog: {
       enabled: false,
-      clientToken: process.env.REACT_APP_DATADOG_CLIENT_TOKEN,
-      applicationId: process.env.REACT_APP_DATADOG_APP_ID,
+      clientToken: (typeof process !== 'undefined' && process.env?.REACT_APP_DATADOG_CLIENT_TOKEN) || null,
+      applicationId: (typeof process !== 'undefined' && process.env?.REACT_APP_DATADOG_APP_ID) || null,
       site: 'datadoghq.com',
       service: 'video-chat-app',
-      version: process.env.REACT_APP_VERSION || '1.0.0',
+      version: (typeof process !== 'undefined' && process.env?.REACT_APP_VERSION) || '1.0.0',
       sampleRate: 100,
       trackInteractions: true,
       trackResources: true,
@@ -103,18 +103,18 @@ const PERFORMANCE_CONFIG = {
     // New Relic Browser
     newRelic: {
       enabled: false,
-      licenseKey: process.env.REACT_APP_NEWRELIC_LICENSE_KEY,
-      applicationId: process.env.REACT_APP_NEWRELIC_APP_ID,
+      licenseKey: (typeof process !== 'undefined' && process.env?.REACT_APP_NEWRELIC_LICENSE_KEY) || null,
+      applicationId: (typeof process !== 'undefined' && process.env?.REACT_APP_NEWRELIC_APP_ID) || null,
       beacon: 'bam.nr-data.net'
     },
 
     // Custom webhook for alerts
     webhook: {
       enabled: false,
-      url: process.env.REACT_APP_PERFORMANCE_WEBHOOK_URL,
+      url: (typeof process !== 'undefined' && process.env?.REACT_APP_PERFORMANCE_WEBHOOK_URL) || null,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.REACT_APP_WEBHOOK_TOKEN}`
+        'Authorization': `Bearer ${(typeof process !== 'undefined' && process.env?.REACT_APP_WEBHOOK_TOKEN) || ''}`
       }
     }
   },

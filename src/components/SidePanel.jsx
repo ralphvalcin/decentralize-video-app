@@ -14,6 +14,7 @@ const SidePanel = ({
 }) => {
   const inputRef = useRef(null);
 
+   
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();

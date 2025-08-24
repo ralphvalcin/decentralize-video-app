@@ -14,6 +14,7 @@ const MobileNavigation = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Auto-collapse on small screens when multiple panels are open
+   
   useEffect(() => {
     const openPanels = [showChat, showPolls, showQA].filter(Boolean).length;
     if (window.innerWidth < 480 && openPanels > 1) {

@@ -107,7 +107,7 @@ class DataChannelManager {
     };
   }
 
-  handleChannelOpen(peerId, dataChannel) {
+  handleChannelOpen(peerId) {
     // Send initial handshake
     this.sendMessage(peerId, {
       type: 'handshake',
@@ -172,7 +172,7 @@ class DataChannelManager {
   broadcastMessage(message, excludePeerId = null) {
     let successCount = 0;
     
-    for (const [peerId, channel] of this.channels) {
+    for (const [peerId, _channel] of this.channels) {
       if (peerId === excludePeerId) continue;
       
       if (this.sendMessage(peerId, message)) {
@@ -652,7 +652,7 @@ class FileSharingManager {
     if (!transfer) return;
 
     transfer.status = 'sending';
-    const fileReader = new FileReader();
+    const _fileReader = new FileReader();
     
     for (let chunkIndex = 0; chunkIndex < transfer.totalChunks; chunkIndex++) {
       const start = chunkIndex * this.chunkSize;
@@ -941,7 +941,7 @@ class SynchronizedPlaybackManager {
     console.log('Became playback leader');
   }
 
-  handlePeerDisconnect(peerId) {
+  handlePeerDisconnect() {
     // Handle leader disconnection logic
   }
 
@@ -1056,7 +1056,7 @@ class BreakoutRoomManager {
   }
 
   handleUserLeave(data) {
-    for (const [roomId, participants] of this.rooms) {
+    for (const [_roomId, participants] of this.rooms) {
       participants.delete(data.peerId);
     }
   }
@@ -1071,7 +1071,7 @@ class BreakoutRoomManager {
 
   handlePeerDisconnect(peerId) {
     // Remove peer from all rooms
-    for (const [roomId, participants] of this.rooms) {
+    for (const [_roomId, participants] of this.rooms) {
       participants.delete(peerId);
     }
   }

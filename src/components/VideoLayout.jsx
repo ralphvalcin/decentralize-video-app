@@ -59,6 +59,7 @@ export default function VideoLayout({ localStream, peers, userInfo, localHandRai
     return extendedLayout;
   };
 
+   
   useEffect(() => {
     const participantCount = peers.length + 1; // +1 for local user
     const newLayout = generateLayout(selectedLayout, participantCount);
@@ -88,6 +89,7 @@ export default function VideoLayout({ localStream, peers, userInfo, localHandRai
   const [isMobile, setIsMobile] = useState(false);
 
   // Detect mobile device
+   
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);

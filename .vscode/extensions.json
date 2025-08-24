@@ -1,0 +1,27 @@
+{
+    "recommendations": [
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss",
+        "ms-vscode.vscode-typescript-next",
+        "ms-playwright.playwright",
+        "ms-vscode.test-adapter-converter",
+        "ms-vscode.vscode-json",
+        "redhat.vscode-yaml",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "ms-vscode-remote.remote-containers",
+        "github.vscode-pull-request-github",
+        "github.copilot",
+        "gruntfuggly.todo-tree",
+        "christian-kohler.path-intellisense",
+        "formulahendry.auto-rename-tag",
+        "vincaslt.highlight-matching-tag",
+        "wix.vscode-import-cost",
+        "ms-vscode.vscode-thunder-client",
+        "humao.rest-client"
+    ],
+    "unwantedRecommendations": [
+        "ms-vscode.vscode-typescript",
+        "hookyqr.beautify"
+    ]
+}

@@ -8,6 +8,7 @@ const QA = ({ isOpen, onToggle, onSubmitQuestion, onVoteQuestion, onAnswerQuesti
   const [filterAnswered, setFilterAnswered] = useState('all'); // 'all', 'answered', 'unanswered'
   const inputRef = useRef(null);
 
+   
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();

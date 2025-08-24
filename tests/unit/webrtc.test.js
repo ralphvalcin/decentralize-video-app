@@ -17,7 +17,7 @@ describe('WebRTC Utilities', () => {
 
   test('creates peer connection', () => {
     const stream = new MediaStream();
-    const peer = createPeerConnection(stream, true);
+    const _peer = createPeerConnection(stream, true);
     
     expect(Peer).toHaveBeenCalledWith(expect.objectContaining({
       initiator: true,

@@ -31,7 +31,24 @@
     "docker:build": "npm run docker:build:frontend && npm run docker:build:backend",
     "k8s:deploy:staging": "cd k8s && kustomize build overlays/staging | kubectl apply -f -",
     "k8s:deploy:production": "cd k8s && kustomize build overlays/production | kubectl apply -f -",
-    "health:check": "node scripts/health-check.sh"
+    "health:check": "node scripts/health-check.sh",
+    "dx:setup": "npm ci && npm run build && echo '🚀 Development environment ready!'",
+    "dx:dev": "concurrently \"npm run start:signaling\" \"npm run dev\" --names \"backend,frontend\" --prefix-colors \"blue,green\"",
+    "dx:debug": "concurrently \"npm run start:signaling\" \"vite --mode development\" --names \"backend,frontend\" --prefix-colors \"blue,green\"",
+    "dx:test:all": "npm run lint && npm run test:unit && npm run test:integration && npm run test:e2e:ci",
+    "dx:monitor": "node scripts/dev-monitor.js",
+    "dx:metrics": "node scripts/dev-metrics-dashboard.js",
+    "dx:clean": "rm -rf node_modules dist coverage playwright-report && npm ci",
+    "dx:reset": "npm run dx:clean && npm run dx:setup",
+    "test:e2e:ci": "playwright test --reporter=html --reporter=github-actions",
+    "webrtc:debug": "DEBUG=simple-peer:* npm run dx:dev",
+    "webrtc:test:connection": "node scripts/test-webrtc-connection.js",
+    "performance:profile": "node scripts/performance-profiler.js",
+    "docs:generate": "node scripts/generate-docs.js",
+    "docs:serve": "npx http-server docs -p 8080 -o",
+    "ai:validate": "npm run test:ai:quick && npm run test:ai:components",
+    "security:full": "npm audit && npm run security:scan && node scripts/security-compliance-check.js",
+    "team:sync": "node scripts/team-sync-check.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -56,6 +73,8 @@
     "zustand": "^4.4.7"
   },
   "devDependencies": {
+    "concurrently": "^8.2.2",
+    "http-server": "^14.1.1",
     "@babel/preset-env": "^7.28.3",
     "@babel/preset-react": "^7.27.1",
     "@babel/preset-typescript": "^7.27.1",

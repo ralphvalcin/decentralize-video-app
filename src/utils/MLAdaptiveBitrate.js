@@ -503,7 +503,7 @@ class MLAdaptiveBitrate {
         renderer: debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'unknown',
         hardwareAcceleration: true
       };
-    } catch (error) {
+    } catch {
       return { supported: false, vendor: 'unknown' };
     }
   }
@@ -518,7 +518,7 @@ class MLAdaptiveBitrate {
       try {
         const isSupported = await this.testCodecSupport(codec);
         this.codecSupport.set(codec, isSupported);
-      } catch (error) {
+      } catch {
         this.codecSupport.set(codec, false);
       }
     }
@@ -556,7 +556,7 @@ class MLAdaptiveBitrate {
   startCPUMonitoring() {
     // Use performance.now() and timing to estimate CPU usage
     let lastTime = performance.now();
-    let lastCPUTime = 0;
+    let _lastCPUTime = 0;
 
     const measureCPU = () => {
       const now = performance.now();
@@ -829,7 +829,7 @@ class RealTimeAdapter {
     }
   }
 
-  calculateOptimalConstraints(profile, context) {
+  calculateOptimalConstraints() {
     // Return pre-calculated optimal constraints for immediate application
     return {
       video: {
@@ -911,7 +911,7 @@ class QualityPredictor {
     console.log('🎯 Quality Predictor initialized');
   }
   
-  async predict(metrics) {
+  async predict() {
     return {
       recommendedProfile: 'high',
       confidence: 0.8,

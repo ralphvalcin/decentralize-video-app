@@ -27,6 +27,7 @@ const PerformanceDashboard = memo(({
   const [selectedTab, setSelectedTab] = useState('overview');
   const updateInterval = useRef(null);
 
+   
   useEffect(() => {
     if (isOpen) {
       startMonitoring();

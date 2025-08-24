@@ -11,6 +11,7 @@ const Video = memo(forwardRef(({ stream, name = 'Participant', isLocal = false, 
   const getMobileInfo = useMobileDetection();
   const mobileInfo = getMobileInfo();
 
+   
   useEffect(() => {
     if (!videoRef.current) return;
     if (stream instanceof MediaStream) {
@@ -42,6 +43,7 @@ const Video = memo(forwardRef(({ stream, name = 'Participant', isLocal = false, 
     }
   };
 
+   
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -93,6 +95,7 @@ const Video = memo(forwardRef(({ stream, name = 'Participant', isLocal = false, 
     }
   });
 
+   
   useEffect(() => {
     const onFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement && document.fullscreenElement === containerRef.current);
@@ -104,6 +107,7 @@ const Video = memo(forwardRef(({ stream, name = 'Participant', isLocal = false, 
   }, []);
 
   // Auto-hide controls on mobile
+   
   useEffect(() => {
     if (mobileInfo.isMobile && showControls) {
       const timer = setTimeout(() => setShowControls(false), 3000);

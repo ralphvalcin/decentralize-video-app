@@ -14,6 +14,7 @@ const MobileControlBar = ({
   const [isLandscape, setIsLandscape] = useState(false);
 
   // Detect orientation changes
+   
   useEffect(() => {
     const handleOrientationChange = () => {
       setIsLandscape(window.innerHeight < window.innerWidth);

@@ -379,7 +379,7 @@ class AdvancedConnectionManager {
 
     // Extract relevant statistics
     const videoStats = rawStats.video;
-    const audioStats = rawStats.audio;
+    const _audioStats = rawStats.audio;
     const connectionStats = rawStats.connection;
 
     if (connectionStats) {
@@ -477,7 +477,7 @@ class AdvancedConnectionManager {
     }
   }
 
-  handleRemoteStream(peerId, stream) {
+  handleRemoteStream(peerId) {
     console.log(`Remote stream received from peer ${peerId}`);
     // Handle remote stream
   }
@@ -529,7 +529,7 @@ class AdvancedConnectionManager {
       const params = sender.getParameters();
       pc.close();
       return 'encodings' in params;
-    } catch (error) {
+    } catch {
       pc.close();
       return false;
     }

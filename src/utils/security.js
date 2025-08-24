@@ -126,7 +126,7 @@ export function sanitizeInput(input, maxLength = 1000) {
   
   // Remove potential XSS vectors
   const sanitized = input
-    .replace(/[<>\"']/g, '') // Remove HTML/script tags
+    .replace(/[<>"']/g, '') // Remove HTML/script tags
     .replace(/javascript:/gi, '') // Remove javascript URLs
     .replace(/on\w+=/gi, '') // Remove event handlers
     .trim();
@@ -210,7 +210,7 @@ export class SecurityLogger {
     console.warn('[SECURITY]', logEntry);
     
     // In production, send to security monitoring service
-    if (process.env.NODE_ENV === 'production') {
+    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production') {
       // Implementation would send to security monitoring endpoint
       console.log('Security event logged:', logEntry);
     }

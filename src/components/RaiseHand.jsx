@@ -5,6 +5,7 @@ const RaiseHand = ({ onRaiseHand, onLowerHand, raisedHands = [], userInfo, isHos
   const [showHandsList, setShowHandsList] = useState(false);
 
   // Check if current user has hand raised
+   
   useEffect(() => {
     const userHand = raisedHands.find(hand => hand.userId === userInfo.id);
     setIsHandRaised(!!userHand);

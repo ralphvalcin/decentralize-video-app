@@ -13,11 +13,14 @@ import ShareModal from './ShareModal';
 import ConnectionStatus from './ConnectionStatus';
 import SessionHeader from './SessionHeader';
 import PerformanceDashboard from './PerformanceDashboard';
+import AdvancedPerformanceDashboard from './AdvancedPerformanceDashboard';
 import toast from 'react-hot-toast';
 import { useRoomServices } from '../hooks/useRoomServices';
 import { usePerformanceOptimization } from '../hooks/usePerformanceOptimization';
 import { useMobileOptimization, useAdaptiveQuality, useMobileUI } from '../hooks/useMobileOptimization';
 import { usePageTracking, useCallAnalytics, useMobileAnalytics } from '../hooks/useAnalytics';
+import AdvancedPerformanceMonitor from '../services/performance/AdvancedPerformanceMonitor';
+import ConnectionIntelligence from '../services/ai/ConnectionIntelligence';
 
 const Room = () => {
   const { roomId } = useParams();
@@ -44,6 +47,16 @@ const Room = () => {
 
   // Performance dashboard state
   const [showPerformanceDashboard, setShowPerformanceDashboard] = useState(false);
+  const [showAdvancedPerformanceDashboard, setShowAdvancedPerformanceDashboard] = useState(false);
+  
+  // Advanced performance monitoring
+  const [advancedPerformanceMonitor, setAdvancedPerformanceMonitor] = useState(null);
+  const [connectionIntelligence, setConnectionIntelligence] = useState(null);
+  const [performanceMetrics, setPerformanceMetrics] = useState({
+    connectionEstablishmentImprovement: 0,
+    failureReduction: 0,
+    averageLatency: 0
+  });
 
   const userVideo = useRef();
   const [userInfo] = useState(() => {
@@ -72,6 +85,79 @@ const Room = () => {
     handleLeaveRoom: serviceLeaveRoom,
     services
   } = useRoomServices(roomId, userInfo);
+  
+  // Initialize advanced performance monitoring
+  useEffect(() => {
+    const initializeAdvancedMonitoring = async () => {
+      try {
+        console.log('🚀 Initializing Phase 1 Performance Enhancements...');
+        
+        // Initialize Advanced Performance Monitor
+        const monitor = new AdvancedPerformanceMonitor();
+        await monitor.initialize();
+        setAdvancedPerformanceMonitor(monitor);
+        
+        // Initialize Connection Intelligence
+        const intelligence = new ConnectionIntelligence(
+          services.connectionStore || { getState: () => ({ peers: new Map() }) },
+          services.aiStore || { getState: () => ({}) },
+          services.performanceMonitor
+        );
+        await intelligence.initialize();
+        setConnectionIntelligence(intelligence);
+        
+        // Set up performance event listeners
+        monitor.on('connection-established', (data) => {
+          toast.success(`⚡ Connection established in ${data.establishmentTime.toFixed(0)}ms`);
+          
+          // Check for achievement notifications
+          if (data.performance === 'excellent') {
+            toast.success('🎯 Excellent connection performance!', { duration: 3000 });
+          }
+        });
+        
+        monitor.on('critical-anomaly', (data) => {
+          toast.error(`🚨 Critical performance issue detected: ${data.anomalies[0]?.type}`);
+        });
+        
+        monitor.on('auto-optimization-available', (data) => {
+          toast.success(`🔧 Auto-optimization applied for better performance`);
+        });
+        
+        console.log('✅ Phase 1 Performance Enhancements initialized successfully');
+        
+        // Show achievement notification for Phase 1 activation
+        setTimeout(() => {
+          toast.success('🎯 Phase 1: AI-Powered Performance Optimization Active!', {
+            duration: 5000,
+            style: {
+              background: '#1e40af',
+              color: '#fff',
+              fontWeight: 'bold'
+            }
+          });
+        }, 1000);
+        
+      } catch (error) {
+        console.error('❌ Failed to initialize advanced monitoring:', error);
+        toast.error('Failed to initialize advanced performance features');
+      }
+    };
+    
+    if (roomId && userInfo) {
+      initializeAdvancedMonitoring();
+    }
+    
+    return () => {
+      // Cleanup on unmount
+      if (advancedPerformanceMonitor) {
+        advancedPerformanceMonitor.cleanup();
+      }
+      if (connectionIntelligence) {
+        connectionIntelligence.cleanup();
+      }
+    };
+  }, [roomId, userInfo]);
 
   // Initialize performance optimization
   const {
@@ -148,6 +234,7 @@ const Room = () => {
   };
 
   // Apply performance constraints when stream is available
+   
   useEffect(() => {
     if (stream) {
       applyPerformanceConstraints(stream);
@@ -163,6 +250,7 @@ const Room = () => {
   }, [stream, applyPerformanceConstraints, deviceCapabilities, qualitySettings]);
 
   // Optimize peer connections periodically
+   
   useEffect(() => {
     if (peers.length > 0) {
       const optimizationInterval = setInterval(() => {
@@ -180,6 +268,53 @@ const Room = () => {
   const togglePerformanceDashboard = useCallback(() => {
     setShowPerformanceDashboard(prev => !prev);
   }, []);
+  
+  // Advanced performance dashboard toggle
+  const toggleAdvancedPerformanceDashboard = useCallback(() => {
+    setShowAdvancedPerformanceDashboard(prev => !prev);
+  }, []);
+  
+  // Monitor peer connections with advanced monitoring
+  useEffect(() => {
+    if (advancedPerformanceMonitor && peers.length > 0) {
+      peers.forEach(peer => {
+        if (peer.peer && peer.peerID) {
+          advancedPerformanceMonitor.startConnectionMonitoring(peer.peerID, peer.peer._pc);
+        }
+      });
+    }
+    
+    return () => {
+      if (advancedPerformanceMonitor) {
+        peers.forEach(peer => {
+          if (peer.peerID) {
+            advancedPerformanceMonitor.stopConnectionMonitoring(peer.peerID);
+          }
+        });
+      }
+    };
+  }, [advancedPerformanceMonitor, peers]);
+  
+  // Monitor connection intelligence
+  useEffect(() => {
+    if (connectionIntelligence && peers.length > 0) {
+      peers.forEach(peer => {
+        if (peer.peerID) {
+          connectionIntelligence.startMonitoring(peer.peerID);
+        }
+      });
+    }
+    
+    return () => {
+      if (connectionIntelligence) {
+        peers.forEach(peer => {
+          if (peer.peerID) {
+            connectionIntelligence.stopMonitoring(peer.peerID);
+          }
+        });
+      }
+    };
+  }, [connectionIntelligence, peers]);
 
   // Engagement feature handlers (placeholders - to be implemented with actual backend integration)
   const handleSendReaction = useCallback((emoji) => {
@@ -254,6 +389,7 @@ const Room = () => {
   };
 
   // Set up user video stream reference
+   
   useEffect(() => {
     if (stream && userVideo.current) {
       userVideo.current.srcObject = stream;
@@ -263,6 +399,7 @@ const Room = () => {
   }, [stream, callAnalytics, roomId]);
 
   // Set up engagement event listeners
+   
   useEffect(() => {
     if (!services.signaling) return;
 
@@ -345,6 +482,7 @@ const Room = () => {
   // Connection monitoring is now handled by the services
 
   // Keyboard shortcuts
+   
   useEffect(() => {
     const handleKeyPress = (event) => {
       if (event.key === 'Escape' && !showLeaveConfirm) {
@@ -551,6 +689,8 @@ const Room = () => {
         useAdvancedLayout={useAdvancedLayout}
         onTogglePerformanceDashboard={togglePerformanceDashboard}
         showPerformanceDashboard={showPerformanceDashboard}
+        onToggleAdvancedPerformanceDashboard={toggleAdvancedPerformanceDashboard}
+        showAdvancedPerformanceDashboard={showAdvancedPerformanceDashboard}
       />
 
       {/* Leave Confirmation Dialog */}
@@ -711,6 +851,14 @@ const Room = () => {
         peers={peers}
         isOpen={showPerformanceDashboard}
         onToggle={togglePerformanceDashboard}
+        position="bottom-left"
+      />
+      
+      {/* Advanced Performance Dashboard - Phase 1 */}
+      <AdvancedPerformanceDashboard
+        performanceMonitor={advancedPerformanceMonitor}
+        isOpen={showAdvancedPerformanceDashboard}
+        onToggle={toggleAdvancedPerformanceDashboard}
         position="bottom-right"
       />
     </div>

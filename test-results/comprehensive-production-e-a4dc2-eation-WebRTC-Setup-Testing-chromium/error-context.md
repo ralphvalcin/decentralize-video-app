@@ -1,0 +1,85 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e5]:
+  - generic [ref=e6]:
+    - heading "Video Calls That Just Work" [level=1] [ref=e7]
+    - paragraph [ref=e8]:
+      - text: No downloads, no accounts, no hassle. Start HD video calls instantly with anyone, anywhere.
+      - strong [ref=e9]: It's that simple.
+    - generic [ref=e10]:
+      - button "🎬 Try Live Demo" [ref=e11] [cursor=pointer]
+      - generic [ref=e12]: No registration required
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]: 🔒
+        - generic [ref=e16]: End-to-end encrypted
+      - generic [ref=e17]:
+        - generic [ref=e18]: ⚡
+        - generic [ref=e19]: Works instantly
+      - generic [ref=e20]:
+        - generic [ref=e21]: 📱
+        - generic [ref=e22]: Any device
+  - generic [ref=e23]:
+    - generic [ref=e24]:
+      - heading "Get Started" [level=2] [ref=e25]
+      - paragraph [ref=e26]: Join or create a room to begin
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - generic [ref=e29]: Your Display Name
+        - textbox "Your Display Name" [active] [ref=e30]: test-room-123
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - text: Room ID
+          - generic [ref=e33]: (optional)
+        - textbox "Room ID (optional)" [ref=e35]
+      - generic [ref=e36]:
+        - button "Join Existing Room" [ref=e38] [cursor=pointer]:
+          - img [ref=e39] [cursor=pointer]
+          - text: Join Existing Room
+        - generic [ref=e45]: or
+        - button "Create New Room" [ref=e46] [cursor=pointer]:
+          - img [ref=e47] [cursor=pointer]
+          - text: Create New Room
+  - generic [ref=e49]:
+    - heading "Why teams choose us over Zoom & Google Meet" [level=2] [ref=e50]
+    - paragraph [ref=e51]: "We built this because we were tired of complicated video tools. Here's what makes us different:"
+  - generic [ref=e52]:
+    - generic [ref=e54]:
+      - generic [ref=e56]: ⚡
+      - heading "Start in 5 Seconds" [level=3] [ref=e57]
+      - paragraph [ref=e58]: No downloads, accounts, or waiting rooms. Just click and talk.
+    - generic [ref=e60]:
+      - generic [ref=e62]: 🔊
+      - heading "Crystal Clear Quality" [level=3] [ref=e63]
+      - paragraph [ref=e64]: HD video & audio that adapts to your connection automatically.
+    - generic [ref=e66]:
+      - generic [ref=e68]: 🛡️
+      - heading "Truly Private" [level=3] [ref=e69]
+      - paragraph [ref=e70]: Direct peer-to-peer connections. Your conversations never touch our servers.
+    - generic [ref=e72]:
+      - generic [ref=e74]: 💬
+      - heading "Built for Teams" [level=3] [ref=e75]
+      - paragraph [ref=e76]: Chat, polls, Q&A, screen sharing - everything you need to collaborate.
+    - generic [ref=e78]:
+      - generic [ref=e80]: 💰
+      - heading "Always Free" [level=3] [ref=e81]
+      - paragraph [ref=e82]: No subscriptions, limits, or "premium" features. Great video calls for everyone.
+    - generic [ref=e84]:
+      - generic [ref=e86]: 📱
+      - heading "Works Everywhere" [level=3] [ref=e87]
+      - paragraph [ref=e88]: Desktop, mobile, tablet - any device with a web browser works perfectly.
+  - generic [ref=e89]:
+    - heading "Join thousands of happy users" [level=3] [ref=e90]
+    - generic [ref=e91]:
+      - generic [ref=e92]:
+        - generic [ref=e93]: 1000+
+        - generic [ref=e94]: Rooms created daily
+      - generic [ref=e95]:
+        - generic [ref=e96]: 4.8/5
+        - generic [ref=e97]: Average rating
+      - generic [ref=e98]:
+        - generic [ref=e99]: 99.9%
+        - generic [ref=e100]: Call success rate
+    - paragraph [ref=e101]: "\"Finally, a video call app that just works!\" - Sarah, Remote Team Lead"
+```

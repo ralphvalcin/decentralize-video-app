@@ -21,6 +21,7 @@ const EmojiReactions = ({ onSendReaction, reactions = [] }) => {
   ];
 
   // Handle click outside to close picker
+   
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (pickerRef.current && !pickerRef.current.contains(event.target)) {
@@ -33,6 +34,7 @@ const EmojiReactions = ({ onSendReaction, reactions = [] }) => {
   }, []);
 
   // Add new reactions to floating animations
+   
   useEffect(() => {
     if (reactions.length > 0) {
       const latestReaction = reactions[reactions.length - 1];
@@ -138,6 +140,7 @@ const FloatingEmoji = ({ emoji, userName }) => {
     rotation: Math.random() * 360
   });
 
+   
   useEffect(() => {
     // Animate upward
     const timer = setTimeout(() => {

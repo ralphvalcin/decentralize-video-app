@@ -1,0 +1,297 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: video-chat-backend-hpa
+  namespace: video-chat
+  labels:
+    app.kubernetes.io/name: video-chat
+    app.kubernetes.io/component: backend-hpa
+  annotations:
+    # Multi-region HPA configuration
+    video-chat.io/region: "REGION_PLACEHOLDER"
+    video-chat.io/scaling-profile: "webrtc-optimized"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: video-chat-backend
+  minReplicas: 3
+  maxReplicas: 50
+  metrics:
+  # CPU utilization with lower threshold for WebRTC
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+  # Memory utilization
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70
+  # Custom WebRTC connection metrics
+  - type: Pods
+    pods:
+      metric:
+        name: socket_io_active_connections
+      target:
+        type: AverageValue
+        averageValue: "80"  # Target 80 connections per pod
+  # WebRTC signaling latency metric
+  - type: Pods
+    pods:
+      metric:
+        name: webrtc_signaling_latency_p95
+      target:
+        type: AverageValue
+        averageValue: "100"  # 100ms P95 latency threshold
+  # Connection establishment rate
+  - type: Pods
+    pods:
+      metric:
+        name: webrtc_connection_establishment_rate
+      target:
+        type: AverageValue
+        averageValue: "10"   # 10 connections per second per pod
+  # Failed connection ratio
+  - type: Pods
+    pods:
+      metric:
+        name: webrtc_failed_connection_ratio
+      target:
+        type: AverageValue
+        averageValue: "0.05"  # 5% failed connection threshold
+  # Network bandwidth utilization
+  - type: Pods
+    pods:
+      metric:
+        name: network_transmit_bytes_rate
+      target:
+        type: AverageValue
+        averageValue: "50000000"  # 50MB/s per pod
+  behavior:
+    scaleDown:
+      # Conservative scale-down to avoid session disruption
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 25
+        periodSeconds: 120
+      - type: Pods
+        value: 2
+        periodSeconds: 120
+      selectPolicy: Min
+    scaleUp:
+      # Aggressive scale-up for WebRTC performance
+      stabilizationWindowSeconds: 30
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 5
+        periodSeconds: 30
+      selectPolicy: Max
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: video-chat-frontend-hpa
+  namespace: video-chat
+  labels:
+    app.kubernetes.io/name: video-chat
+    app.kubernetes.io/component: frontend-hpa
+  annotations:
+    video-chat.io/region: "REGION_PLACEHOLDER"
+    video-chat.io/scaling-profile: "frontend-optimized"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: video-chat-frontend
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+  # CPU utilization
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  # Memory utilization
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  # HTTP request rate
+  - type: Pods
+    pods:
+      metric:
+        name: nginx_http_requests_rate
+      target:
+        type: AverageValue
+        averageValue: "100"  # 100 requests per second per pod
+  # Response time metric
+  - type: Pods
+    pods:
+      metric:
+        name: http_request_duration_p95
+      target:
+        type: AverageValue
+        averageValue: "200"  # 200ms P95 response time
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Max
+---
+# Vertical Pod Autoscaler for Redis
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: video-chat-redis-vpa
+  namespace: video-chat
+  labels:
+    app.kubernetes.io/name: video-chat
+    app.kubernetes.io/component: redis-vpa
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: video-chat-redis
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: redis
+      minAllowed:
+        cpu: 100m
+        memory: 256Mi
+      maxAllowed:
+        cpu: 2000m
+        memory: 4Gi
+      controlledResources: ["cpu", "memory"]
+---
+# PodDisruptionBudget for backend availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: video-chat-backend-pdb
+  namespace: video-chat
+  labels:
+    app.kubernetes.io/name: video-chat
+    app.kubernetes.io/component: backend
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: video-chat
+      app.kubernetes.io/component: backend
+---
+# PodDisruptionBudget for frontend availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: video-chat-frontend-pdb
+  namespace: video-chat
+  labels:
+    app.kubernetes.io/name: video-chat
+    app.kubernetes.io/component: frontend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: video-chat
+      app.kubernetes.io/component: frontend
+---
+# Custom Resource Definition for WebRTC Scaling Metrics
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: webrtcmetrics.video-chat.io
+spec:
+  group: video-chat.io
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              region:
+                type: string
+              activeConnections:
+                type: integer
+              averageLatency:
+                type: number
+              failedConnections:
+                type: integer
+              networkThroughput:
+                type: integer
+          status:
+            type: object
+            properties:
+              lastUpdated:
+                type: string
+                format: date-time
+              healthStatus:
+                type: string
+                enum: ["healthy", "warning", "critical"]
+  scope: Namespaced
+  names:
+    plural: webrtcmetrics
+    singular: webrtcmetric
+    kind: WebRTCMetric
+---
+# ServiceMonitor for Prometheus scraping
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: video-chat-backend-metrics
+  namespace: video-chat
+  labels:
+    app.kubernetes.io/name: video-chat
+    app.kubernetes.io/component: backend
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: video-chat
+      app.kubernetes.io/component: backend
+  endpoints:
+  - port: http
+    interval: 15s
+    path: /metrics
+    scrapeTimeout: 10s
+    metricRelabelings:
+    # Add region label to all metrics
+    - sourceLabels: [__meta_kubernetes_pod_label_video_chat_io_region]
+      targetLabel: region
+    # Add cluster label
+    - sourceLabels: [__meta_kubernetes_namespace]
+      targetLabel: cluster
+      replacement: video-chat
+  namespaceSelector:
+    matchNames:
+    - video-chat

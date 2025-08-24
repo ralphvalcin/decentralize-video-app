@@ -69,6 +69,7 @@ const ConnectionStatus = ({
   const config = statusConfig[quality];
 
   // Simulate network stats (in real app, get from WebRTC stats)
+   
   useEffect(() => {
     const updateStats = () => {
       setDetailedStats({

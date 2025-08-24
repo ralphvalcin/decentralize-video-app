@@ -89,7 +89,7 @@ async function networkFirstStrategy(request) {
     }
     
     return networkResponse;
-  } catch (error) {
+  } catch {
     console.log('[SW] Network failed, serving from cache:', request.url);
     const cachedResponse = await caches.match(request);
     return cachedResponse || new Response('Offline', { 
@@ -116,7 +116,7 @@ async function cacheFirstStrategy(request) {
     }
     
     return networkResponse;
-  } catch (error) {
+  } catch {
     console.log('[SW] Failed to fetch:', request.url);
     return new Response('Resource unavailable', { 
       status: 404,
@@ -195,7 +195,7 @@ self.addEventListener('notificationclick', (event) => {
   
   if (event.action === 'join') {
     event.waitUntil(
-      clients.openWindow('/join')
+      self.clients.openWindow('/join')
     );
   }
 });

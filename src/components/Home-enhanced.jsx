@@ -12,6 +12,7 @@ const Home = () => {
   const [showFeatures, setShowFeatures] = useState(false);
   const navigate = useNavigate();
 
+   
   useEffect(() => {
     // Animate features section on mount
     const timer = setTimeout(() => setShowFeatures(true), 500);

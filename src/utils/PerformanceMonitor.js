@@ -157,7 +157,7 @@ class PerformanceMonitor {
       advanced: { simulcast: {}, svc: {}, bandwidth: {} }
     };
 
-    let iceConnectionTime = null;
+    let _iceConnectionTime = null;
     let dtlsSetupTime = null;
 
     stats.forEach(report => {
@@ -239,7 +239,7 @@ class PerformanceMonitor {
           break;
 
         case 'local-candidate':
-        case 'remote-candidate':
+        case 'remote-candidate': {
           const candidateType = report.type.split('-')[0];
           if (!connectionStats.network.ice[candidateType]) {
             connectionStats.network.ice[candidateType] = [];
@@ -253,6 +253,7 @@ class PerformanceMonitor {
             url: report.url
           });
           break;
+        }
 
         case 'transport':
           connectionStats.network.transport = {
@@ -278,7 +279,7 @@ class PerformanceMonitor {
           };
           break;
 
-        case 'codec':
+        case 'codec': {
           const codecInfo = {
             mimeType: report.mimeType,
             clockRate: report.clockRate,
@@ -291,6 +292,7 @@ class PerformanceMonitor {
             connectionStats.audio.codec = codecInfo;
           }
           break;
+        }
       }
     });
 
@@ -650,9 +652,9 @@ class PerformanceMonitor {
     };
 
     // Enhanced latency scoring
+    let latencyScore = 100;
     if (stats.network.connection?.currentRoundTripTime) {
       const rtt = stats.network.connection.currentRoundTripTime;
-      let latencyScore = 100;
       
       if (rtt > this.thresholds.rtt) {
         latencyScore = Math.max(0, 100 - ((rtt - this.thresholds.rtt) / this.thresholds.rtt * 50));
@@ -872,7 +874,7 @@ class PerformanceMonitor {
   /**
    * Detect memory leaks in peer connections
    */
-  detectMemoryLeaks(peerId, connectionStats) {
+  detectMemoryLeaks(peerId) {
     if (!performance.memory) return;
 
     const currentMemory = performance.memory.usedJSHeapSize;

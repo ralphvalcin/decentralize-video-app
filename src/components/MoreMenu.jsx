@@ -20,11 +20,15 @@ const MoreMenu = ({
   onToggleAdvancedLayout,
   useAdvancedLayout,
   onTogglePerformanceDashboard,
-  showPerformanceDashboard
+  showPerformanceDashboard,
+  // Advanced Performance Dashboard - Phase 1
+  onToggleAdvancedPerformanceDashboard,
+  showAdvancedPerformanceDashboard
 }) => {
   const menuRef = useRef(null);
 
   // Handle click outside to close menu
+   
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -74,6 +78,16 @@ const MoreMenu = ({
       icon: '📊',
       onClick: () => {
         onTogglePerformanceDashboard();
+        onClose();
+      }
+    },
+    {
+      id: 'advanced-performance',
+      label: showAdvancedPerformanceDashboard ? 'Hide AI Analytics' : 'AI Performance Analytics',
+      icon: '🚀',
+      badge: 'Phase 1',
+      onClick: () => {
+        onToggleAdvancedPerformanceDashboard();
         onClose();
       }
     }
@@ -128,7 +142,14 @@ const MoreMenu = ({
               className="w-full flex items-center gap-3 px-3 py-2 text-left text-gray-300 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
             >
               <span className="text-lg">{item.icon}</span>
-              <span className="text-sm">{item.label}</span>
+              <div className="flex-1 flex items-center justify-between">
+                <span className="text-sm">{item.label}</span>
+                {item.badge && (
+                  <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded font-medium">
+                    {item.badge}
+                  </span>
+                )}
+              </div>
             </button>
           ))}
         </div>

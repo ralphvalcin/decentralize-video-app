@@ -8,6 +8,7 @@ const PWAInstallPrompt = () => {
   const [isInstalling, setIsInstalling] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
+   
   useEffect(() => {
     // Listen for install availability
     const handleInstallAvailable = () => {

@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { sessionId, events, metadata } = req.body;
+    const { sessionId, events, _metadata } = req.body;
 
     // Validate request
     if (!sessionId || !events || !Array.isArray(events)) {
@@ -42,8 +42,8 @@ export default async function handler(req, res) {
     
     // Example: Send to external analytics service
     await Promise.all([
-      // sendToMixpanel(processedEvents),
-      // sendToGoogleAnalytics(processedEvents),
+      // // sendToMixpanel(processedEvents),
+      // // sendToGoogleAnalytics(processedEvents),
       storeInDatabase(processedEvents)
     ]);
 
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
     console.error('[Analytics] Error processing events:', error);
     res.status(500).json({ 
       error: 'Internal server error',
-      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') ? error.message : undefined
     });
   }
 }
@@ -71,7 +71,7 @@ async function storeInDatabase(events) {
   // - MongoDB Atlas
   // - PostgreSQL
   
-  if (process.env.ANALYTICS_DB_URL) {
+  if (typeof process !== 'undefined' && process.env?.ANALYTICS_DB_URL) {
     // Example with a hypothetical database client
     try {
       // await db.collection('analytics_events').insertMany(events);
@@ -83,8 +83,8 @@ async function storeInDatabase(events) {
 }
 
 // Example: Send to Mixpanel
-async function sendToMixpanel(events) {
-  if (!process.env.MIXPANEL_TOKEN) return;
+async function _sendToMixpanel(events) {
+  if (typeof process === 'undefined' || !process.env?.MIXPANEL_TOKEN) return;
 
   try {
     const mixpanelEvents = events.map(event => ({
@@ -104,7 +104,7 @@ async function sendToMixpanel(events) {
       },
       body: JSON.stringify({
         api_key: process.env.MIXPANEL_TOKEN,
-        data: Buffer.from(JSON.stringify(mixpanelEvents)).toString('base64')
+        data: (typeof Buffer !== 'undefined' ? Buffer : { from: (str) => ({ toString: () => btoa(str) }) }).from(JSON.stringify(mixpanelEvents)).toString('base64')
       })
     });
 
@@ -117,8 +117,8 @@ async function sendToMixpanel(events) {
 }
 
 // Example: Send to Google Analytics 4
-async function sendToGoogleAnalytics(events) {
-  if (!process.env.GA4_MEASUREMENT_ID || !process.env.GA4_API_SECRET) return;
+async function _sendToGoogleAnalytics(events) {
+  if (typeof process === 'undefined' || !process.env?.GA4_MEASUREMENT_ID || !process.env?.GA4_API_SECRET) return;
 
   try {
     const gaEvents = events.map(event => ({

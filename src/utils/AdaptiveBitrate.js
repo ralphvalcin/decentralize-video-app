@@ -172,7 +172,7 @@ class AdaptiveBitrate {
   /**
    * Get reasons for adaptation decision
    */
-  getAdaptationReasons(networkStats, quality) {
+  getAdaptationReasons(networkStats) {
     const reasons = [];
     const { bandwidth, rtt, packetLoss } = networkStats;
 

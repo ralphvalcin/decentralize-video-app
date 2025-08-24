@@ -600,7 +600,7 @@ class MemoryResourceOptimizer {
     }, 30000); // 30 seconds delay
   }
 
-  async performConnectionCleanup(peerId, connectionData) {
+  async performConnectionCleanup(peerId) {
     // Perform thorough cleanup of connection resources
     const cleanupTasks = [
       this.mediaStreamPool.releaseStreams(peerId),
@@ -818,7 +818,7 @@ class ConnectionPool {
     this.cache.delete(peerId);
   }
 
-  cleanupEventListeners(peerId) {
+  cleanupEventListeners() {
     // Simulate event listener cleanup
     return Math.floor(Math.random() * 10) + 5; // Return 5-15 listeners cleaned
   }
@@ -1015,7 +1015,7 @@ class MemoryLeakDetector {
     console.log('🔍 Memory Leak Detector initialized');
   }
 
-  detectConnectionLeaks(peerId) {
+  detectConnectionLeaks() {
     // Simulate leak detection
     const leakTypes = ['event_listener_leak', 'buffer_leak', 'timer_leak'];
     const leakCount = Math.random() > 0.8 ? Math.floor(Math.random() * 3) : 0; // 20% chance of leaks

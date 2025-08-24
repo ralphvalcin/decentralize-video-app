@@ -58,8 +58,8 @@ test.describe('AI Dashboard Performance Testing', () => {
     await page.waitForSelector('div[class*="room"], [data-testid="room"]', { timeout: 5000 });
     
     // Monitor for dashboard updates over 30 seconds
-    const updateTimes = [];
-    let lastUpdate = Date.now();
+    const _updateTimes = [];
+    let _lastUpdate = Date.now();
     
     // Listen for DOM changes that might indicate updates
     await page.evaluate(() => {

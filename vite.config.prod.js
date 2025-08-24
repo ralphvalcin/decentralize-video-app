@@ -2,7 +2,7 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
+  const _env = loadEnv(mode, (typeof process !== 'undefined' ? process.cwd() : '.'), '')
   
   return {
     plugins: [react()],
@@ -22,7 +22,8 @@ export default defineConfig(({ mode }) => {
       }
     },
     define: {
-      'process.env.NODE_ENV': '"production"'
+      'process.env.NODE_ENV': '"production"',
+      'process.env': '{}'
     }
   }
 })
