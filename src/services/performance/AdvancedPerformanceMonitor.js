@@ -9,7 +9,7 @@
  * - Automated performance optimization recommendations
  */
 
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'eventemitter3';
 
 export class AdvancedPerformanceMonitor extends EventEmitter {
   constructor() {

@@ -1,6 +1,6 @@
 # AI Performance Validation Report
 
-**Generated:** 8/23/2025, 11:37:59 AM  
+**Generated:** 8/23/2025, 8:15:14 PM  
 **Duration:** 0.0 seconds  
 **Overall Compliance:** 83.3%
 
@@ -12,7 +12,7 @@
 ### Test Phase Results
 - **K6 Load Testing:** failed
 - **Component Validation:** passed  
-- **UI Performance Testing:** skipped
+- **UI Performance Testing:** not_run
 
 ## Performance Target Validation
 
@@ -44,7 +44,7 @@
 
 ### K6 Load Testing
 Status: failed
-Exit Code: -1
+Exit Code: 104
 No metrics available
 
 ### Component Validation
@@ -53,9 +53,7 @@ Exit Code: 0
 Overall Compliance: 83.3%
 
 ### UI Performance Testing  
-Status: skipped
-Exit Code: undefined
-Reason: Development server not available
+Not executed
 
 ## Next Steps
 

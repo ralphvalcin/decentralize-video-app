@@ -269,25 +269,25 @@ const AdvancedPerformanceDashboard = ({
     } bg-gray-900 border border-gray-700 rounded-lg shadow-2xl transition-all duration-300`}>
       
       {/* Dashboard Header */}
-      <div className=\"flex items-center justify-between p-3 border-b border-gray-700 bg-gray-800 rounded-t-lg\">
-        <div className=\"flex items-center space-x-2\">
-          <div className=\"w-3 h-3 bg-green-500 rounded-full animate-pulse\"></div>
-          <h3 className=\"text-sm font-semibold text-white\">Advanced Performance Monitor</h3>
-          <div className=\"text-xs bg-blue-600 text-white px-2 py-1 rounded\">Phase 1</div>
+      <div className="flex items-center justify-between p-3 border-b border-gray-700 bg-gray-800 rounded-t-lg">
+        <div className="flex items-center space-x-2">
+          <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+          <h3 className="text-sm font-semibold text-white">Advanced Performance Monitor</h3>
+          <div className="text-xs bg-blue-600 text-white px-2 py-1 rounded">Phase 1</div>
         </div>
         
-        <div className=\"flex items-center space-x-1\">
+        <div className="flex items-center space-x-1">
           <button
             onClick={() => setIsMinimized(!isMinimized)}
-            className=\"p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors\"
+            className="p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors"
             title={isMinimized ? 'Expand' : 'Minimize'}
           >
             {isMinimized ? '▲' : '▼'}
           </button>
           <button
             onClick={onToggle}
-            className=\"p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors\"
-            title=\"Close\"
+            className="p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors"
+            title="Close"
           >
             ✕
           </button>
@@ -295,51 +295,51 @@ const AdvancedPerformanceDashboard = ({
       </div>
       
       {!isMinimized && (
-        <div className=\"flex flex-col h-[456px]\">
+        <div className="flex flex-col h-[456px]">
           
           {/* Performance Targets Overview */}
-          <div className=\"p-4 bg-gray-850 border-b border-gray-700\">
-            <div className=\"grid grid-cols-3 gap-4 text-center\">
+          <div className="p-4 bg-gray-850 border-b border-gray-700">
+            <div className="grid grid-cols-3 gap-4 text-center">
               
               {/* Connection Time Improvement */}
-              <div className=\"bg-gray-800 p-3 rounded-lg\">
-                <div className=\"text-xs text-gray-400 mb-1\">Connection Time</div>
+              <div className="bg-gray-800 p-3 rounded-lg">
+                <div className="text-xs text-gray-400 mb-1">Connection Time</div>
                 <div className={`text-lg font-bold ${
                   achievements.connectionImprovement.achieved ? 'text-green-400' : 'text-yellow-400'
                 }`}>
                   {(achievements.connectionImprovement.current * 100).toFixed(1)}%
                 </div>
-                <div className=\"text-xs text-gray-500\">Target: 25-30%</div>
+                <div className="text-xs text-gray-500">Target: 25-30%</div>
                 {achievements.connectionImprovement.achieved && (
-                  <div className=\"text-xs text-green-400 mt-1\">🎯 Achieved!</div>
+                  <div className="text-xs text-green-400 mt-1">🎯 Achieved!</div>
                 )}
               </div>
               
               {/* Failure Reduction */}
-              <div className=\"bg-gray-800 p-3 rounded-lg\">
-                <div className=\"text-xs text-gray-400 mb-1\">Failure Reduction</div>
+              <div className="bg-gray-800 p-3 rounded-lg">
+                <div className="text-xs text-gray-400 mb-1">Failure Reduction</div>
                 <div className={`text-lg font-bold ${
                   achievements.failureReduction.achieved ? 'text-green-400' : 'text-yellow-400'
                 }`}>
                   {(achievements.failureReduction.current * 100).toFixed(1)}%
                 </div>
-                <div className=\"text-xs text-gray-500\">Target: 40%</div>
+                <div className="text-xs text-gray-500">Target: 40%</div>
                 {achievements.failureReduction.achieved && (
-                  <div className=\"text-xs text-green-400 mt-1\">🎯 Achieved!</div>
+                  <div className="text-xs text-green-400 mt-1">🎯 Achieved!</div>
                 )}
               </div>
               
               {/* Latency Target */}
-              <div className=\"bg-gray-800 p-3 rounded-lg\">
-                <div className=\"text-xs text-gray-400 mb-1\">Average Latency</div>
+              <div className="bg-gray-800 p-3 rounded-lg">
+                <div className="text-xs text-gray-400 mb-1">Average Latency</div>
                 <div className={`text-lg font-bold ${
                   achievements.latencyTarget.achieved ? 'text-green-400' : 'text-yellow-400'
                 }`}>
                   {Math.round(achievements.latencyTarget.current)}ms
                 </div>
-                <div className=\"text-xs text-gray-500\">Target: &lt;100ms</div>
+                <div className="text-xs text-gray-500">Target: &lt;100ms</div>
                 {achievements.latencyTarget.achieved && (
-                  <div className=\"text-xs text-green-400 mt-1\">🎯 Achieved!</div>
+                  <div className="text-xs text-green-400 mt-1">🎯 Achieved!</div>
                 )}
               </div>
               
@@ -347,7 +347,7 @@ const AdvancedPerformanceDashboard = ({
           </div>
           
           {/* Tabs */}
-          <div className=\"flex border-b border-gray-700 bg-gray-850\">
+          <div className="flex border-b border-gray-700 bg-gray-850">
             {['overview', 'metrics', 'anomalies'].map(tab => (
               <button
                 key={tab}
@@ -364,16 +364,16 @@ const AdvancedPerformanceDashboard = ({
           </div>
           
           {/* Tab Content */}
-          <div className=\"flex-1 p-4 overflow-auto\">
+          <div className="flex-1 p-4 overflow-auto">
             
             {/* Overview Tab */}
             {activeTab === 'overview' && (
-              <div className=\"grid grid-cols-2 gap-4 h-full\">
+              <div className="grid grid-cols-2 gap-4 h-full">
                 
                 {/* Connection Time Chart */}
-                <div className=\"bg-gray-800 p-3 rounded-lg\">
-                  <h4 className=\"text-sm font-medium text-white mb-2\">Connection Establishment Time</h4>
-                  <div className=\"h-32\">
+                <div className="bg-gray-800 p-3 rounded-lg">
+                  <h4 className="text-sm font-medium text-white mb-2">Connection Establishment Time</h4>
+                  <div className="h-32">
                     <Line 
                       ref={ref => chartRefs.current.connectionTime = ref}
                       data={connectionTimeChartData} 
@@ -383,9 +383,9 @@ const AdvancedPerformanceDashboard = ({
                 </div>
                 
                 {/* Latency Chart */}
-                <div className=\"bg-gray-800 p-3 rounded-lg\">
-                  <h4 className=\"text-sm font-medium text-white mb-2\">Latency Monitoring</h4>
-                  <div className=\"h-32\">
+                <div className="bg-gray-800 p-3 rounded-lg">
+                  <h4 className="text-sm font-medium text-white mb-2">Latency Monitoring</h4>
+                  <div className="h-32">
                     <Line 
                       ref={ref => chartRefs.current.latency = ref}
                       data={latencyChartData} 
@@ -395,9 +395,9 @@ const AdvancedPerformanceDashboard = ({
                 </div>
                 
                 {/* Achievement Progress */}
-                <div className=\"bg-gray-800 p-3 rounded-lg\">
-                  <h4 className=\"text-sm font-medium text-white mb-2\">Achievement Progress</h4>
-                  <div className=\"h-32\">
+                <div className="bg-gray-800 p-3 rounded-lg">
+                  <h4 className="text-sm font-medium text-white mb-2">Achievement Progress</h4>
+                  <div className="h-32">
                     <Doughnut 
                       data={achievementChartData}
                       options={{
@@ -418,26 +418,26 @@ const AdvancedPerformanceDashboard = ({
                 </div>
                 
                 {/* Connection Statistics */}
-                <div className=\"bg-gray-800 p-3 rounded-lg\">
-                  <h4 className=\"text-sm font-medium text-white mb-2\">Connection Statistics</h4>
-                  <div className=\"space-y-2 text-xs\">
-                    <div className=\"flex justify-between\">
-                      <span className=\"text-gray-400\">Active Connections:</span>
-                      <span className=\"text-green-400\">{performanceData?.activeConnections || 0}</span>
+                <div className="bg-gray-800 p-3 rounded-lg">
+                  <h4 className="text-sm font-medium text-white mb-2">Connection Statistics</h4>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Active Connections:</span>
+                      <span className="text-green-400">{performanceData?.activeConnections || 0}</span>
                     </div>
-                    <div className=\"flex justify-between\">
-                      <span className=\"text-gray-400\">Success Rate:</span>
-                      <span className=\"text-green-400\">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Success Rate:</span>
+                      <span className="text-green-400">
                         {((performanceData?.connectionMetrics?.successRate || 0) * 100).toFixed(1)}%
                       </span>
                     </div>
-                    <div className=\"flex justify-between\">
-                      <span className=\"text-gray-400\">Total Connections:</span>
-                      <span className=\"text-blue-400\">{performanceData?.connectionMetrics?.totalConnections || 0}</span>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Total Connections:</span>
+                      <span className="text-blue-400">{performanceData?.connectionMetrics?.totalConnections || 0}</span>
                     </div>
-                    <div className=\"flex justify-between\">
-                      <span className=\"text-gray-400\">Failures:</span>
-                      <span className=\"text-red-400\">{performanceData?.connectionMetrics?.failures || 0}</span>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Failures:</span>
+                      <span className="text-red-400">{performanceData?.connectionMetrics?.failures || 0}</span>
                     </div>
                   </div>
                 </div>
@@ -447,59 +447,59 @@ const AdvancedPerformanceDashboard = ({
             
             {/* Metrics Tab */}
             {activeTab === 'metrics' && (
-              <div className=\"space-y-4\">
+              <div className="space-y-4">
                 
                 {/* Real-time Metrics */}
-                <div className=\"grid grid-cols-2 gap-4\">
-                  <div className=\"bg-gray-800 p-4 rounded-lg\">
-                    <h4 className=\"text-sm font-medium text-white mb-3\">Performance Metrics</h4>
-                    <div className=\"space-y-2 text-sm\">
-                      <div className=\"flex justify-between\">
-                        <span className=\"text-gray-400\">Avg Connection Time:</span>
-                        <span className=\"text-blue-400\">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-800 p-4 rounded-lg">
+                    <h4 className="text-sm font-medium text-white mb-3">Performance Metrics</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Avg Connection Time:</span>
+                        <span className="text-blue-400">
                           {(performanceData?.connectionMetrics?.averageEstablishmentTime || 0).toFixed(0)}ms
                         </span>
                       </div>
-                      <div className=\"flex justify-between\">
-                        <span className=\"text-gray-400\">Current Latency:</span>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Current Latency:</span>
                         <span className={`${
                           (performanceData?.performanceTargets?.averageLatency || 0) < 100 ? 'text-green-400' : 'text-yellow-400'
                         }`}>
                           {(performanceData?.performanceTargets?.averageLatency || 0).toFixed(0)}ms
                         </span>
                       </div>
-                      <div className=\"flex justify-between\">
-                        <span className=\"text-gray-400\">Connection Success:</span>
-                        <span className=\"text-green-400\">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Connection Success:</span>
+                        <span className="text-green-400">
                           {((performanceData?.performanceTargets?.connectionSuccessRate || 0) * 100).toFixed(1)}%
                         </span>
                       </div>
                     </div>
                   </div>
                   
-                  <div className=\"bg-gray-800 p-4 rounded-lg\">
-                    <h4 className=\"text-sm font-medium text-white mb-3\">AI Analytics</h4>
-                    <div className=\"space-y-2 text-sm\">
-                      <div className=\"flex justify-between\">
-                        <span className=\"text-gray-400\">Anomalies Detected:</span>
-                        <span className=\"text-red-400\">{performanceData?.anomalyStats?.totalDetections || 0}</span>
+                  <div className="bg-gray-800 p-4 rounded-lg">
+                    <h4 className="text-sm font-medium text-white mb-3">AI Analytics</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Anomalies Detected:</span>
+                        <span className="text-red-400">{performanceData?.anomalyStats?.totalDetections || 0}</span>
                       </div>
-                      <div className=\"flex justify-between\">
-                        <span className=\"text-gray-400\">Optimizations Applied:</span>
-                        <span className=\"text-green-400\">{performanceData?.optimizationStats?.totalOptimizations || 0}</span>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Optimizations Applied:</span>
+                        <span className="text-green-400">{performanceData?.optimizationStats?.totalOptimizations || 0}</span>
                       </div>
-                      <div className=\"flex justify-between\">
-                        <span className=\"text-gray-400\">ML Models Active:</span>
-                        <span className=\"text-blue-400\">{performanceData?.anomalyStats?.activeModels || 0}</span>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">ML Models Active:</span>
+                        <span className="text-blue-400">{performanceData?.anomalyStats?.activeModels || 0}</span>
                       </div>
                     </div>
                   </div>
                 </div>
                 
                 {/* Bandwidth Chart */}
-                <div className=\"bg-gray-800 p-4 rounded-lg\">
-                  <h4 className=\"text-sm font-medium text-white mb-3\">Bandwidth Usage</h4>
-                  <div className=\"h-40\">
+                <div className="bg-gray-800 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-white mb-3">Bandwidth Usage</h4>
+                  <div className="h-40">
                     <Line
                       data={{
                         labels: realTimeMetrics.bandwidth.map((_, i) => `${i * 2}s ago`).reverse(),
@@ -534,20 +534,20 @@ const AdvancedPerformanceDashboard = ({
             
             {/* Anomalies Tab */}
             {activeTab === 'anomalies' && (
-              <div className=\"space-y-4\">
+              <div className="space-y-4">
                 
                 {/* Anomaly List */}
-                <div className=\"bg-gray-800 p-4 rounded-lg\">
-                  <h4 className=\"text-sm font-medium text-white mb-3\">Recent Anomalies</h4>
+                <div className="bg-gray-800 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-white mb-3">Recent Anomalies</h4>
                   
                   {realTimeMetrics.anomalies.length === 0 ? (
-                    <div className=\"text-center text-gray-500 py-8\">
-                      <div className=\"text-green-400 text-2xl mb-2\">✅</div>
+                    <div className="text-center text-gray-500 py-8">
+                      <div className="text-green-400 text-2xl mb-2">✅</div>
                       <div>No anomalies detected</div>
-                      <div className=\"text-xs\">All systems operating normally</div>
+                      <div className="text-xs">All systems operating normally</div>
                     </div>
                   ) : (
-                    <div className=\"space-y-2 max-h-60 overflow-y-auto\">
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
                       {realTimeMetrics.anomalies.slice(-10).reverse().map(anomaly => (
                         <div 
                           key={anomaly.id} 
@@ -557,13 +557,13 @@ const AdvancedPerformanceDashboard = ({
                               : 'bg-yellow-900/20 border-yellow-500'
                           }`}
                         >
-                          <div className=\"flex items-center space-x-3\">
+                          <div className="flex items-center space-x-3">
                             <div className={`w-2 h-2 rounded-full ${
                               anomaly.severity === 'critical' ? 'bg-red-500' : 'bg-yellow-500'
                             }`}></div>
                             <div>
-                              <div className=\"text-sm font-medium text-white\">{anomaly.type}</div>
-                              <div className=\"text-xs text-gray-400\">
+                              <div className="text-sm font-medium text-white">{anomaly.type}</div>
+                              <div className="text-xs text-gray-400">
                                 {new Date(anomaly.timestamp).toLocaleTimeString()}
                               </div>
                             </div>
@@ -582,28 +582,28 @@ const AdvancedPerformanceDashboard = ({
                 </div>
                 
                 {/* Anomaly Statistics */}
-                <div className=\"bg-gray-800 p-4 rounded-lg\">
-                  <h4 className=\"text-sm font-medium text-white mb-3\">Anomaly Statistics</h4>
-                  <div className=\"grid grid-cols-2 gap-4 text-sm\">
+                <div className="bg-gray-800 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-white mb-3">Anomaly Statistics</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <div className=\"text-gray-400\">Total Detected:</div>
-                      <div className=\"text-red-400 font-semibold\">{realTimeMetrics.anomalies.length}</div>
+                      <div className="text-gray-400">Total Detected:</div>
+                      <div className="text-red-400 font-semibold">{realTimeMetrics.anomalies.length}</div>
                     </div>
                     <div>
-                      <div className=\"text-gray-400\">Critical:</div>
-                      <div className=\"text-red-500 font-semibold\">
+                      <div className="text-gray-400">Critical:</div>
+                      <div className="text-red-500 font-semibold">
                         {realTimeMetrics.anomalies.filter(a => a.severity === 'critical').length}
                       </div>
                     </div>
                     <div>
-                      <div className=\"text-gray-400\">Warnings:</div>
-                      <div className=\"text-yellow-500 font-semibold\">
+                      <div className="text-gray-400">Warnings:</div>
+                      <div className="text-yellow-500 font-semibold">
                         {realTimeMetrics.anomalies.filter(a => a.severity === 'warning').length}
                       </div>
                     </div>
                     <div>
-                      <div className=\"text-gray-400\">Resolved:</div>
-                      <div className=\"text-green-400 font-semibold\">
+                      <div className="text-gray-400">Resolved:</div>
+                      <div className="text-green-400 font-semibold">
                         {realTimeMetrics.anomalies.filter(a => a.resolved).length}
                       </div>
                     </div>
