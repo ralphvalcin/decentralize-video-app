@@ -105,7 +105,7 @@ jobs:
       run: npm run test:integration
 
     - name: Upload test coverage
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       if: matrix.node-version == '18'
       with:
         files: ./coverage/coverage-final.json
