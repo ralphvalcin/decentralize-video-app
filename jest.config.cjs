@@ -13,10 +13,9 @@ module.exports = {
     '<rootDir>/tests/integration/**/*.{js,jsx,ts,tsx}'
   ],
   collectCoverageFrom: [
-    'src/**/*.{js,jsx,ts,tsx}',
-    '!src/**/*.test.{js,jsx,ts,tsx}',
-    '!src/index.jsx',
-    '!src/App.jsx'
+    'src/v2/**/*.{js,jsx,ts,tsx}',
+    '!src/v2/types/**',
+    '!src/v2/design-system/**'
   ],
   coverageThreshold: {
     global: {

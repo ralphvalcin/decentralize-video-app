@@ -1,0 +1,198 @@
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import Peer from 'simple-peer'
+import { io, Socket } from 'socket.io-client'
+import { useCallStore } from '../store/useCallStore'
+import { usePeerStore } from '../store/usePeerStore'
+import { useSessionStore } from '../store/useSessionStore'
+import type { PeerRecord, Poll } from '../types'
+
+// process.env is replaced at build time by vite.config.ts define; also works in Jest
+const SIGNALING_URL = process.env.VITE_SIGNALING_SERVER_URL || 'wss://decentralize-video-app-2.onrender.com'
+
+export const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+]
+
+export interface PeerManagerHandle {
+  sendMessage: (text: string) => void
+  sendReaction: (emoji: string) => void
+}
+
+export function makePeerRecord(id: string, name: string, role: 'host' | 'guest'): PeerRecord {
+  return {
+    id, name, role,
+    stream: null, isMuted: false, isCamOff: false, videoEnabled: false, isScreenSharing: false,
+    connectionState: 'connecting', networkQuality: 'good',
+    isSpeaking: false, isPinned: false,
+    hasRaisedHand: false, handRaisedAt: null,
+    reaction: null, isAway: false, isTyping: false,
+  }
+}
+
+export const PeerManager = forwardRef<PeerManagerHandle>((_, ref) => {
+  const socketRef = useRef<Socket | null>(null)
+  const peerConnsRef = useRef<Map<string, { peer: InstanceType<typeof Peer>; name: string; role: 'host' | 'guest' }>>(new Map())
+  const reactionTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const roomId = useCallStore((s) => s.roomId)
+  const userName = useCallStore((s) => s.userName)
+  const localStream = useCallStore((s) => s.localStream)
+  const setPeer = usePeerStore((s) => s.setPeer)
+  const removePeer = usePeerStore((s) => s.removePeer)
+  const patchPeer = usePeerStore((s) => s.patchPeer)
+  const addMessage = useSessionStore((s) => s.addMessage)
+  const setActivePoll = useSessionStore((s) => s.setActivePoll)
+
+  useImperativeHandle(ref, () => ({
+    sendMessage: (text) => {
+      socketRef.current?.emit('send-message', { text, timestamp: Date.now() })
+    },
+    sendReaction: (emoji) => {
+      socketRef.current?.emit('send-reaction', { emoji })
+    },
+  }), [])
+
+  // If localStream arrives after peers are already connected (race: signaling faster than getUserMedia),
+  // add tracks to each live connection so the remote side receives our media.
+  useEffect(() => {
+    if (!localStream) return
+    peerConnsRef.current.forEach(({ peer }) => {
+      localStream.getTracks().forEach((track) => {
+        try { peer.addTrack(track, localStream) } catch (_) {}
+      })
+    })
+  }, [localStream])
+
+  useEffect(() => {
+    if (!roomId || !userName) return
+
+    function destroyPeerConn(id: string) {
+      const conn = peerConnsRef.current.get(id)
+      // Guard required: peer may already be destroyed (e.g. fired close/error internally)
+      if (conn && !conn.peer.destroyed) conn.peer.destroy()
+      peerConnsRef.current.delete(id)
+    }
+
+    function wirePeerEvents(peer: InstanceType<typeof Peer>, peerId: string) {
+      peer.on('stream', (remoteStream: MediaStream) => {
+        patchPeer(peerId, { stream: remoteStream, connectionState: 'connected', videoEnabled: true })
+      })
+      peer.on('close', () => {
+        patchPeer(peerId, { connectionState: 'disconnected', stream: null })
+        destroyPeerConn(peerId)
+      })
+      peer.on('error', (err: Error) => {
+        console.error('[PeerManager] peer error:', peerId, err?.message)
+        patchPeer(peerId, { connectionState: 'failed', stream: null })
+        destroyPeerConn(peerId)
+      })
+    }
+
+    const socket = io(SIGNALING_URL, { reconnectionAttempts: 5 })
+    socketRef.current = socket
+
+    socket.on('connect', () => {
+      socket.emit('request-room-token', { roomId, userName })
+    })
+
+    // Use on (not once) so reconnects re-join correctly
+    socket.on('room-token', ({ token }: { token: string }) => {
+      socket.emit('join-room', { roomId, token, name: userName, role: 'guest' })
+    })
+
+    socket.on('all-users', (users: Array<{ id: string; name: string; role?: string }>) => {
+      users.forEach((u) => {
+        const role = (u.role as 'host' | 'guest') ?? 'guest'
+        setPeer(u.id, makePeerRecord(u.id, u.name, role))
+        const stream = useCallStore.getState().localStream
+        const peer = new Peer({
+          initiator: true,
+          trickle: false,
+          stream: stream ?? undefined,
+          config: { iceServers: ICE_SERVERS },
+        })
+        wirePeerEvents(peer, u.id)
+        peer.on('signal', (signal) => {
+          socket.emit('sending-signal', { userToSignal: u.id, callerID: socket.id, signal })
+        })
+        peerConnsRef.current.set(u.id, { peer, name: u.name, role })
+      })
+    })
+
+    socket.on('user-joined', ({ signal, callerID, name, role }: { signal: unknown; callerID: string; name: string; role?: string }) => {
+      const peerRole = (role as 'host' | 'guest') ?? 'guest'
+      setPeer(callerID, makePeerRecord(callerID, name, peerRole))
+      if (!signal) return   // no signal = peer record only, no WebRTC yet
+      const stream = useCallStore.getState().localStream
+      const peer = new Peer({
+        initiator: false,
+        trickle: false,
+        stream: stream ?? undefined,
+        config: { iceServers: ICE_SERVERS },
+      })
+      wirePeerEvents(peer, callerID)
+      peer.on('signal', (returnSignal) => {
+        socket.emit('returning-signal', { signal: returnSignal, callerID })
+      })
+      peer.signal(signal as any)
+      peerConnsRef.current.set(callerID, { peer, name, role: peerRole })
+    })
+
+    socket.on('receiving-returned-signal', ({ signal, id }: { signal: unknown; id: string }) => {
+      const conn = peerConnsRef.current.get(id)
+      if (conn && !conn.peer.destroyed) conn.peer.signal(signal as any)
+    })
+
+    socket.on('user-left', (socketId: string) => {
+      removePeer(socketId)
+      destroyPeerConn(socketId)
+    })
+
+    socket.on('chat-history', (messages: Array<{ id: string; sender: string; senderName?: string; text: string; timestamp: number }>) => {
+      messages.forEach((m) => {
+        addMessage({ id: m.id, peerId: m.sender, peerName: m.senderName ?? m.sender, text: m.text, sentAt: m.timestamp })
+      })
+    })
+
+    socket.on('new-message', (m: { id: string; sender: string; senderName?: string; text: string; timestamp: number }) => {
+      addMessage({ id: m.id, peerId: m.sender, peerName: m.senderName ?? m.sender, text: m.text, sentAt: m.timestamp })
+    })
+
+    socket.on('new-poll', (poll: Poll) => {
+      setActivePoll(poll)
+    })
+
+    socket.on('poll-ended', () => {
+      setActivePoll(null)
+    })
+
+    socket.on('new-reaction', ({ peerId, emoji }: { peerId: string; emoji: string }) => {
+      const existing = reactionTimersRef.current.get(peerId)
+      if (existing) clearTimeout(existing)
+      patchPeer(peerId, { reaction: { emoji, sentAt: Date.now() } })
+      const timer = setTimeout(() => {
+        patchPeer(peerId, { reaction: null })
+        reactionTimersRef.current.delete(peerId)
+      }, 3000)
+      reactionTimersRef.current.set(peerId, timer)
+    })
+
+    socket.on('error', (err: { message: string; code: string }) => {
+      console.error('[PeerManager] server error:', err)
+    })
+
+    return () => {
+      socket.emit('user-leaving')
+      socket.disconnect()
+      peerConnsRef.current.forEach((_, id) => destroyPeerConn(id))
+      peerConnsRef.current.clear()
+      socketRef.current = null
+      reactionTimersRef.current.forEach(clearTimeout)
+      reactionTimersRef.current.clear()
+    }
+  }, [roomId, userName, setPeer, removePeer, patchPeer, addMessage, setActivePoll])
+
+  return null
+})
+
+PeerManager.displayName = 'PeerManager'
