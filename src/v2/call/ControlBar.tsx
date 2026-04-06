@@ -1,0 +1,125 @@
+import { useEffect, useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useCallStore } from '../store/useCallStore'
+import { useUIStore } from '../store/useUIStore'
+import { Button } from '../ui/Button'
+
+interface ControlBarProps {
+  onEndCall: () => void
+  onSendReaction?: (emoji: string) => void
+}
+
+const REACTIONS = ['👍', '❤️', '😂', '😮', '👏']
+const HIDE_AFTER_MS = 3000
+
+export function ControlBar({ onEndCall, onSendReaction }: ControlBarProps) {
+  const isMuted = useCallStore((s) => s.isMuted)
+  const isCamOff = useCallStore((s) => s.isCamOff)
+  const setMuted = useCallStore((s) => s.setMuted)
+  const setCamOff = useCallStore((s) => s.setCamOff)
+  const isChatOpen = useUIStore((s) => s.isChatOpen)
+  const toggleChat = useUIStore((s) => s.toggleChat)
+  const isParticipantsOpen = useUIStore((s) => s.isParticipantsOpen)
+  const toggleParticipants = useUIStore((s) => s.toggleParticipants)
+  const [showReactions, setShowReactions] = useState(false)
+  const [visible, setVisible] = useState(true)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function resetTimer() {
+    setVisible(true)
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => setVisible(false), HIDE_AFTER_MS)
+  }
+
+  useEffect(() => {
+    resetTimer()
+    window.addEventListener('mousemove', resetTimer)
+    return () => {
+      window.removeEventListener('mousemove', resetTimer)
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [])
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          data-testid="control-bar"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 8 }}
+          transition={{ duration: 0.15 }}
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-3 bg-[var(--surface-overlay)] border border-[var(--border-default)] rounded-full"
+        >
+          <Button
+            data-testid="btn-mute"
+            variant={isMuted ? 'danger' : 'ghost'}
+            onClick={() => setMuted(!isMuted)}
+          >
+            {isMuted ? '🔇 Unmute' : '🎙 Mute'}
+          </Button>
+
+          <Button
+            data-testid="btn-cam"
+            variant={isCamOff ? 'danger' : 'ghost'}
+            onClick={() => setCamOff(!isCamOff)}
+          >
+            {isCamOff ? '📷 Start Cam' : '🎥 Stop Cam'}
+          </Button>
+
+          <div className="relative">
+            <Button
+              data-testid="btn-reactions"
+              variant="ghost"
+              onClick={() => setShowReactions((v) => !v)}
+            >
+              😊
+            </Button>
+            {showReactions && (
+              <div
+                data-testid="reaction-picker"
+                className="absolute bottom-12 left-1/2 -translate-x-1/2 flex gap-1 bg-[var(--surface-overlay)] border border-[var(--border-default)] rounded-full px-2 py-1"
+              >
+                {REACTIONS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => { onSendReaction?.(emoji); setShowReactions(false) }}
+                    className="text-lg hover:scale-125 transition-transform"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Button
+            data-testid="btn-chat"
+            variant={isChatOpen ? 'primary' : 'ghost'}
+            onClick={toggleChat}
+            aria-label="Chat"
+          >
+            💬
+          </Button>
+
+          <Button
+            data-testid="btn-participants"
+            variant={isParticipantsOpen ? 'primary' : 'ghost'}
+            onClick={toggleParticipants}
+            aria-label="Participants"
+          >
+            👥
+          </Button>
+
+          <Button
+            data-testid="btn-end-call"
+            variant="danger"
+            onClick={onEndCall}
+          >
+            Leave
+          </Button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
