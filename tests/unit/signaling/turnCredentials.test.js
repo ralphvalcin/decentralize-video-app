@@ -67,37 +67,35 @@ test('emits NO_TURN_SERVERS when service returns empty servers array', async () 
 })
 
 describe('validateTURNConfig', () => {
-  const origEnv = { ...process.env }
   beforeEach(() => {
     delete process.env.TURN_SERVER_URL
     delete process.env.TURN_SECRET
+    delete process.env.TURN_SERVER_URL_2
+    delete process.env.TURN_SECRET_2
     jest.spyOn(console, 'warn').mockImplementation(() => {})
     jest.spyOn(console, 'error').mockImplementation(() => {})
     jest.spyOn(console, 'log').mockImplementation(() => {})
   })
-  afterEach(() => {
-    Object.assign(process.env, origEnv)
-    jest.restoreAllMocks()
-  })
+  afterEach(() => { jest.restoreAllMocks() })
 
-  test('warns when both vars are missing', () => {
+  test('warns STUN only when no vars set', () => {
     validateTURNConfig()
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('STUN only'))
   })
 
-  test('warns when URL is set but secret is missing', () => {
+  test('warns when primary URL is set but secret is missing', () => {
     process.env.TURN_SERVER_URL = 'turn.example.com'
     validateTURNConfig()
-    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('TURN_SECRET is not set'))
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('secret is missing'))
   })
 
-  test('warns when secret is set but URL is missing', () => {
+  test('warns when primary secret is set but URL is missing', () => {
     process.env.TURN_SECRET = 'secret'
     validateTURNConfig()
-    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('TURN_SERVER_URL is not set'))
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('URL'))
   })
 
-  test('errors when URL contains invalid characters', () => {
+  test('errors when primary URL contains invalid characters', () => {
     process.env.TURN_SERVER_URL = 'turn://bad url!'
     process.env.TURN_SECRET = 'a'.repeat(32)
     validateTURNConfig()
@@ -111,10 +109,28 @@ describe('validateTURNConfig', () => {
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('only 5 chars'))
   })
 
-  test('logs success when both vars are valid', () => {
+  test('logs success for primary server when valid', () => {
     process.env.TURN_SERVER_URL = 'turn.example.com'
     process.env.TURN_SECRET = 'a'.repeat(32)
     validateTURNConfig()
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('turn.example.com'))
+  })
+
+  test('logs success for secondary-only config without warning STUN only', () => {
+    process.env.TURN_SERVER_URL_2 = 'turn2.example.com'
+    process.env.TURN_SECRET_2 = 'a'.repeat(32)
+    validateTURNConfig()
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('turn2.example.com'))
+    expect(console.warn).not.toHaveBeenCalledWith(expect.stringContaining('STUN only'))
+  })
+
+  test('logs success for both servers when both valid', () => {
+    process.env.TURN_SERVER_URL = 'turn1.example.com'
+    process.env.TURN_SECRET = 'a'.repeat(32)
+    process.env.TURN_SERVER_URL_2 = 'turn2.example.com'
+    process.env.TURN_SECRET_2 = 'b'.repeat(32)
+    validateTURNConfig()
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('turn1.example.com'))
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('turn2.example.com'))
   })
 })

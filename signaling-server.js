@@ -411,30 +411,43 @@ const turnCredentialService = new TURNCredentialService({
 
 // Validate TURN configuration at startup — warn early so ops knows before a call fails
 export function validateTURNConfig() {
-  const url = process.env.TURN_SERVER_URL;
-  const secret = process.env.TURN_SECRET;
-  if (!url && !secret) {
-    console.warn('[TURN] TURN_SERVER_URL and TURN_SECRET are not set. WebRTC will use STUN only — calls may fail behind symmetric NAT.');
+  const servers = [
+    { url: process.env.TURN_SERVER_URL, secret: process.env.TURN_SECRET, label: 'primary' },
+    { url: process.env.TURN_SERVER_URL_2, secret: process.env.TURN_SECRET_2, label: 'secondary' },
+  ];
+
+  const configured = servers.filter(s => s.url || s.secret);
+
+  if (configured.length === 0) {
+    console.warn('[TURN] No TURN servers configured. WebRTC will use STUN only — calls may fail behind symmetric NAT.');
     return;
   }
-  if (!url) {
-    console.warn('[TURN] TURN_SERVER_URL is not set but TURN_SECRET is. TURN server will not be used.');
-    return;
+
+  let anyValid = false;
+  for (const { url, secret, label } of configured) {
+    if (url && !secret) {
+      console.warn(`[TURN] ${label}: TURN_SERVER_URL${label === 'secondary' ? '_2' : ''} is set but secret is missing — server will not be used.`);
+      continue;
+    }
+    if (secret && !url) {
+      console.warn(`[TURN] ${label}: secret is set but TURN_SERVER_URL${label === 'secondary' ? '_2' : ''} is missing — server will not be used.`);
+      continue;
+    }
+    const validHost = /^[a-zA-Z0-9._-]+$/.test(url);
+    if (!validHost) {
+      console.error(`[TURN] ${label}: "${url}" does not look like a valid hostname or IP address.`);
+      continue;
+    }
+    if (secret.length < 16) {
+      console.warn(`[TURN] ${label}: secret is only ${secret.length} chars — use at least 32 random characters (e.g. openssl rand -hex 32).`);
+    }
+    console.log(`[TURN] ${label} TURN server configured: ${url}`);
+    anyValid = true;
   }
-  if (!secret) {
-    console.warn('[TURN] TURN_SECRET is not set but TURN_SERVER_URL is. Credentials cannot be generated — TURN server will not be used.');
-    return;
+
+  if (!anyValid) {
+    console.warn('[TURN] No valid TURN servers after validation. WebRTC will use STUN only.');
   }
-  // Basic hostname/IP sanity check — reject obviously wrong values
-  const validHost = /^[a-zA-Z0-9._-]+$/.test(url);
-  if (!validHost) {
-    console.error(`[TURN] TURN_SERVER_URL "${url}" does not look like a valid hostname or IP address.`);
-    return;
-  }
-  if (secret.length < 16) {
-    console.warn(`[TURN] TURN_SECRET is only ${secret.length} chars — use at least 32 random characters (e.g. openssl rand -hex 32).`);
-  }
-  console.log(`[TURN] TURN server configured: ${url}`);
 }
 validateTURNConfig();
 
