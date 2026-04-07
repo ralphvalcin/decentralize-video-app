@@ -961,7 +961,7 @@ export async function handleTurnCredentialsRequest(socket, { users, rateLimiter,
     }
   } catch (error) {
     console.error('Error providing TURN credentials:', error);
-    logSecurityEvent('TURN_CREDENTIALS_ERROR', socket.id, { error: error.message, severity: 'high' });
+    logSecurityEvent('TURN_CREDENTIALS_ERROR', user.id, { error: error.message, severity: 'high' });
     socket.emit('turn-credentials-error', { message: 'Failed to generate TURN credentials', code: 'SERVER_ERROR' });
     performanceMonitor.recordError();
   }
