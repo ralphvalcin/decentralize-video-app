@@ -53,6 +53,21 @@ test('both servers appear in returned config when two servers configured', async
   expect(config.servers[1].credential).toBeTruthy()
 })
 
+test('secondary-only config returns one server with URL_2 hostname', async () => {
+  Object.assign(process.env, {
+    TURN_SERVER_URL_2: 'turn2.example.com',
+    TURN_SECRET_2: 'secret-2',
+  })
+  const svc = new TURNCredentialService()
+  const config = await svc.getTURNCredentials('alice')
+  expect(config.servers).toHaveLength(1)
+  expect(config.servers[0].urls[0]).toContain('turn2.example.com')
+  expect(config.servers[0].username).toBeTruthy()
+  expect(config.servers[0].credential).toBeTruthy()
+  const keys = [...svc.credentialCache.keys()]
+  expect(keys[0]).toContain('turn2.example.com')
+})
+
 test('cache key is based on server URL — two users share one cache entry', async () => {
   Object.assign(process.env, ENV)
   const svc = new TURNCredentialService()
