@@ -102,6 +102,9 @@ export const PeerManager = forwardRef<PeerManagerHandle>((_, ref) => {
 
       // Request TURN credentials right after joining; update ref when they arrive.
       // iceServersRef starts as ICE_SERVERS so peer creation never blocks.
+      // Off before re-registering: prevents stale listeners from prior cycles on reconnect.
+      socket.off('turn-credentials')
+      socket.off('turn-credentials-error')
       socket.emit('request-turn-credentials')
       socket.once('turn-credentials', (config: { servers: RTCIceServer[] }) => {
         if (Array.isArray(config?.servers) && config.servers.length > 0) {
