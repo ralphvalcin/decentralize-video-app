@@ -119,6 +119,9 @@ export const PeerManager = forwardRef<PeerManagerHandle>((_, ref) => {
     socket.on('all-users', (users: Array<{ id: string; name: string; role?: string }>) => {
       users.forEach((u) => {
         const role = (u.role as 'host' | 'guest') ?? 'guest'
+        // On reconnect the server re-sends all-users; destroy any stale connection first
+        // so we don't orphan a Peer with open data channels and listeners.
+        if (peerConnsRef.current.has(u.id)) destroyPeerConn(u.id)
         setPeer(u.id, makePeerRecord(u.id, u.name, role))
         const stream = useCallStore.getState().localStream
         const peer = new Peer({

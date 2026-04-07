@@ -478,6 +478,25 @@ test('poll-ended clears activePoll in session store', async () => {
   expect(useSessionStore.getState().activePoll).toBeNull()
 })
 
+test('reconnect: all-users destroys existing peer before creating a new one', async () => {
+  const Peer = require('simple-peer')
+  Peer.mockClear()
+  await act(async () => { render(<PeerManager />) })
+
+  // First all-users — creates peer for peer-a
+  act(() => { fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }]) })
+  expect(Peer).toHaveBeenCalledTimes(1)
+  mockPeerInstance.destroy.mockClear()
+
+  // Simulated reconnect: server sends all-users again with the same peer
+  act(() => { fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }]) })
+
+  // Old connection must have been destroyed before the new one was created
+  expect(mockPeerInstance.destroy).toHaveBeenCalledTimes(1)
+  // Two total Peer constructions (one per all-users)
+  expect(Peer).toHaveBeenCalledTimes(2)
+})
+
 test('unmount removes turn-credentials listeners to prevent ghost callbacks', async () => {
   let unmount!: () => void
   await act(async () => { unmount = render(<PeerManager />).unmount })
