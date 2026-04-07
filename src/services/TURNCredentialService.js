@@ -40,8 +40,11 @@ export class TURNCredentialService {
    * @returns {Object} - TURN configuration object
    */
   async getTURNCredentials(userId = 'anonymous') {
-    // Cache key: server URL (credentials are server-specific, not user-specific)
-    const serverKey = process.env.TURN_SERVER_URL || 'default';
+    // Cache key: all server URLs (credentials are server-specific, not user-specific)
+    const serverKey = [
+      process.env.TURN_SERVER_URL || '',
+      process.env.TURN_SERVER_URL_2 || '',
+    ].filter(Boolean).join('|') || 'default';
     const cacheKey = `turn-credentials-${serverKey}`;
     const cached = this.credentialCache.get(cacheKey);
 
@@ -56,6 +59,8 @@ export class TURNCredentialService {
     };
 
     try {
+      const serverExpiries = [];
+
       if (process.env.TURN_SERVER_URL && process.env.TURN_SECRET) {
         const credentials = this.generateTURNCredentials(process.env.TURN_SECRET);
         turnConfig.servers.push({
@@ -67,8 +72,8 @@ export class TURNCredentialService {
           username: credentials.username,
           credential: credentials.password,
           credentialType: 'password',
-          expires: credentials.expires,
         });
+        serverExpiries.push(credentials.expires);
       }
 
       if (process.env.TURN_SERVER_URL_2 && process.env.TURN_SECRET_2) {
@@ -82,8 +87,8 @@ export class TURNCredentialService {
           username: credentials.username,
           credential: credentials.password,
           credentialType: 'password',
-          expires: credentials.expires,
         });
+        serverExpiries.push(credentials.expires);
       }
 
       if (this.twilioConfig) {
@@ -92,7 +97,9 @@ export class TURNCredentialService {
       }
 
       if (turnConfig.servers.length > 0) {
-        const expires = Math.min(...turnConfig.servers.map(s => s.expires || Date.now() + 86400000));
+        const expires = serverExpiries.length > 0
+          ? Math.min(...serverExpiries)
+          : Date.now() + 86400000;
         this.credentialCache.set(cacheKey, { config: turnConfig, expires });
       }
 

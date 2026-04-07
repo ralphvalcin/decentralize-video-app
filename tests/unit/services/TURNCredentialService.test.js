@@ -12,12 +12,27 @@ afterEach(() => {
   delete process.env.TURN_SECRET_2
 })
 
-test('returned server objects include numeric expires field', async () => {
-  Object.assign(process.env, ENV)
+test('server objects returned to caller do not contain expires field', async () => {
+  Object.assign(process.env, { TURN_SERVER_URL: 'turn.example.com', TURN_SECRET: 'secret' })
   const svc = new TURNCredentialService()
   const config = await svc.getTURNCredentials('alice')
-  expect(typeof config.servers[0].expires).toBe('number')
-  expect(config.servers[0].expires).toBeGreaterThan(Date.now())
+  config.servers.forEach(server => {
+    expect(server).not.toHaveProperty('expires')
+  })
+})
+
+test('cache key incorporates both server URLs when two servers configured', async () => {
+  Object.assign(process.env, {
+    TURN_SERVER_URL: 'turn1.example.com',
+    TURN_SECRET: 'secret-1',
+    TURN_SERVER_URL_2: 'turn2.example.com',
+    TURN_SECRET_2: 'secret-2',
+  })
+  const svc = new TURNCredentialService()
+  await svc.getTURNCredentials('alice')
+  const keys = [...svc.credentialCache.keys()]
+  expect(keys[0]).toContain('turn1.example.com')
+  expect(keys[0]).toContain('turn2.example.com')
 })
 
 test('cache key is based on server URL — two users share one cache entry', async () => {
