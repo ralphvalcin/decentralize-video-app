@@ -124,6 +124,25 @@ describe('validateTURNConfig', () => {
     expect(console.warn).not.toHaveBeenCalledWith(expect.stringContaining('STUN only'))
   })
 
+  test('errors on primary bad hostname but still logs secondary as valid', () => {
+    process.env.TURN_SERVER_URL = 'turn://bad url!'
+    process.env.TURN_SECRET = 'a'.repeat(32)
+    process.env.TURN_SERVER_URL_2 = 'turn2.example.com'
+    process.env.TURN_SECRET_2 = 'b'.repeat(32)
+    validateTURNConfig()
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('does not look like a valid hostname'))
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('turn2.example.com'))
+    expect(console.warn).not.toHaveBeenCalledWith(expect.stringContaining('STUN only'))
+  })
+
+  test('warns STUN only when primary bad and no secondary', () => {
+    process.env.TURN_SERVER_URL = 'turn://bad url!'
+    process.env.TURN_SECRET = 'a'.repeat(32)
+    validateTURNConfig()
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('does not look like a valid hostname'))
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('STUN only'))
+  })
+
   test('logs success for both servers when both valid', () => {
     process.env.TURN_SERVER_URL = 'turn1.example.com'
     process.env.TURN_SECRET = 'a'.repeat(32)
