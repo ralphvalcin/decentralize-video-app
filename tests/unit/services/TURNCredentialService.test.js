@@ -35,6 +35,24 @@ test('cache key incorporates both server URLs when two servers configured', asyn
   expect(keys[0]).toContain('turn2.example.com')
 })
 
+test('both servers appear in returned config when two servers configured', async () => {
+  Object.assign(process.env, {
+    TURN_SERVER_URL: 'turn1.example.com',
+    TURN_SECRET: 'secret-1',
+    TURN_SERVER_URL_2: 'turn2.example.com',
+    TURN_SECRET_2: 'secret-2',
+  })
+  const svc = new TURNCredentialService()
+  const config = await svc.getTURNCredentials('alice')
+  expect(config.servers).toHaveLength(2)
+  expect(config.servers[0].urls[0]).toContain('turn1.example.com')
+  expect(config.servers[1].urls[0]).toContain('turn2.example.com')
+  expect(config.servers[0].username).toBeTruthy()
+  expect(config.servers[0].credential).toBeTruthy()
+  expect(config.servers[1].username).toBeTruthy()
+  expect(config.servers[1].credential).toBeTruthy()
+})
+
 test('cache key is based on server URL — two users share one cache entry', async () => {
   Object.assign(process.env, ENV)
   const svc = new TURNCredentialService()
