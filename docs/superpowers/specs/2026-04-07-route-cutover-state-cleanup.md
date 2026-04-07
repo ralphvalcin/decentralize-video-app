@@ -177,18 +177,156 @@ Updates rejoin navigation from `/v2/room/${room.id}` → `/room/${room.id}`.
 | `src/components/Home-enhanced.jsx` | Unused variant of Home.jsx |
 | `src/App.global-state.tsx` | Orphaned — never imported |
 
-## Tests Updated
+## Tests
 
-| Test file | Change |
-|-----------|--------|
-| `tests/unit/v2/call/PeerManager.test.tsx` | Remove `useCallStore.setState({ roomId })` — pass as prop: `render(<PeerManager roomId="room-1" />)` |
-| `tests/integration/v2/PeerManager.integration.test.tsx` | Same |
-| `tests/unit/v2/store/useCallStore.test.ts` (if exists) | Remove roomId cases, add `reset()` test |
+### `tests/unit/v2/store/useCallStore.test.ts` (new file)
+
+```ts
+test('reset sets isMuted and isCamOff to false', () => {
+  useCallStore.setState({ isMuted: true, isCamOff: true })
+  useCallStore.getState().reset()
+  expect(useCallStore.getState().isMuted).toBe(false)
+  expect(useCallStore.getState().isCamOff).toBe(false)
+})
+
+test('reset does not clear userName', () => {
+  useCallStore.setState({ userName: 'Ralph' })
+  useCallStore.getState().reset()
+  expect(useCallStore.getState().userName).toBe('Ralph')
+})
+
+test('reset does not clear localStream', () => {
+  const stream = { getTracks: () => [] } as unknown as MediaStream
+  useCallStore.setState({ localStream: stream })
+  useCallStore.getState().reset()
+  expect(useCallStore.getState().localStream).toBe(stream)
+})
+```
+
+### `tests/unit/v2/call/PeerManager.test.tsx` (updated)
+
+All existing tests replace `useCallStore.setState({ roomId: 'room-1', userName: 'Ralph' })` with:
+```tsx
+useCallStore.setState({ userName: 'Ralph' })
+render(<PeerManager roomId="room-1" />)
+```
 
 New tests:
-- `reset()` clears `isMuted` and `isCamOff` to false
-- RoomV2 redirects to `/?redirect=/room/:id` when `userName` is empty
-- JoinForm navigates to `/room/${id}` (not `/v2/room/`)
+
+```tsx
+test('does not connect when roomId prop is empty', async () => {
+  const { io } = require('socket.io-client')
+  io.mockClear()
+  useCallStore.setState({ userName: 'Ralph' })
+  await act(async () => { render(<PeerManager roomId="" />) })
+  expect(io).not.toHaveBeenCalled()
+})
+
+test('does not connect when userName is empty', async () => {
+  const { io } = require('socket.io-client')
+  io.mockClear()
+  useCallStore.setState({ userName: '' })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  expect(io).not.toHaveBeenCalled()
+})
+
+test('does not reconnect when unrelated store field changes', async () => {
+  const { io } = require('socket.io-client')
+  io.mockClear()
+  useCallStore.setState({ userName: 'Ralph' })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  expect(io).toHaveBeenCalledTimes(1)
+
+  // Changing isMuted must not trigger a new socket connection
+  act(() => { useCallStore.getState().setMuted(true) })
+  expect(io).toHaveBeenCalledTimes(1)
+})
+
+test('reset() does not trigger reconnect', async () => {
+  const { io } = require('socket.io-client')
+  io.mockClear()
+  useCallStore.setState({ userName: 'Ralph', isMuted: true })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  expect(io).toHaveBeenCalledTimes(1)
+
+  act(() => { useCallStore.getState().reset() })
+  expect(io).toHaveBeenCalledTimes(1)
+})
+```
+
+### `tests/integration/v2/PeerManager.integration.test.tsx` (updated)
+
+Replace `useCallStore.setState({ roomId: 'room-1', userName: 'Ralph' })` with:
+```tsx
+useCallStore.setState({ userName: 'Ralph' })
+// render passes roomId as prop
+render(<PeerManager roomId="room-1" />)
+```
+
+### `tests/unit/v2/pages/JoinForm.test.tsx` (updated)
+
+```tsx
+test('navigates to /room/${id} on create', async () => {
+  // fill name + click Create — assert navigate called with /room/... not /v2/room/...
+  expect(mockNavigate).toHaveBeenCalledWith(expect.stringMatching(/^\/room\//))
+})
+
+test('does not write roomId to store on submit', async () => {
+  const before = useCallStore.getState()
+  // fill name + roomId + click Join
+  // store should have userName but no roomId key
+  expect(useCallStore.getState().userName).toBe('Alice')
+  expect('roomId' in useCallStore.getState()).toBe(false)
+})
+```
+
+### `tests/unit/v2/pages/RoomV2.test.tsx` (updated)
+
+```tsx
+test('redirects to /?redirect=/room/:id when userName is empty', async () => {
+  useCallStore.setState({ userName: '' })
+  render(<RoomV2 />) // route: /room/abc123
+  expect(mockNavigate).toHaveBeenCalledWith('/?redirect=/room/abc123')
+})
+
+test('does not redirect when userName is set', async () => {
+  useCallStore.setState({ userName: 'Ralph' })
+  render(<RoomV2 />)
+  expect(mockNavigate).not.toHaveBeenCalledWith(expect.stringContaining('redirect'))
+})
+
+test('passes roomId from URL params to PeerManager', async () => {
+  useCallStore.setState({ userName: 'Ralph' })
+  render(<RoomV2 />) // route: /room/xyz789
+  // PeerManager rendered with roomId="xyz789"
+  expect(screen.getByTestId('peer-manager')).toHaveAttribute('data-room-id', 'xyz789')
+  // OR assert via mock: PeerManager mock captures the roomId prop
+})
+```
+
+### `tests/unit/v2/call/ControlBar.test.tsx` (updated)
+
+```tsx
+test('onEndCall calls reset() before navigating', () => {
+  useCallStore.setState({ isMuted: true, isCamOff: true })
+  const onEndCall = jest.fn()
+  render(<ControlBar onEndCall={onEndCall} />)
+  // fire end call button
+  fireEvent.click(screen.getByTestId('btn-end-call'))
+  expect(onEndCall).toHaveBeenCalled()
+  // reset is called by the parent — verify it in RoomV2 test instead
+})
+
+// In RoomV2.test.tsx:
+test('end call resets mute and cam state', async () => {
+  useCallStore.setState({ userName: 'Ralph', isMuted: true, isCamOff: true })
+  render(<RoomV2 />) // route: /room/abc123
+  fireEvent.click(screen.getByTestId('btn-end-call'))
+  expect(useCallStore.getState().isMuted).toBe(false)
+  expect(useCallStore.getState().isCamOff).toBe(false)
+  expect(mockNavigate).toHaveBeenCalledWith('/')
+})
+```
 
 ---
 
