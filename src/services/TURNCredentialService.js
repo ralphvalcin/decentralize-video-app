@@ -40,11 +40,12 @@ export class TURNCredentialService {
    * @returns {Object} - TURN configuration object
    */
   async getTURNCredentials(userId = 'anonymous') {
-    const cacheKey = `turn-credentials-${userId}`;
+    // Cache key: server URL (credentials are server-specific, not user-specific)
+    const serverKey = process.env.TURN_SERVER_URL || 'default';
+    const cacheKey = `turn-credentials-${serverKey}`;
     const cached = this.credentialCache.get(cacheKey);
-    
-    // Return cached credentials if still valid
-    if (cached && Date.now() < cached.expires - 300000) { // Refresh 5 minutes before expiry
+
+    if (cached && Date.now() < cached.expires - 300000) {
       return cached.config;
     }
 
@@ -55,7 +56,6 @@ export class TURNCredentialService {
     };
 
     try {
-      // Generate credentials for configured TURN servers
       if (process.env.TURN_SERVER_URL && process.env.TURN_SECRET) {
         const credentials = this.generateTURNCredentials(process.env.TURN_SECRET);
         turnConfig.servers.push({
@@ -66,11 +66,11 @@ export class TURNCredentialService {
           ],
           username: credentials.username,
           credential: credentials.password,
-          credentialType: 'password'
+          credentialType: 'password',
+          expires: credentials.expires,
         });
       }
 
-      // Add secondary TURN server if configured
       if (process.env.TURN_SERVER_URL_2 && process.env.TURN_SECRET_2) {
         const credentials = this.generateTURNCredentials(process.env.TURN_SECRET_2);
         turnConfig.servers.push({
@@ -81,23 +81,19 @@ export class TURNCredentialService {
           ],
           username: credentials.username,
           credential: credentials.password,
-          credentialType: 'password'
+          credentialType: 'password',
+          expires: credentials.expires,
         });
       }
 
-      // Add Twilio TURN servers if configured
       if (this.twilioConfig) {
         const twilioTurnServers = await this.getTwilioTURNServers();
         turnConfig.servers.push(...twilioTurnServers);
       }
 
-      // Cache the configuration
       if (turnConfig.servers.length > 0) {
         const expires = Math.min(...turnConfig.servers.map(s => s.expires || Date.now() + 86400000));
-        this.credentialCache.set(cacheKey, {
-          config: turnConfig,
-          expires: expires
-        });
+        this.credentialCache.set(cacheKey, { config: turnConfig, expires });
       }
 
       return turnConfig;
