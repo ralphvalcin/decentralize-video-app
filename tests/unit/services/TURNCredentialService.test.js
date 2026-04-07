@@ -68,6 +68,15 @@ test('secondary-only config returns one server with URL_2 hostname', async () =>
   expect(keys[0]).toContain('turn2.example.com')
 })
 
+test('returns empty servers array when no env vars set', async () => {
+  // No TURN_SERVER_URL or TURN_SERVER_URL_2 set
+  const svc = new TURNCredentialService()
+  const config = await svc.getTURNCredentials('alice')
+  expect(config.servers).toHaveLength(0)
+  // Nothing cached — empty servers skip the cache.set() call
+  expect(svc.credentialCache.size).toBe(0)
+})
+
 test('cache key is based on server URL — two users share one cache entry', async () => {
   Object.assign(process.env, ENV)
   const svc = new TURNCredentialService()
