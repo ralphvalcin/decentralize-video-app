@@ -409,6 +409,35 @@ const turnCredentialService = new TURNCredentialService({
   } : null
 });
 
+// Validate TURN configuration at startup — warn early so ops knows before a call fails
+export function validateTURNConfig() {
+  const url = process.env.TURN_SERVER_URL;
+  const secret = process.env.TURN_SECRET;
+  if (!url && !secret) {
+    console.warn('[TURN] TURN_SERVER_URL and TURN_SECRET are not set. WebRTC will use STUN only — calls may fail behind symmetric NAT.');
+    return;
+  }
+  if (!url) {
+    console.warn('[TURN] TURN_SERVER_URL is not set but TURN_SECRET is. TURN server will not be used.');
+    return;
+  }
+  if (!secret) {
+    console.warn('[TURN] TURN_SECRET is not set but TURN_SERVER_URL is. Credentials cannot be generated — TURN server will not be used.');
+    return;
+  }
+  // Basic hostname/IP sanity check — reject obviously wrong values
+  const validHost = /^[a-zA-Z0-9._-]+$/.test(url);
+  if (!validHost) {
+    console.error(`[TURN] TURN_SERVER_URL "${url}" does not look like a valid hostname or IP address.`);
+    return;
+  }
+  if (secret.length < 16) {
+    console.warn(`[TURN] TURN_SECRET is only ${secret.length} chars — use at least 32 random characters (e.g. openssl rand -hex 32).`);
+  }
+  console.log(`[TURN] TURN server configured: ${url}`);
+}
+validateTURNConfig();
+
 // Create HTTP server for health checks and metrics
 const server = http.createServer((req, res) => {
   // Enable CORS for metrics endpoints
