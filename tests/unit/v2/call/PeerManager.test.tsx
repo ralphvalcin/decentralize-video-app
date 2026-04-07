@@ -484,3 +484,41 @@ test('chat-history falls back to sender when senderName absent', async () => {
   })
   expect(useSessionStore.getState().messages[0].peerName).toBe('socket-id-abc')
 })
+
+test('emits request-turn-credentials after join-room', async () => {
+  await act(async () => { render(<PeerManager />) })
+  act(() => {
+    fireSocketEvent('connect')
+    fireSocketEvent('room-token', { token: 'tok' })
+  })
+  expect(mockSocket.emit).toHaveBeenCalledWith('request-turn-credentials')
+})
+
+test('uses fetched TURN servers when turn-credentials arrives before all-users', async () => {
+  const SimplePeer = (await import('simple-peer')).default as jest.MockedClass<any>
+  const turnServers = [{ urls: ['turn:test.example.com:3478'], username: 'u', credential: 'p' }]
+  await act(async () => { render(<PeerManager />) })
+  act(() => {
+    fireSocketEvent('connect')
+    fireSocketEvent('room-token', { token: 'tok' })
+    fireSocketEvent('turn-credentials', { servers: turnServers })
+    fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
+  })
+  const lastCall = SimplePeer.mock.calls[SimplePeer.mock.calls.length - 1]
+  expect(lastCall[0].config.iceServers).toEqual(turnServers)
+})
+
+test('falls back to ICE_SERVERS when turn-credentials-error fires', async () => {
+  const SimplePeer = (await import('simple-peer')).default as jest.MockedClass<any>
+  const { ICE_SERVERS } = await import('../../../../src/v2/call/PeerManager')
+  SimplePeer.mockClear()
+  await act(async () => { render(<PeerManager />) })
+  act(() => {
+    fireSocketEvent('connect')
+    fireSocketEvent('room-token', { token: 'tok' })
+    fireSocketEvent('turn-credentials-error', { code: 'NO_TURN_SERVERS' })
+    fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
+  })
+  const lastCall = SimplePeer.mock.calls[SimplePeer.mock.calls.length - 1]
+  expect(lastCall[0].config.iceServers).toEqual(ICE_SERVERS)
+})

@@ -34,6 +34,7 @@ export const PeerManager = forwardRef<PeerManagerHandle>((_, ref) => {
   const socketRef = useRef<Socket | null>(null)
   const peerConnsRef = useRef<Map<string, { peer: InstanceType<typeof Peer>; name: string; role: 'host' | 'guest' }>>(new Map())
   const reactionTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const iceServersRef = useRef<RTCIceServer[]>(ICE_SERVERS)
   const roomId = useCallStore((s) => s.roomId)
   const userName = useCallStore((s) => s.userName)
   const localStream = useCallStore((s) => s.localStream)
@@ -98,6 +99,18 @@ export const PeerManager = forwardRef<PeerManagerHandle>((_, ref) => {
     // Use on (not once) so reconnects re-join correctly
     socket.on('room-token', ({ token }: { token: string }) => {
       socket.emit('join-room', { roomId, token, name: userName, role: 'guest' })
+
+      // Request TURN credentials right after joining; update ref when they arrive.
+      // iceServersRef starts as ICE_SERVERS so peer creation never blocks.
+      socket.emit('request-turn-credentials')
+      socket.once('turn-credentials', (config: { servers: RTCIceServer[] }) => {
+        if (Array.isArray(config?.servers) && config.servers.length > 0) {
+          iceServersRef.current = config.servers
+        }
+      })
+      socket.once('turn-credentials-error', (err: { code: string }) => {
+        console.warn('[PeerManager] TURN credential error:', err?.code, '— using STUN fallback')
+      })
     })
 
     socket.on('all-users', (users: Array<{ id: string; name: string; role?: string }>) => {
@@ -109,7 +122,7 @@ export const PeerManager = forwardRef<PeerManagerHandle>((_, ref) => {
           initiator: true,
           trickle: false,
           stream: stream ?? undefined,
-          config: { iceServers: ICE_SERVERS },
+          config: { iceServers: iceServersRef.current },
         })
         wirePeerEvents(peer, u.id)
         peer.on('signal', (signal) => {
@@ -128,7 +141,7 @@ export const PeerManager = forwardRef<PeerManagerHandle>((_, ref) => {
         initiator: false,
         trickle: false,
         stream: stream ?? undefined,
-        config: { iceServers: ICE_SERVERS },
+        config: { iceServers: iceServersRef.current },
       })
       wirePeerEvents(peer, callerID)
       peer.on('signal', (returnSignal) => {
