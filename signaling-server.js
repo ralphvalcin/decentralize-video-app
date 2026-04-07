@@ -409,6 +409,48 @@ const turnCredentialService = new TURNCredentialService({
   } : null
 });
 
+// Validate TURN configuration at startup — warn early so ops knows before a call fails
+export function validateTURNConfig() {
+  const servers = [
+    { url: process.env.TURN_SERVER_URL, secret: process.env.TURN_SECRET, label: 'primary' },
+    { url: process.env.TURN_SERVER_URL_2, secret: process.env.TURN_SECRET_2, label: 'secondary' },
+  ];
+
+  const configured = servers.filter(s => s.url || s.secret);
+
+  if (configured.length === 0) {
+    console.warn('[TURN] No TURN servers configured. WebRTC will use STUN only — calls may fail behind symmetric NAT.');
+    return;
+  }
+
+  let anyValid = false;
+  for (const { url, secret, label } of configured) {
+    if (url && !secret) {
+      console.warn(`[TURN] ${label}: TURN_SERVER_URL${label === 'secondary' ? '_2' : ''} is set but secret is missing — server will not be used.`);
+      continue;
+    }
+    if (secret && !url) {
+      console.warn(`[TURN] ${label}: secret is set but TURN_SERVER_URL${label === 'secondary' ? '_2' : ''} is missing — server will not be used.`);
+      continue;
+    }
+    const validHost = /^[a-zA-Z0-9._-]+$/.test(url);
+    if (!validHost) {
+      console.error(`[TURN] ${label}: "${url}" does not look like a valid hostname or IP address.`);
+      continue;
+    }
+    if (secret.length < 16) {
+      console.warn(`[TURN] ${label}: secret is only ${secret.length} chars — use at least 32 random characters (e.g. openssl rand -hex 32).`);
+    }
+    console.log(`[TURN] ${label} TURN server configured: ${url}`);
+    anyValid = true;
+  }
+
+  if (!anyValid) {
+    console.warn('[TURN] No valid TURN servers after validation. WebRTC will use STUN only.');
+  }
+}
+validateTURNConfig();
+
 // Create HTTP server for health checks and metrics
 const server = http.createServer((req, res) => {
   // Enable CORS for metrics endpoints
@@ -555,7 +597,7 @@ function gracefulShutdown(signal) {
   }, 30000);
 }
 
-server.listen(config.PORT, () => {
+if (process.env.NODE_ENV !== 'test') server.listen(config.PORT, () => {
   console.log(`🚀 Signaling server is running on port ${config.PORT}`);
   console.log(`📊 Health check available at http://localhost:${config.PORT}/health`);
   console.log(`📈 Metrics available at http://localhost:${config.PORT}/metrics`);
@@ -921,6 +963,52 @@ io.use((socket, next) => {
   next();
 });
 
+export async function handleTurnCredentialsRequest(socket, { users, rateLimiter, turnCredentialService, performanceMonitor, logSecurityEvent }) {
+  const requestStart = Date.now();
+
+  // Guard: socket must have joined a room first
+  const user = users[socket.id];
+  if (!user) {
+    socket.emit('turn-credentials-error', {
+      message: 'Must join a room before requesting TURN credentials',
+      code: 'AUTH_REQUIRED',
+    });
+    return;
+  }
+
+  if (!rateLimiter.checkLimit(socket.id, 'turn-credentials', 10)) {
+    socket.emit('turn-credentials-error', { message: 'Rate limit exceeded for TURN credentials', code: 'RATE_LIMIT_EXCEEDED' });
+    performanceMonitor.recordError();
+    return;
+  }
+
+  try {
+    logSecurityEvent('TURN_CREDENTIALS_REQUESTED', user.id, {
+      userAgent: socket.handshake.headers['user-agent'],
+      ip: socket.handshake.address,
+    });
+
+    const turnConfig = await turnCredentialService.getTURNCredentials(user.id);
+
+    if (turnConfig && turnConfig.servers.length > 0) {
+      socket.emit('turn-credentials', turnConfig);
+      logSecurityEvent('TURN_CREDENTIALS_PROVIDED', user.id, {
+        serverCount: turnConfig.servers.length,
+        hasAuthentication: turnConfig.servers.every(s => s.username && s.credential),
+      });
+      performanceMonitor.recordMessage(Date.now() - requestStart);
+    } else {
+      socket.emit('turn-credentials-error', { message: 'No TURN servers configured', code: 'NO_TURN_SERVERS' });
+      performanceMonitor.recordError();
+    }
+  } catch (error) {
+    console.error('Error providing TURN credentials:', error);
+    logSecurityEvent('TURN_CREDENTIALS_ERROR', user.id, { error: error.message, severity: 'high' });
+    socket.emit('turn-credentials-error', { message: 'Failed to generate TURN credentials', code: 'SERVER_ERROR' });
+    performanceMonitor.recordError();
+  }
+}
+
 io.on('connection', (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
   performanceMonitor.recordConnection();
@@ -973,57 +1061,9 @@ io.on('connection', (socket) => {
   });
 
   // Handle TURN credentials request
-  socket.on('request-turn-credentials', async () => {
-    const requestStart = Date.now();
-    
-    if (!rateLimiter.checkLimit(socket.id, 'turn-credentials', 10)) {
-      socket.emit('turn-credentials-error', { message: 'Rate limit exceeded for TURN credentials', code: 'RATE_LIMIT_EXCEEDED' });
-      performanceMonitor.recordError();
-      return;
-    }
-
-    try {
-      const user = users[socket.id];
-      const userId = user?.id || socket.id;
-      
-      logSecurityEvent('TURN_CREDENTIALS_REQUESTED', userId, {
-        userAgent: socket.handshake.headers['user-agent'],
-        ip: socket.handshake.address
-      });
-
-      const turnConfig = await turnCredentialService.getTURNCredentials(userId);
-      
-      if (turnConfig && turnConfig.servers.length > 0) {
-        socket.emit('turn-credentials', turnConfig);
-        
-        logSecurityEvent('TURN_CREDENTIALS_PROVIDED', userId, {
-          serverCount: turnConfig.servers.length,
-          hasAuthentication: turnConfig.servers.every(s => s.username && s.credential)
-        });
-        
-        performanceMonitor.recordMessage(Date.now() - requestStart);
-      } else {
-        socket.emit('turn-credentials-error', { 
-          message: 'No TURN servers configured', 
-          code: 'NO_TURN_SERVERS' 
-        });
-        performanceMonitor.recordError();
-      }
-    } catch (error) {
-      console.error('Error providing TURN credentials:', error);
-      
-      logSecurityEvent('TURN_CREDENTIALS_ERROR', socket.id, {
-        error: error.message,
-        severity: 'high'
-      });
-      
-      socket.emit('turn-credentials-error', { 
-        message: 'Failed to generate TURN credentials', 
-        code: 'SERVER_ERROR' 
-      });
-      performanceMonitor.recordError();
-    }
-  });
+  socket.on('request-turn-credentials', () =>
+    handleTurnCredentialsRequest(socket, { users, rateLimiter, turnCredentialService, performanceMonitor, logSecurityEvent })
+  );
   
   socket.on('join-room', (userInfo) => {
     const requestStart = Date.now();

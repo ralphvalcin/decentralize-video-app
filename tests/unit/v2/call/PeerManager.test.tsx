@@ -34,6 +34,9 @@ const mockSocket = {
     if (!socketCallbacks[event]) socketCallbacks[event] = []
     socketCallbacks[event].push(wrapper)
   }),
+  off: jest.fn((event: string) => {
+    socketCallbacks[event] = []
+  }),
   emit: jest.fn(),
   disconnect: jest.fn(),
   id: 'mock-socket-id',
@@ -475,6 +478,38 @@ test('poll-ended clears activePoll in session store', async () => {
   expect(useSessionStore.getState().activePoll).toBeNull()
 })
 
+test('reconnect: all-users destroys existing peer before creating a new one', async () => {
+  const Peer = require('simple-peer')
+  Peer.mockClear()
+  await act(async () => { render(<PeerManager />) })
+
+  // First all-users — creates peer for peer-a
+  act(() => { fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }]) })
+  expect(Peer).toHaveBeenCalledTimes(1)
+  mockPeerInstance.destroy.mockClear()
+
+  // Simulated reconnect: server sends all-users again with the same peer
+  act(() => { fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }]) })
+
+  // Old connection must have been destroyed before the new one was created
+  expect(mockPeerInstance.destroy).toHaveBeenCalledTimes(1)
+  // Two total Peer constructions (one per all-users)
+  expect(Peer).toHaveBeenCalledTimes(2)
+})
+
+test('unmount removes turn-credentials listeners to prevent ghost callbacks', async () => {
+  let unmount!: () => void
+  await act(async () => { unmount = render(<PeerManager />).unmount })
+  act(() => {
+    fireSocketEvent('connect')
+    fireSocketEvent('room-token', { token: 'tok' })
+  })
+  mockSocket.off.mockClear()
+  act(() => { unmount() })
+  expect(mockSocket.off).toHaveBeenCalledWith('turn-credentials')
+  expect(mockSocket.off).toHaveBeenCalledWith('turn-credentials-error')
+})
+
 test('chat-history falls back to sender when senderName absent', async () => {
   await act(async () => { render(<PeerManager />) })
   act(() => {
@@ -483,4 +518,42 @@ test('chat-history falls back to sender when senderName absent', async () => {
     ])
   })
   expect(useSessionStore.getState().messages[0].peerName).toBe('socket-id-abc')
+})
+
+test('emits request-turn-credentials after join-room', async () => {
+  await act(async () => { render(<PeerManager />) })
+  act(() => {
+    fireSocketEvent('connect')
+    fireSocketEvent('room-token', { token: 'tok' })
+  })
+  expect(mockSocket.emit).toHaveBeenCalledWith('request-turn-credentials')
+})
+
+test('uses fetched TURN servers when turn-credentials arrives before all-users', async () => {
+  const SimplePeer = (await import('simple-peer')).default as jest.MockedClass<any>
+  const turnServers = [{ urls: ['turn:test.example.com:3478'], username: 'u', credential: 'p' }]
+  await act(async () => { render(<PeerManager />) })
+  act(() => {
+    fireSocketEvent('connect')
+    fireSocketEvent('room-token', { token: 'tok' })
+    fireSocketEvent('turn-credentials', { servers: turnServers })
+    fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
+  })
+  const lastCall = SimplePeer.mock.calls[SimplePeer.mock.calls.length - 1]
+  expect(lastCall[0].config.iceServers).toEqual(turnServers)
+})
+
+test('falls back to ICE_SERVERS when turn-credentials-error fires', async () => {
+  const SimplePeer = (await import('simple-peer')).default as jest.MockedClass<any>
+  const { ICE_SERVERS } = await import('../../../../src/v2/call/PeerManager')
+  SimplePeer.mockClear()
+  await act(async () => { render(<PeerManager />) })
+  act(() => {
+    fireSocketEvent('connect')
+    fireSocketEvent('room-token', { token: 'tok' })
+    fireSocketEvent('turn-credentials-error', { code: 'NO_TURN_SERVERS' })
+    fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
+  })
+  const lastCall = SimplePeer.mock.calls[SimplePeer.mock.calls.length - 1]
+  expect(lastCall[0].config.iceServers).toEqual(ICE_SERVERS)
 })

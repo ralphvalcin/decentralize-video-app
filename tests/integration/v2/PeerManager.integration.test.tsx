@@ -25,6 +25,9 @@ const mockSocket = {
     if (!socketCallbacks[event]) socketCallbacks[event] = []
     socketCallbacks[event].push(wrapper)
   }),
+  off: jest.fn((event: string) => {
+    socketCallbacks[event] = []
+  }),
   emit: jest.fn(),
   disconnect: jest.fn(),
   id: 'mock-socket-id',

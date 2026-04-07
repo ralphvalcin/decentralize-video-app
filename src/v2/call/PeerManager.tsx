@@ -34,6 +34,7 @@ export const PeerManager = forwardRef<PeerManagerHandle>((_, ref) => {
   const socketRef = useRef<Socket | null>(null)
   const peerConnsRef = useRef<Map<string, { peer: InstanceType<typeof Peer>; name: string; role: 'host' | 'guest' }>>(new Map())
   const reactionTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const iceServersRef = useRef<RTCIceServer[]>(ICE_SERVERS)
   const roomId = useCallStore((s) => s.roomId)
   const userName = useCallStore((s) => s.userName)
   const localStream = useCallStore((s) => s.localStream)
@@ -98,18 +99,36 @@ export const PeerManager = forwardRef<PeerManagerHandle>((_, ref) => {
     // Use on (not once) so reconnects re-join correctly
     socket.on('room-token', ({ token }: { token: string }) => {
       socket.emit('join-room', { roomId, token, name: userName, role: 'guest' })
+
+      // Request TURN credentials right after joining; update ref when they arrive.
+      // iceServersRef starts as ICE_SERVERS so peer creation never blocks.
+      // Off before re-registering: prevents stale listeners from prior cycles on reconnect.
+      socket.off('turn-credentials')
+      socket.off('turn-credentials-error')
+      socket.emit('request-turn-credentials')
+      socket.once('turn-credentials', (config: { servers: RTCIceServer[] }) => {
+        if (Array.isArray(config?.servers) && config.servers.length > 0) {
+          iceServersRef.current = config.servers
+        }
+      })
+      socket.once('turn-credentials-error', (err: { code: string }) => {
+        console.warn('[PeerManager] TURN credential error:', err?.code, '— using STUN fallback')
+      })
     })
 
     socket.on('all-users', (users: Array<{ id: string; name: string; role?: string }>) => {
       users.forEach((u) => {
         const role = (u.role as 'host' | 'guest') ?? 'guest'
+        // On reconnect the server re-sends all-users; destroy any stale connection first
+        // so we don't orphan a Peer with open data channels and listeners.
+        if (peerConnsRef.current.has(u.id)) destroyPeerConn(u.id)
         setPeer(u.id, makePeerRecord(u.id, u.name, role))
         const stream = useCallStore.getState().localStream
         const peer = new Peer({
           initiator: true,
           trickle: false,
           stream: stream ?? undefined,
-          config: { iceServers: ICE_SERVERS },
+          config: { iceServers: iceServersRef.current },
         })
         wirePeerEvents(peer, u.id)
         peer.on('signal', (signal) => {
@@ -128,7 +147,7 @@ export const PeerManager = forwardRef<PeerManagerHandle>((_, ref) => {
         initiator: false,
         trickle: false,
         stream: stream ?? undefined,
-        config: { iceServers: ICE_SERVERS },
+        config: { iceServers: iceServersRef.current },
       })
       wirePeerEvents(peer, callerID)
       peer.on('signal', (returnSignal) => {
@@ -182,6 +201,8 @@ export const PeerManager = forwardRef<PeerManagerHandle>((_, ref) => {
     })
 
     return () => {
+      socket.off('turn-credentials')
+      socket.off('turn-credentials-error')
       socket.emit('user-leaving')
       socket.disconnect()
       peerConnsRef.current.forEach((_, id) => destroyPeerConn(id))
