@@ -194,9 +194,18 @@ export class TURNCredentialService {
    */
   startCredentialRefresh() {
     // Refresh credentials every 30 minutes
-    setInterval(() => {
+    this._refreshIntervalId = setInterval(() => {
       this.refreshExpiredCredentials();
     }, 30 * 60 * 1000);
+  }
+
+  /**
+   * Stop the credential refresh timer and release resources.
+   * Call this when the service is no longer needed (e.g. in tests, on server shutdown).
+   */
+  destroy() {
+    clearInterval(this._refreshIntervalId);
+    this._refreshIntervalId = null;
   }
 
   /**

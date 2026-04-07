@@ -5,7 +5,11 @@ const ENV = {
   TURN_SECRET: 'secret-abc',
 }
 
+let svc
+
 afterEach(() => {
+  svc?.destroy()
+  svc = null
   delete process.env.TURN_SERVER_URL
   delete process.env.TURN_SECRET
   delete process.env.TURN_SERVER_URL_2
@@ -14,7 +18,7 @@ afterEach(() => {
 
 test('server objects returned to caller do not contain expires field', async () => {
   Object.assign(process.env, { TURN_SERVER_URL: 'turn.example.com', TURN_SECRET: 'secret' })
-  const svc = new TURNCredentialService()
+  svc = new TURNCredentialService()
   const config = await svc.getTURNCredentials('alice')
   config.servers.forEach(server => {
     expect(server).not.toHaveProperty('expires')
@@ -28,7 +32,7 @@ test('cache key incorporates both server URLs when two servers configured', asyn
     TURN_SERVER_URL_2: 'turn2.example.com',
     TURN_SECRET_2: 'secret-2',
   })
-  const svc = new TURNCredentialService()
+  svc = new TURNCredentialService()
   await svc.getTURNCredentials('alice')
   const keys = [...svc.credentialCache.keys()]
   expect(keys[0]).toContain('turn1.example.com')
@@ -42,7 +46,7 @@ test('both servers appear in returned config when two servers configured', async
     TURN_SERVER_URL_2: 'turn2.example.com',
     TURN_SECRET_2: 'secret-2',
   })
-  const svc = new TURNCredentialService()
+  svc = new TURNCredentialService()
   const config = await svc.getTURNCredentials('alice')
   expect(config.servers).toHaveLength(2)
   expect(config.servers[0].urls[0]).toContain('turn1.example.com')
@@ -58,7 +62,7 @@ test('secondary-only config returns one server with URL_2 hostname', async () =>
     TURN_SERVER_URL_2: 'turn2.example.com',
     TURN_SECRET_2: 'secret-2',
   })
-  const svc = new TURNCredentialService()
+  svc = new TURNCredentialService()
   const config = await svc.getTURNCredentials('alice')
   expect(config.servers).toHaveLength(1)
   expect(config.servers[0].urls[0]).toContain('turn2.example.com')
@@ -70,7 +74,7 @@ test('secondary-only config returns one server with URL_2 hostname', async () =>
 
 test('returns empty servers array when no env vars set', async () => {
   // No TURN_SERVER_URL or TURN_SERVER_URL_2 set
-  const svc = new TURNCredentialService()
+  svc = new TURNCredentialService()
   const config = await svc.getTURNCredentials('alice')
   expect(config.servers).toHaveLength(0)
   // Nothing cached — empty servers skip the cache.set() call
@@ -79,7 +83,7 @@ test('returns empty servers array when no env vars set', async () => {
 
 test('cache key is based on server URL — two users share one cache entry', async () => {
   Object.assign(process.env, ENV)
-  const svc = new TURNCredentialService()
+  svc = new TURNCredentialService()
   await svc.getTURNCredentials('alice')
   await svc.getTURNCredentials('bob')
   expect(svc.credentialCache.size).toBe(1)
@@ -87,7 +91,7 @@ test('cache key is based on server URL — two users share one cache entry', asy
 
 test('second call within TTL returns cached result without regenerating', async () => {
   Object.assign(process.env, ENV)
-  const svc = new TURNCredentialService()
+  svc = new TURNCredentialService()
   const genSpy = jest.spyOn(svc, 'generateTURNCredentials')
   await svc.getTURNCredentials('alice')
   await svc.getTURNCredentials('alice')
@@ -96,11 +100,19 @@ test('second call within TTL returns cached result without regenerating', async 
 
 test('cache miss after manual expiry regenerates credentials', async () => {
   Object.assign(process.env, ENV)
-  const svc = new TURNCredentialService()
+  svc = new TURNCredentialService()
   await svc.getTURNCredentials('alice')
   const [key, entry] = [...svc.credentialCache.entries()][0]
   svc.credentialCache.set(key, { ...entry, expires: Date.now() - 1000 })
   const genSpy = jest.spyOn(svc, 'generateTURNCredentials')
   await svc.getTURNCredentials('alice')
   expect(genSpy).toHaveBeenCalledTimes(1)
+})
+
+test('destroy clears the refresh interval without throwing', () => {
+  svc = new TURNCredentialService()
+  expect(() => svc.destroy()).not.toThrow()
+  // Calling destroy twice must be safe
+  expect(() => svc.destroy()).not.toThrow()
+  svc = null
 })

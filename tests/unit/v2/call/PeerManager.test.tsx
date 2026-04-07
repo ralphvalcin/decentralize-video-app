@@ -478,6 +478,19 @@ test('poll-ended clears activePoll in session store', async () => {
   expect(useSessionStore.getState().activePoll).toBeNull()
 })
 
+test('unmount removes turn-credentials listeners to prevent ghost callbacks', async () => {
+  let unmount!: () => void
+  await act(async () => { unmount = render(<PeerManager />).unmount })
+  act(() => {
+    fireSocketEvent('connect')
+    fireSocketEvent('room-token', { token: 'tok' })
+  })
+  mockSocket.off.mockClear()
+  act(() => { unmount() })
+  expect(mockSocket.off).toHaveBeenCalledWith('turn-credentials')
+  expect(mockSocket.off).toHaveBeenCalledWith('turn-credentials-error')
+})
+
 test('chat-history falls back to sender when senderName absent', async () => {
   await act(async () => { render(<PeerManager />) })
   act(() => {

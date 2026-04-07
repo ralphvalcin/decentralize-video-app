@@ -198,6 +198,8 @@ export const PeerManager = forwardRef<PeerManagerHandle>((_, ref) => {
     })
 
     return () => {
+      socket.off('turn-credentials')
+      socket.off('turn-credentials-error')
       socket.emit('user-leaving')
       socket.disconnect()
       peerConnsRef.current.forEach((_, id) => destroyPeerConn(id))
