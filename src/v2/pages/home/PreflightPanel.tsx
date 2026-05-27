@@ -113,7 +113,7 @@ export function PreflightPanel() {
         {recentRooms.slice(0, 4).map((room) => (
           <button
             key={room.id}
-            onClick={() => navigate(`/v2/room/${room.id}`)}
+            onClick={() => navigate(`/room/${room.id}`)}
             className="bg-[var(--surface-raised)] border border-[var(--border-subtle)] rounded-[8px] px-4 py-3 flex items-center justify-between text-left hover:bg-[var(--surface-hover)] transition-colors"
           >
             <div className="flex items-center gap-3">

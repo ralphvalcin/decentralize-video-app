@@ -112,7 +112,7 @@ describe('recent rooms from localStorage', () => {
     localStorage.setItem('velo_recent_rooms', JSON.stringify(rooms))
     wrap(<PreflightPanel />)
     fireEvent.click(screen.getByText('Team Call'))
-    expect(mockNavigate).toHaveBeenCalledWith('/v2/room/room-xyz')
+    expect(mockNavigate).toHaveBeenCalledWith('/room/room-xyz')
   })
 })
 
