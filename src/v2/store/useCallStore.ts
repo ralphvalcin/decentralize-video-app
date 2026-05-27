@@ -11,7 +11,7 @@ interface CallStore {
   setCamOff: (value: boolean) => void
   setUserName: (name: string) => void
   setScreenSharePeerId: (id: string | null) => void
-  reset(): void
+  reset: () => void
 }
 
 export const useCallStore = create<CallStore>((set) => ({
