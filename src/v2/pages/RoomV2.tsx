@@ -16,6 +16,7 @@ export default function RoomV2() {
   const navigate = useNavigate()
   const peerManagerRef = useRef<PeerManagerHandle>(null)
   const userName = useCallStore((s) => s.userName)
+  const resetCall = useCallStore((s) => s.reset)
   const isChatOpen = useUIStore((s) => s.isChatOpen)
   const isParticipantsOpen = useUIStore((s) => s.isParticipantsOpen)
 
@@ -41,7 +42,7 @@ export default function RoomV2() {
           <ThumbnailStrip />
           <PollBanner />
           <ControlBar
-            onEndCall={() => { useCallStore.getState().reset(); navigate('/') }}
+            onEndCall={() => { resetCall(); navigate('/') }}
             onSendReaction={(emoji) => peerManagerRef.current?.sendReaction(emoji)}
           />
         </div>
