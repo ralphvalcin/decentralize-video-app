@@ -69,23 +69,23 @@ beforeEach(() => {
   mockPeerInstance.destroyed = false
   usePeerStore.setState({ peers: new Map() })
   useSessionStore.setState({ messages: [] })
-  useCallStore.setState({ roomId: 'room-1', userName: 'Ralph' })
+  useCallStore.setState({ userName: 'Ralph' })
 })
 
 test('emits request-room-token on connect', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => { fireSocketEvent('connect') })
   expect(mockSocket.emit).toHaveBeenCalledWith('request-room-token', { roomId: 'room-1', userName: 'Ralph' })
 })
 
 test('emits join-room after receiving room-token', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => { fireSocketEvent('connect'); fireSocketEvent('room-token', { token: 'tok-123' }) })
   expect(mockSocket.emit).toHaveBeenCalledWith('join-room', expect.objectContaining({ roomId: 'room-1', token: 'tok-123' }))
 })
 
 test('re-joins on reconnect (room-token fires again after second connect)', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => { fireSocketEvent('connect'); fireSocketEvent('room-token', { token: 'tok-1' }) })
   mockSocket.emit.mockClear()
   // Simulate Socket.io internal reconnect
@@ -94,7 +94,7 @@ test('re-joins on reconnect (room-token fires again after second connect)', asyn
 })
 
 test('creates peer records for all-users', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('all-users', [
       { id: 'peer-a', name: 'Alice', role: 'host' },
@@ -107,7 +107,7 @@ test('creates peer records for all-users', async () => {
 })
 
 test('creates peer record when a user joins after us (user-joined)', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('user-joined', { callerID: 'peer-c', name: 'Carol', role: 'guest', signal: null })
   })
@@ -117,13 +117,13 @@ test('creates peer record when a user joins after us (user-joined)', async () =>
 
 test('removes peer on user-left', async () => {
   usePeerStore.getState().setPeer('peer-a', { id: 'peer-a', name: 'Alice', role: 'guest', stream: null, isMuted: false, isCamOff: false, videoEnabled: false, isScreenSharing: false, connectionState: 'connected', networkQuality: 'good', isSpeaking: false, isPinned: false, hasRaisedHand: false, handRaisedAt: null, reaction: null, isAway: false, isTyping: false })
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => { fireSocketEvent('user-left', 'peer-a') })
   expect(usePeerStore.getState().peers.has('peer-a')).toBe(false)
 })
 
 test('loads chat-history into store', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('chat-history', [
       { id: 'msg-0', sender: 'peer-a', senderName: 'Alice', text: 'hey', timestamp: 500 },
@@ -135,7 +135,7 @@ test('loads chat-history into store', async () => {
 })
 
 test('adds incoming chat messages to store', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('new-message', { id: 'msg-1', sender: 'peer-a', senderName: 'Alice', text: 'Hello!', timestamp: 1000 })
   })
@@ -144,7 +144,7 @@ test('adds incoming chat messages to store', async () => {
 })
 
 test('new-message falls back to sender id when senderName missing', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('new-message', { id: 'msg-2', sender: 'peer-b', text: 'hi', timestamp: 2000 })
   })
@@ -152,7 +152,7 @@ test('new-message falls back to sender id when senderName missing', async () => 
 })
 
 test('new-poll sets activePoll in session store', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('new-poll', { id: 'poll-1', question: 'Cats or dogs?', options: ['Cats', 'Dogs'], createdAt: 1000 })
   })
@@ -162,7 +162,7 @@ test('new-poll sets activePoll in session store', async () => {
 
 test('logs server error event without throwing', async () => {
   const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => { fireSocketEvent('error', { message: 'rate limit exceeded', code: 'RATE_LIMIT' }) })
   expect(consoleSpy).toHaveBeenCalledWith('[PeerManager] server error:', expect.objectContaining({ code: 'RATE_LIMIT' }))
   consoleSpy.mockRestore()
@@ -170,14 +170,14 @@ test('logs server error event without throwing', async () => {
 
 test('sendMessage emits send-message via socket', async () => {
   const ref = createRef<PeerManagerHandle>()
-  await act(async () => { render(<PeerManager ref={ref} />) })
+  await act(async () => { render(<PeerManager ref={ref} roomId="room-1" />) })
   act(() => { ref.current?.sendMessage('Hi there') })
   expect(mockSocket.emit).toHaveBeenCalledWith('send-message', expect.objectContaining({ text: 'Hi there' }))
 })
 
 test('sendReaction emits send-reaction via socket', async () => {
   const ref = createRef<PeerManagerHandle>()
-  await act(async () => { render(<PeerManager ref={ref} />) })
+  await act(async () => { render(<PeerManager ref={ref} roomId="room-1" />) })
   act(() => { ref.current?.sendReaction('👍') })
   expect(mockSocket.emit).toHaveBeenCalledWith('send-reaction', { emoji: '👍' })
 })
@@ -188,10 +188,14 @@ test('roomId change: emits user-leaving and disconnects old socket before reconn
   mockSocket.disconnect.mockClear()
   mockSocket.emit.mockClear()
 
-  await act(async () => { render(<PeerManager />) })
+  let rerender!: ReturnType<typeof render>['rerender']
+  await act(async () => {
+    const result = render(<PeerManager roomId="room-1" />)
+    rerender = result.rerender
+  })
   expect(io).toHaveBeenCalledTimes(1)
 
-  act(() => { useCallStore.setState({ roomId: 'room-2' }) })
+  act(() => { rerender(<PeerManager roomId="room-2" />) })
 
   expect(mockSocket.emit).toHaveBeenCalledWith('user-leaving')
   expect(mockSocket.disconnect).toHaveBeenCalled()
@@ -203,26 +207,30 @@ test('roomId cleared after connect: disconnects and does not reconnect', async (
   io.mockClear()
   mockSocket.disconnect.mockClear()
 
-  await act(async () => { render(<PeerManager />) })
+  let rerender!: ReturnType<typeof render>['rerender']
+  await act(async () => {
+    const result = render(<PeerManager roomId="room-1" />)
+    rerender = result.rerender
+  })
   expect(io).toHaveBeenCalledTimes(1)
 
-  act(() => { useCallStore.setState({ roomId: '' }) })
+  act(() => { rerender(<PeerManager roomId="" />) })
 
   expect(mockSocket.disconnect).toHaveBeenCalled()
-  expect(io).toHaveBeenCalledTimes(1) // no second connection
+  expect(io).toHaveBeenCalledTimes(1)
 })
 
-test('does not connect when roomId is empty', async () => {
-  useCallStore.setState({ roomId: '', userName: 'Ralph' })
+test('does not connect when roomId prop is empty', async () => {
   const { io } = require('socket.io-client')
   io.mockClear()
-  await act(async () => { render(<PeerManager />) })
+  useCallStore.setState({ userName: 'Ralph' })
+  await act(async () => { render(<PeerManager roomId="" />) })
   expect(io).not.toHaveBeenCalled()
 })
 
 test('disconnects socket on unmount', async () => {
   let unmount!: () => void
-  await act(async () => { unmount = render(<PeerManager />).unmount })
+  await act(async () => { unmount = render(<PeerManager roomId="room-1" />).unmount })
   act(() => { unmount() })
   expect(mockSocket.disconnect).toHaveBeenCalled()
 })
@@ -230,7 +238,7 @@ test('disconnects socket on unmount', async () => {
 test('creates initiator Peer for each user in all-users', async () => {
   const Peer = require('simple-peer')
   Peer.mockClear()
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
   })
@@ -240,7 +248,7 @@ test('creates initiator Peer for each user in all-users', async () => {
 test('creates receiver Peer when user-joined arrives with signal', async () => {
   const Peer = require('simple-peer')
   Peer.mockClear()
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('user-joined', { signal: { type: 'offer', sdp: 'sdp' }, callerID: 'peer-b', name: 'Bob', role: 'guest' })
   })
@@ -250,7 +258,7 @@ test('creates receiver Peer when user-joined arrives with signal', async () => {
 test('ignores WebRTC creation for user-joined without signal', async () => {
   const Peer = require('simple-peer')
   Peer.mockClear()
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('user-joined', { signal: null, callerID: 'peer-b', name: 'Bob', role: 'guest' })
   })
@@ -258,7 +266,7 @@ test('ignores WebRTC creation for user-joined without signal', async () => {
 })
 
 test('patchPeer sets stream and connected state on peer stream event', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
   })
@@ -271,7 +279,7 @@ test('patchPeer sets stream and connected state on peer stream event', async () 
 })
 
 test('patchPeer sets disconnected on peer close event', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
   })
@@ -280,7 +288,7 @@ test('patchPeer sets disconnected on peer close event', async () => {
 })
 
 test('signals initiator peer on receiving-returned-signal', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
   })
@@ -292,7 +300,7 @@ test('signals initiator peer on receiving-returned-signal', async () => {
 
 test('destroys peer connections on unmount', async () => {
   let unmount!: () => void
-  await act(async () => { unmount = render(<PeerManager />).unmount })
+  await act(async () => { unmount = render(<PeerManager roomId="room-1" />).unmount })
   act(() => {
     fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
   })
@@ -303,7 +311,7 @@ test('destroys peer connections on unmount', async () => {
 test('addTrack called on existing peers when localStream arrives after connection', async () => {
   // Peers join before getUserMedia resolves — stream is null
   useCallStore.setState({ localStream: null })
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
   })
@@ -318,7 +326,7 @@ test('addTrack called on existing peers when localStream arrives after connectio
 
 test('addTrack not called when localStream is null', async () => {
   useCallStore.setState({ localStream: null })
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
   })
@@ -333,7 +341,7 @@ test('peer created with stream in constructor when localStream already set at al
   const Peer = require('simple-peer')
   Peer.mockClear()
 
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
   })
@@ -345,7 +353,7 @@ test('peer created with stream in constructor when localStream already set at al
 
 test('peer error sets connectionState failed and destroys conn', async () => {
   jest.spyOn(console, 'error').mockImplementation(() => {})
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
   })
@@ -357,7 +365,7 @@ test('peer error sets connectionState failed and destroys conn', async () => {
 
 test('peer error logs message without throwing', async () => {
   const spy = jest.spyOn(console, 'error').mockImplementation(() => {})
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
   })
@@ -367,7 +375,7 @@ test('peer error logs message without throwing', async () => {
 })
 
 test('initiator peer signal callback emits sending-signal', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   mockSocket.emit.mockClear()
   act(() => {
     fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
@@ -380,7 +388,7 @@ test('initiator peer signal callback emits sending-signal', async () => {
 })
 
 test('receiver peer signal callback emits returning-signal', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   mockSocket.emit.mockClear()
   act(() => {
     fireSocketEvent('user-joined', { signal: { type: 'offer', sdp: 'sdp' }, callerID: 'peer-b', name: 'Bob', role: 'guest' })
@@ -393,7 +401,7 @@ test('receiver peer signal callback emits returning-signal', async () => {
 })
 
 test('destroyPeerConn skips destroy when peer already destroyed', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
   })
@@ -404,7 +412,7 @@ test('destroyPeerConn skips destroy when peer already destroyed', async () => {
 })
 
 test('new-reaction sets reaction on peer in store', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => { fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }]) })
   act(() => { fireSocketEvent('new-reaction', { peerId: 'peer-a', emoji: '👍' }) })
   const peer = usePeerStore.getState().peers.get('peer-a')
@@ -414,7 +422,7 @@ test('new-reaction sets reaction on peer in store', async () => {
 
 test('new-reaction auto-clears after 3000ms', async () => {
   jest.useFakeTimers()
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => { fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }]) })
   act(() => { fireSocketEvent('new-reaction', { peerId: 'peer-a', emoji: '👍' }) })
   expect(usePeerStore.getState().peers.get('peer-a')?.reaction?.emoji).toBe('👍')
@@ -425,7 +433,7 @@ test('new-reaction auto-clears after 3000ms', async () => {
 
 test('new-reaction replaces existing reaction and resets timer', async () => {
   jest.useFakeTimers()
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => { fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }]) })
   act(() => { fireSocketEvent('new-reaction', { peerId: 'peer-a', emoji: '👍' }) })
   act(() => { jest.advanceTimersByTime(2000) })
@@ -441,7 +449,7 @@ test('new-reaction replaces existing reaction and resets timer', async () => {
 })
 
 test('chat-history uses senderName when server provides it', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('chat-history', [
       { id: 'msg-1', sender: 'socket-id-abc', senderName: 'Alice', text: 'Hello', timestamp: 1000 },
@@ -451,25 +459,25 @@ test('chat-history uses senderName when server provides it', async () => {
 })
 
 test('all-users defaults role to guest when role field absent', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => { fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice' }]) })
   expect(usePeerStore.getState().peers.get('peer-a')?.role).toBe('guest')
 })
 
 test('user-joined defaults role to guest when role field absent', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => { fireSocketEvent('user-joined', { callerID: 'peer-b', name: 'Bob', signal: null }) })
   expect(usePeerStore.getState().peers.get('peer-b')?.role).toBe('guest')
 })
 
 test('receiving-returned-signal does nothing when conn not found', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => { fireSocketEvent('receiving-returned-signal', { signal: { type: 'answer', sdp: 'x' }, id: 'unknown-peer' }) })
   expect(mockPeerInstance.signal).not.toHaveBeenCalled()
 })
 
 test('poll-ended clears activePoll in session store', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   useSessionStore.setState({
     activePoll: { id: 'p1', question: 'Ready?', options: ['Yes', 'No'], createdAt: 1 },
   })
@@ -481,7 +489,7 @@ test('poll-ended clears activePoll in session store', async () => {
 test('reconnect: all-users destroys existing peer before creating a new one', async () => {
   const Peer = require('simple-peer')
   Peer.mockClear()
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
 
   // First all-users — creates peer for peer-a
   act(() => { fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }]) })
@@ -499,7 +507,7 @@ test('reconnect: all-users destroys existing peer before creating a new one', as
 
 test('unmount removes turn-credentials listeners to prevent ghost callbacks', async () => {
   let unmount!: () => void
-  await act(async () => { unmount = render(<PeerManager />).unmount })
+  await act(async () => { unmount = render(<PeerManager roomId="room-1" />).unmount })
   act(() => {
     fireSocketEvent('connect')
     fireSocketEvent('room-token', { token: 'tok' })
@@ -511,7 +519,7 @@ test('unmount removes turn-credentials listeners to prevent ghost callbacks', as
 })
 
 test('chat-history falls back to sender when senderName absent', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('chat-history', [
       { id: 'msg-2', sender: 'socket-id-abc', text: 'Hello', timestamp: 1000 },
@@ -521,7 +529,7 @@ test('chat-history falls back to sender when senderName absent', async () => {
 })
 
 test('emits request-turn-credentials after join-room', async () => {
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('connect')
     fireSocketEvent('room-token', { token: 'tok' })
@@ -532,7 +540,7 @@ test('emits request-turn-credentials after join-room', async () => {
 test('uses fetched TURN servers when turn-credentials arrives before all-users', async () => {
   const SimplePeer = (await import('simple-peer')).default as jest.MockedClass<any>
   const turnServers = [{ urls: ['turn:test.example.com:3478'], username: 'u', credential: 'p' }]
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('connect')
     fireSocketEvent('room-token', { token: 'tok' })
@@ -547,7 +555,7 @@ test('falls back to ICE_SERVERS when turn-credentials-error fires', async () => 
   const SimplePeer = (await import('simple-peer')).default as jest.MockedClass<any>
   const { ICE_SERVERS } = await import('../../../../src/v2/call/PeerManager')
   SimplePeer.mockClear()
-  await act(async () => { render(<PeerManager />) })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
   act(() => {
     fireSocketEvent('connect')
     fireSocketEvent('room-token', { token: 'tok' })
@@ -556,4 +564,34 @@ test('falls back to ICE_SERVERS when turn-credentials-error fires', async () => 
   })
   const lastCall = SimplePeer.mock.calls[SimplePeer.mock.calls.length - 1]
   expect(lastCall[0].config.iceServers).toEqual(ICE_SERVERS)
+})
+
+test('does not connect when userName is empty', async () => {
+  const { io } = require('socket.io-client')
+  io.mockClear()
+  useCallStore.setState({ userName: '' })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  expect(io).not.toHaveBeenCalled()
+})
+
+test('does not reconnect when unrelated store field changes', async () => {
+  const { io } = require('socket.io-client')
+  io.mockClear()
+  useCallStore.setState({ userName: 'Ralph' })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  expect(io).toHaveBeenCalledTimes(1)
+
+  act(() => { useCallStore.getState().setMuted(true) })
+  expect(io).toHaveBeenCalledTimes(1)
+})
+
+test('reset() does not trigger reconnect', async () => {
+  const { io } = require('socket.io-client')
+  io.mockClear()
+  useCallStore.setState({ userName: 'Ralph', isMuted: true })
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  expect(io).toHaveBeenCalledTimes(1)
+
+  act(() => { useCallStore.getState().reset() })
+  expect(io).toHaveBeenCalledTimes(1)
 })

@@ -19,6 +19,10 @@ export interface PeerManagerHandle {
   sendReaction: (emoji: string) => void
 }
 
+interface PeerManagerProps {
+  roomId: string
+}
+
 export function makePeerRecord(id: string, name: string, role: 'host' | 'guest'): PeerRecord {
   return {
     id, name, role,
@@ -30,12 +34,11 @@ export function makePeerRecord(id: string, name: string, role: 'host' | 'guest')
   }
 }
 
-export const PeerManager = forwardRef<PeerManagerHandle>((_, ref) => {
+export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ roomId }, ref) => {
   const socketRef = useRef<Socket | null>(null)
   const peerConnsRef = useRef<Map<string, { peer: InstanceType<typeof Peer>; name: string; role: 'host' | 'guest' }>>(new Map())
   const reactionTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const iceServersRef = useRef<RTCIceServer[]>(ICE_SERVERS)
-  const roomId = useCallStore((s) => s.roomId)
   const userName = useCallStore((s) => s.userName)
   const localStream = useCallStore((s) => s.localStream)
   const setPeer = usePeerStore((s) => s.setPeer)
