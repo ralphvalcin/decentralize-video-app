@@ -5,18 +5,20 @@ beforeEach(() => {
     localStream: null,
     isMuted: false,
     isCamOff: false,
-    roomId: '',
     userName: '',
     screenSharePeerId: null,
   })
 })
 
-test('initial state is empty', () => {
+test('initial state has no roomId field', () => {
+  expect('roomId' in useCallStore.getState()).toBe(false)
+})
+
+test('initial state is correct', () => {
   const state = useCallStore.getState()
   expect(state.localStream).toBeNull()
   expect(state.isMuted).toBe(false)
   expect(state.isCamOff).toBe(false)
-  expect(state.roomId).toBe('')
   expect(state.userName).toBe('')
   expect(state.screenSharePeerId).toBeNull()
 })
@@ -38,14 +40,29 @@ test('setCamOff toggles camera state', () => {
   expect(useCallStore.getState().isCamOff).toBe(true)
 })
 
-test('setRoomId stores the room id', () => {
-  useCallStore.getState().setRoomId('design-sync')
-  expect(useCallStore.getState().roomId).toBe('design-sync')
-})
-
 test('setScreenSharePeerId sets and clears screen share', () => {
   useCallStore.getState().setScreenSharePeerId('peer-2')
   expect(useCallStore.getState().screenSharePeerId).toBe('peer-2')
   useCallStore.getState().setScreenSharePeerId(null)
   expect(useCallStore.getState().screenSharePeerId).toBeNull()
+})
+
+test('reset sets isMuted and isCamOff to false', () => {
+  useCallStore.setState({ isMuted: true, isCamOff: true })
+  useCallStore.getState().reset()
+  expect(useCallStore.getState().isMuted).toBe(false)
+  expect(useCallStore.getState().isCamOff).toBe(false)
+})
+
+test('reset does not clear userName', () => {
+  useCallStore.setState({ userName: 'Ralph' })
+  useCallStore.getState().reset()
+  expect(useCallStore.getState().userName).toBe('Ralph')
+})
+
+test('reset does not clear localStream', () => {
+  const stream = { getTracks: () => [] } as unknown as MediaStream
+  useCallStore.setState({ localStream: stream })
+  useCallStore.getState().reset()
+  expect(useCallStore.getState().localStream).toBe(stream)
 })
