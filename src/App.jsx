@@ -3,9 +3,6 @@ import ErrorBoundary from './components/ErrorBoundary';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
-// Lazy load heavy components for better performance
-const Room = lazy(() => import('./components/Room'));
-const Home = lazy(() => import('./components/Home'));
 const HomeV2 = lazy(() => import('./v2/pages/HomeV2'));
 const RoomV2 = lazy(() => import('./v2/pages/RoomV2'));
 
@@ -26,9 +23,7 @@ function App() {
           </div>
         }>
           <Routes>
-            <Route path="/room/:roomId" element={<Room />} />
-            <Route path="/v2/room/:roomId" element={<RoomV2 />} />
-            <Route path="/v2-legacy" element={<Home />} />
+            <Route path="/room/:roomId" element={<RoomV2 />} />
             <Route path="/" element={<HomeV2 />} />
           </Routes>
         </Suspense>
