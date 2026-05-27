@@ -581,8 +581,10 @@ test('does not reconnect when unrelated store field changes', async () => {
   await act(async () => { render(<PeerManager roomId="room-1" />) })
   expect(io).toHaveBeenCalledTimes(1)
 
+  mockSocket.disconnect.mockClear()
   act(() => { useCallStore.getState().setMuted(true) })
   expect(io).toHaveBeenCalledTimes(1)
+  expect(mockSocket.disconnect).not.toHaveBeenCalled()
 })
 
 test('reset() does not trigger reconnect', async () => {
@@ -592,6 +594,8 @@ test('reset() does not trigger reconnect', async () => {
   await act(async () => { render(<PeerManager roomId="room-1" />) })
   expect(io).toHaveBeenCalledTimes(1)
 
+  mockSocket.disconnect.mockClear()
   act(() => { useCallStore.getState().reset() })
+  expect(mockSocket.disconnect).not.toHaveBeenCalled()
   expect(io).toHaveBeenCalledTimes(1)
 })
