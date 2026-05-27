@@ -12,20 +12,17 @@ export function JoinForm() {
   const [roomId, setRoomId] = useState('')
   const navigate = useNavigate()
   const setUserName = useCallStore((s) => s.setUserName)
-  const setRoomIdStore = useCallStore((s) => s.setRoomId)
 
   function handleCreate() {
     const id = roomId.trim() || generateRoomId()
     setUserName(name.trim())
-    setRoomIdStore(id)
-    navigate(`/v2/room/${id}`)
+    navigate(`/room/${id}`)
   }
 
   function handleJoin() {
     const id = roomId.trim()
     setUserName(name.trim())
-    setRoomIdStore(id)
-    navigate(`/v2/room/${id}`)
+    navigate(`/room/${id}`)
   }
 
   return (

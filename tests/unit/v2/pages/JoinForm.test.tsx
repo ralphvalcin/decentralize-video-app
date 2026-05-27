@@ -11,7 +11,7 @@ jest.mock('react-router-dom', () => ({
 
 beforeEach(() => {
   mockNavigate.mockClear()
-  useCallStore.setState({ userName: '', roomId: '' })
+  useCallStore.setState({ userName: '' })
 })
 
 function wrap(ui: React.ReactElement) {
@@ -28,7 +28,7 @@ test('Create Room navigates to a new room id when room field is empty', () => {
   wrap(<JoinForm />)
   fireEvent.change(screen.getByPlaceholderText(/your name/i), { target: { value: 'Ralph' } })
   fireEvent.click(screen.getByText(/create room/i))
-  expect(mockNavigate).toHaveBeenCalledWith(expect.stringMatching(/^\/v2\/room\/.+/))
+  expect(mockNavigate).toHaveBeenCalledWith(expect.stringMatching(/^\/room\/.+/))
 })
 
 test('Join navigates to the entered room id', () => {
@@ -36,7 +36,7 @@ test('Join navigates to the entered room id', () => {
   fireEvent.change(screen.getByPlaceholderText(/your name/i), { target: { value: 'Ralph' } })
   fireEvent.change(screen.getByPlaceholderText(/room id/i), { target: { value: 'design-sync' } })
   fireEvent.click(screen.getByText(/join/i))
-  expect(mockNavigate).toHaveBeenCalledWith('/v2/room/design-sync')
+  expect(mockNavigate).toHaveBeenCalledWith('/room/design-sync')
 })
 
 test('Create Room is disabled when name is empty', () => {
@@ -44,21 +44,25 @@ test('Create Room is disabled when name is empty', () => {
   expect(screen.getByText(/create room/i).closest('button')).toBeDisabled()
 })
 
-test('Create Room persists name and roomId to store', () => {
+test('Create Room persists name to store', () => {
   wrap(<JoinForm />)
   fireEvent.change(screen.getByPlaceholderText(/your name/i), { target: { value: 'Ralph' } })
   fireEvent.click(screen.getByText(/create room/i))
-  const { userName, roomId } = useCallStore.getState()
-  expect(userName).toBe('Ralph')
-  expect(roomId).toMatch(/^[a-z0-9]{6}$/)
+  expect(useCallStore.getState().userName).toBe('Ralph')
 })
 
-test('Join persists name and roomId to store', () => {
+test('Join persists name to store', () => {
   wrap(<JoinForm />)
   fireEvent.change(screen.getByPlaceholderText(/your name/i), { target: { value: 'Alice' } })
   fireEvent.change(screen.getByPlaceholderText(/room id/i), { target: { value: 'design-sync' } })
   fireEvent.click(screen.getByText(/join/i))
-  const { userName, roomId } = useCallStore.getState()
-  expect(userName).toBe('Alice')
-  expect(roomId).toBe('design-sync')
+  expect(useCallStore.getState().userName).toBe('Alice')
+})
+
+test('does not write roomId to store on submit', () => {
+  wrap(<JoinForm />)
+  fireEvent.change(screen.getByPlaceholderText(/your name/i), { target: { value: 'Alice' } })
+  fireEvent.change(screen.getByPlaceholderText(/room id/i), { target: { value: 'design-sync' } })
+  fireEvent.click(screen.getByText(/join/i))
+  expect('roomId' in useCallStore.getState()).toBe(false)
 })
