@@ -15,18 +15,18 @@ export default function RoomV2() {
   const { roomId } = useParams<{ roomId: string }>()
   const navigate = useNavigate()
   const peerManagerRef = useRef<PeerManagerHandle>(null)
-  const setRoomId = useCallStore((s) => s.setRoomId)
+  const userName = useCallStore((s) => s.userName)
   const isChatOpen = useUIStore((s) => s.isChatOpen)
   const isParticipantsOpen = useUIStore((s) => s.isParticipantsOpen)
 
   useEffect(() => {
-    if (roomId) setRoomId(roomId)
-  }, [roomId, setRoomId])
+    if (!userName) navigate(`/?redirect=/room/${roomId}`)
+  }, [userName, roomId, navigate])
 
   return (
     <div className="v2 flex flex-col h-screen bg-[var(--surface-base)]" data-testid="room-v2">
       <MediaController />
-      <PeerManager ref={peerManagerRef} />
+      <PeerManager ref={peerManagerRef} roomId={roomId ?? ''} />
 
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] shrink-0">
         <div className="flex items-center gap-2">
@@ -41,7 +41,7 @@ export default function RoomV2() {
           <ThumbnailStrip />
           <PollBanner />
           <ControlBar
-            onEndCall={() => navigate('/')}
+            onEndCall={() => { useCallStore.getState().reset(); navigate('/') }}
             onSendReaction={(emoji) => peerManagerRef.current?.sendReaction(emoji)}
           />
         </div>

@@ -31,7 +31,7 @@ beforeEach(() => {
   mockSocket.emit.mockClear()
   mockSocket.disconnect.mockClear()
   jest.spyOn(navigator.mediaDevices, 'getUserMedia').mockRejectedValue(new Error('no cam'))
-  useCallStore.setState({ roomId: '', userName: 'Ralph', isMuted: false, isCamOff: false, localStream: null, screenSharePeerId: null })
+  useCallStore.setState({ userName: 'Ralph', isMuted: false, isCamOff: false, localStream: null, screenSharePeerId: null })
   useUIStore.setState({ isChatOpen: false, isParticipantsOpen: false })
   useSessionStore.setState({ activePoll: null, pollResponses: {} })
 })
@@ -40,10 +40,10 @@ afterEach(() => { jest.restoreAllMocks() })
 async function renderRoom(roomId = 'test-room') {
   const RoomV2 = (await import('../../../../src/v2/pages/RoomV2')).default
   return render(
-    <MemoryRouter initialEntries={[`/v2/room/${roomId}`]}>
+    <MemoryRouter initialEntries={[`/room/${roomId}`]}>
       <Suspense fallback={null}>
         <Routes>
-          <Route path="/v2/room/:roomId" element={<RoomV2 />} />
+          <Route path="/room/:roomId" element={<RoomV2 />} />
         </Routes>
       </Suspense>
     </MemoryRouter>
@@ -58,12 +58,6 @@ test('renders room-v2 container', async () => {
 test('displays room name in top bar', async () => {
   await renderRoom('my-room')
   expect(await screen.findByText('my-room')).toBeInTheDocument()
-})
-
-test('syncs roomId route param to store', async () => {
-  await renderRoom('sync-room')
-  await screen.findByTestId('room-v2')
-  expect(useCallStore.getState().roomId).toBe('sync-room')
 })
 
 test('chat panel is hidden by default', async () => {
@@ -130,4 +124,41 @@ test('poll-banner appears when activePoll is set', async () => {
     })
   })
   expect(await screen.findByTestId('poll-banner')).toBeInTheDocument()
+})
+
+test('redirects to /?redirect=/room/:id when userName is empty', async () => {
+  useCallStore.setState({ userName: '' })
+  await renderRoom('abc123')
+  await screen.findByTestId('room-v2')
+  expect(mockNavigate).toHaveBeenCalledWith('/?redirect=/room/abc123')
+})
+
+test('does not redirect when userName is set', async () => {
+  useCallStore.setState({ userName: 'Ralph' })
+  await renderRoom('abc123')
+  await screen.findByTestId('room-v2')
+  expect(mockNavigate).not.toHaveBeenCalledWith(expect.stringContaining('redirect'))
+})
+
+test('passes roomId from URL params to PeerManager via socket emit', async () => {
+  useCallStore.setState({ userName: 'Ralph' })
+  await renderRoom('xyz789')
+  await screen.findByTestId('room-v2')
+  act(() => {
+    const connectCb = mockSocket.on.mock.calls.find(([event]: [string]) => event === 'connect')?.[1]
+    if (connectCb) connectCb()
+  })
+  expect(mockSocket.emit).toHaveBeenCalledWith('request-room-token',
+    expect.objectContaining({ roomId: 'xyz789' })
+  )
+})
+
+test('end call resets isMuted and isCamOff before navigating', async () => {
+  useCallStore.setState({ userName: 'Ralph', isMuted: true, isCamOff: true })
+  const { findByTestId } = await renderRoom()
+  await findByTestId('room-v2')
+  fireEvent.click(screen.getByTestId('btn-end-call'))
+  expect(useCallStore.getState().isMuted).toBe(false)
+  expect(useCallStore.getState().isCamOff).toBe(false)
+  expect(mockNavigate).toHaveBeenCalledWith('/')
 })
