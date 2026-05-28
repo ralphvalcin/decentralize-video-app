@@ -78,6 +78,7 @@ export function QAPanel({ onSubmitQuestion, onVoteQuestion, onAnswerQuestion }: 
                 <div className="flex flex-col items-center shrink-0">
                   <button
                     data-testid={`btn-upvote-${q.id}`}
+                    aria-label="Upvote"
                     disabled={votedIds.has(q.id)}
                     onClick={() => handleUpvote(q)}
                     className="text-xs text-[var(--text-secondary)] hover:text-[var(--accent-live)] disabled:opacity-40 disabled:cursor-default"
