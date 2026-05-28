@@ -5,6 +5,7 @@ beforeEach(() => {
   useUIStore.setState({
     isChatOpen: false,
     isParticipantsOpen: false,
+    isQAOpen: false,
     activeModal: null,
     toasts: [],
     layout: 'spotlight',
@@ -51,4 +52,33 @@ test('setActiveModal sets and clears modal', () => {
   expect(useUIStore.getState().activeModal).toBe('settings')
   useUIStore.getState().setActiveModal(null)
   expect(useUIStore.getState().activeModal).toBeNull()
+})
+
+test('toggleQA flips isQAOpen', () => {
+  useUIStore.getState().toggleQA()
+  expect(useUIStore.getState().isQAOpen).toBe(true)
+  useUIStore.getState().toggleQA()
+  expect(useUIStore.getState().isQAOpen).toBe(false)
+})
+
+test('opening QA closes chat and participants', () => {
+  useUIStore.setState({ isChatOpen: true, isParticipantsOpen: true })
+  useUIStore.getState().toggleQA()
+  expect(useUIStore.getState().isQAOpen).toBe(true)
+  expect(useUIStore.getState().isChatOpen).toBe(false)
+  expect(useUIStore.getState().isParticipantsOpen).toBe(false)
+})
+
+test('opening chat closes QA', () => {
+  useUIStore.setState({ isQAOpen: true })
+  useUIStore.getState().toggleChat()
+  expect(useUIStore.getState().isChatOpen).toBe(true)
+  expect(useUIStore.getState().isQAOpen).toBe(false)
+})
+
+test('opening participants closes QA', () => {
+  useUIStore.setState({ isQAOpen: true })
+  useUIStore.getState().toggleParticipants()
+  expect(useUIStore.getState().isParticipantsOpen).toBe(true)
+  expect(useUIStore.getState().isQAOpen).toBe(false)
 })
