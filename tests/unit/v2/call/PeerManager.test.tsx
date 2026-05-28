@@ -479,7 +479,7 @@ test('receiving-returned-signal does nothing when conn not found', async () => {
 test('poll-ended clears activePoll in session store', async () => {
   await act(async () => { render(<PeerManager roomId="room-1" />) })
   useSessionStore.setState({
-    activePoll: { id: 'p1', question: 'Ready?', options: ['Yes', 'No'], createdAt: 1 },
+    activePoll: { id: 'p1', question: 'Ready?', options: ['Yes', 'No'], createdAt: 1, createdBy: 'Alice', isActive: true, votes: {} },
   })
   expect(useSessionStore.getState().activePoll).not.toBeNull()
   act(() => { fireSocketEvent('poll-ended') })

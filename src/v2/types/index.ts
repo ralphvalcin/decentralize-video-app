@@ -18,6 +18,23 @@ export interface Poll {
   question: string
   options: string[]   // e.g. ["Yes", "No", "Maybe"]
   createdAt: number
+  createdBy: string
+  isActive: boolean
+  votes: Record<string, number>   // socketId → optionIndex
+}
+
+export interface Question {
+  id: string
+  text: string
+  author: string
+  authorId: string
+  timestamp: number
+  votes: number
+  votedBy: string[]
+  answer: string | null
+  answeredBy: string | null
+  answeredAt: number | null
+  isAnswered: boolean
 }
 
 export interface Toast {

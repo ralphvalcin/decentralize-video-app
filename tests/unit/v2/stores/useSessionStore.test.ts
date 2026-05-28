@@ -57,14 +57,30 @@ test('addRecordingConsent adds peerId once', () => {
 
 test('setActivePoll sets poll and resets pollResponses', () => {
   useSessionStore.getState().recordPollResponse('peer-1', 'Yes')
-  const poll: Poll = { id: 'poll-1', question: 'Q?', options: ['Yes', 'No'], createdAt: 0 }
+  const poll: Poll = {
+    id: 'poll-1',
+    question: 'Q?',
+    options: ['Yes', 'No'],
+    createdAt: 0,
+    createdBy: 'Alice',
+    isActive: true,
+    votes: {},
+  }
   useSessionStore.getState().setActivePoll(poll)
   expect(useSessionStore.getState().activePoll?.id).toBe('poll-1')
   expect(useSessionStore.getState().pollResponses).toEqual({})
 })
 
 test('setActivePoll(null) clears poll and resets pollResponses', () => {
-  const poll: Poll = { id: 'poll-1', question: 'Q?', options: ['Yes', 'No'], createdAt: 0 }
+  const poll: Poll = {
+    id: 'poll-1',
+    question: 'Q?',
+    options: ['Yes', 'No'],
+    createdAt: 0,
+    createdBy: 'Alice',
+    isActive: true,
+    votes: {},
+  }
   useSessionStore.getState().setActivePoll(poll)
   useSessionStore.getState().recordPollResponse('peer-1', 'Yes')
   useSessionStore.getState().setActivePoll(null)

@@ -8,6 +8,9 @@ const poll: Poll = {
   question: 'Best time to meet?',
   options: ['9am', '2pm', '5pm'],
   createdAt: Date.now(),
+  createdBy: 'Alice',
+  isActive: true,
+  votes: {},
 }
 
 beforeEach(() => {
