@@ -1,8 +1,8 @@
 import { render } from '@testing-library/react'
 
 jest.mock('../../../../src/v2/services/pwa', () => ({
-  isInstalled: () => false,
-  canInstall: () => false,
+  isInstalled: jest.fn().mockReturnValue(false),
+  canInstall: jest.fn().mockReturnValue(false),
   promptInstall: jest.fn(),
   activateUpdate: jest.fn(),
 }))
