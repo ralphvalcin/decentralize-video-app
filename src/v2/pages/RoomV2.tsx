@@ -10,6 +10,7 @@ import { ControlBar } from '../call/ControlBar'
 import { ChatPanel } from '../call/ChatPanel'
 import { ParticipantsPanel } from '../call/ParticipantsPanel'
 import { PollBanner } from '../call/PollBanner'
+import { QAPanel } from '../call/QAPanel'
 
 export default function RoomV2() {
   const { roomId } = useParams<{ roomId: string }>()
@@ -19,6 +20,7 @@ export default function RoomV2() {
   const resetCall = useCallStore((s) => s.reset)
   const isChatOpen = useUIStore((s) => s.isChatOpen)
   const isParticipantsOpen = useUIStore((s) => s.isParticipantsOpen)
+  const isQAOpen = useUIStore((s) => s.isQAOpen)
 
   useEffect(() => {
     if (!userName) navigate(`/?redirect=/room/${roomId}`)
@@ -40,7 +42,7 @@ export default function RoomV2() {
         <div className="flex flex-col flex-1 min-w-0 relative">
           <SpotlightView />
           <ThumbnailStrip />
-          <PollBanner />
+          <PollBanner onVotePoll={(id, idx) => peerManagerRef.current?.votePoll(id, idx)} />
           <ControlBar
             onEndCall={() => { resetCall(); navigate('/') }}
             onSendReaction={(emoji) => peerManagerRef.current?.sendReaction(emoji)}
@@ -53,6 +55,14 @@ export default function RoomV2() {
 
         {isParticipantsOpen && (
           <ParticipantsPanel />
+        )}
+
+        {isQAOpen && (
+          <QAPanel
+            onSubmitQuestion={(text) => peerManagerRef.current?.submitQuestion(text)}
+            onVoteQuestion={(id) => peerManagerRef.current?.voteQuestion(id)}
+            onAnswerQuestion={(id, ans) => peerManagerRef.current?.answerQuestion(id, ans)}
+          />
         )}
       </div>
     </div>
