@@ -1,6 +1,6 @@
 import { useEffect, useState, Suspense, lazy } from 'react';
 import ErrorBoundary from './v2/ui/ErrorBoundary';
-import PWAInstallPrompt from './components/PWAInstallPrompt';
+import PWAInstallPrompt from './v2/ui/PWAInstallPrompt';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 const HomeV2 = lazy(() => import('./v2/pages/HomeV2'));
