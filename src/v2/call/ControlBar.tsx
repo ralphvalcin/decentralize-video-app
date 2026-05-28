@@ -21,6 +21,8 @@ export function ControlBar({ onEndCall, onSendReaction }: ControlBarProps) {
   const toggleChat = useUIStore((s) => s.toggleChat)
   const isParticipantsOpen = useUIStore((s) => s.isParticipantsOpen)
   const toggleParticipants = useUIStore((s) => s.toggleParticipants)
+  const isQAOpen = useUIStore((s) => s.isQAOpen)
+  const toggleQA = useUIStore((s) => s.toggleQA)
   const [showReactions, setShowReactions] = useState(false)
   const [visible, setVisible] = useState(true)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -109,6 +111,15 @@ export function ControlBar({ onEndCall, onSendReaction }: ControlBarProps) {
             aria-label="Participants"
           >
             👥
+          </Button>
+
+          <Button
+            data-testid="btn-qa"
+            variant={isQAOpen ? 'primary' : 'ghost'}
+            onClick={toggleQA}
+            aria-label="Q&A"
+          >
+            🙋
           </Button>
 
           <Button

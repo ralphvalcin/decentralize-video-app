@@ -21,7 +21,7 @@ jest.mock('framer-motion', () => {
 
 beforeEach(() => {
   useCallStore.setState({ isMuted: false, isCamOff: false })
-  useUIStore.setState({ isChatOpen: false, isParticipantsOpen: false })
+  useUIStore.setState({ isChatOpen: false, isParticipantsOpen: false, isQAOpen: false })
   jest.useFakeTimers()
 })
 
@@ -152,5 +152,32 @@ test('opening participants closes chat (mutual exclusion)', () => {
   render(<ControlBar onEndCall={jest.fn()} />)
   fireEvent.click(screen.getByTestId('btn-participants'))
   expect(useUIStore.getState().isParticipantsOpen).toBe(true)
+  expect(useUIStore.getState().isChatOpen).toBe(false)
+})
+
+test('Q&A button exists in control bar', () => {
+  render(<ControlBar onEndCall={jest.fn()} />)
+  expect(screen.getByTestId('btn-qa')).toBeInTheDocument()
+})
+
+test('Q&A button toggles isQAOpen in store', () => {
+  render(<ControlBar onEndCall={jest.fn()} />)
+  fireEvent.click(screen.getByTestId('btn-qa'))
+  expect(useUIStore.getState().isQAOpen).toBe(true)
+  fireEvent.click(screen.getByTestId('btn-qa'))
+  expect(useUIStore.getState().isQAOpen).toBe(false)
+})
+
+test('Q&A button renders with primary variant when isQAOpen', () => {
+  useUIStore.setState({ isQAOpen: true })
+  render(<ControlBar onEndCall={jest.fn()} />)
+  expect(screen.getByTestId('btn-qa').className).toMatch(/bg-\[var\(--text-primary\)\]/)
+})
+
+test('opening Q&A closes chat (mutual exclusion via store)', () => {
+  useUIStore.setState({ isChatOpen: true })
+  render(<ControlBar onEndCall={jest.fn()} />)
+  fireEvent.click(screen.getByTestId('btn-qa'))
+  expect(useUIStore.getState().isQAOpen).toBe(true)
   expect(useUIStore.getState().isChatOpen).toBe(false)
 })
