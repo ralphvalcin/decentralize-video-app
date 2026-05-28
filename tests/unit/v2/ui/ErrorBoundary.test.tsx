@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
+import 'jest-location-mock'
 import ErrorBoundary from '../../../../src/v2/ui/ErrorBoundary'
 
 function Bomb(): never {
@@ -24,9 +25,13 @@ test('renders fallback UI when a child throws', () => {
   expect(screen.getByRole('button', { name: /reload/i })).toBeInTheDocument()
 })
 
-test('reload button is clickable when error occurs', () => {
+test('reload button calls window.location.reload', () => {
+  // jest-location-mock sets up a spy on reload in beforeAll
+  // Get the spy from jest's internal mock storage
+  const reload = jest.fn()
+  jest.spyOn(window.location, 'reload').mockImplementation(reload)
+
   render(<ErrorBoundary><Bomb /></ErrorBoundary>)
-  const reloadButton = screen.getByRole('button', { name: /reload/i })
-  expect(reloadButton).toBeInTheDocument()
-  expect(reloadButton).toBeEnabled()
+  fireEvent.click(screen.getByRole('button', { name: /reload/i }))
+  expect(reload).toHaveBeenCalledTimes(1)
 })
