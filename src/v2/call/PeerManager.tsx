@@ -4,7 +4,7 @@ import { io, Socket } from 'socket.io-client'
 import { useCallStore } from '../store/useCallStore'
 import { usePeerStore } from '../store/usePeerStore'
 import { useSessionStore } from '../store/useSessionStore'
-import type { PeerRecord, Poll } from '../types'
+import type { PeerRecord, Poll, Question } from '../types'
 
 // process.env is replaced at build time by vite.config.ts define; also works in Jest
 const SIGNALING_URL = process.env.VITE_SIGNALING_SERVER_URL || 'wss://decentralize-video-app-2.onrender.com'
@@ -17,6 +17,10 @@ export const ICE_SERVERS = [
 export interface PeerManagerHandle {
   sendMessage: (text: string) => void
   sendReaction: (emoji: string) => void
+  votePoll: (pollId: string, optionIndex: number) => void
+  submitQuestion: (text: string) => void
+  voteQuestion: (questionId: string) => void
+  answerQuestion: (questionId: string, answer: string) => void
 }
 
 interface PeerManagerProps {
@@ -46,6 +50,9 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
   const patchPeer = usePeerStore((s) => s.patchPeer)
   const addMessage = useSessionStore((s) => s.addMessage)
   const setActivePoll = useSessionStore((s) => s.setActivePoll)
+  const addQuestion = useSessionStore((s) => s.addQuestion)
+  const updateQuestion = useSessionStore((s) => s.updateQuestion)
+  const setQuestionsHistory = useSessionStore((s) => s.setQuestionsHistory)
 
   useImperativeHandle(ref, () => ({
     sendMessage: (text) => {
@@ -53,6 +60,18 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
     },
     sendReaction: (emoji) => {
       socketRef.current?.emit('send-reaction', { emoji })
+    },
+    votePoll: (pollId, optionIndex) => {
+      socketRef.current?.emit('vote-poll', { pollId, optionIndex })
+    },
+    submitQuestion: (text) => {
+      socketRef.current?.emit('submit-question', { text })
+    },
+    voteQuestion: (questionId) => {
+      socketRef.current?.emit('vote-question', { questionId })
+    },
+    answerQuestion: (questionId, answer) => {
+      socketRef.current?.emit('answer-question', { questionId, answer })
     },
   }), [])
 
@@ -188,6 +207,27 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
       setActivePoll(null)
     })
 
+    socket.on('poll-updated', (poll: Poll) => {
+      setActivePoll(poll)
+    })
+
+    socket.on('polls-history', (polls: Poll[]) => {
+      const active = polls.findLast((p) => p.isActive) ?? null
+      setActivePoll(active)
+    })
+
+    socket.on('new-question', (q: Question) => {
+      addQuestion(q)
+    })
+
+    socket.on('question-updated', (q: Question) => {
+      updateQuestion(q)
+    })
+
+    socket.on('questions-history', (qs: Question[]) => {
+      setQuestionsHistory(qs)
+    })
+
     socket.on('new-reaction', ({ peerId, emoji }: { peerId: string; emoji: string }) => {
       const existing = reactionTimersRef.current.get(peerId)
       if (existing) clearTimeout(existing)
@@ -206,6 +246,11 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
     return () => {
       socket.off('turn-credentials')
       socket.off('turn-credentials-error')
+      socket.off('poll-updated')
+      socket.off('polls-history')
+      socket.off('new-question')
+      socket.off('question-updated')
+      socket.off('questions-history')
       socket.emit('user-leaving')
       socket.disconnect()
       peerConnsRef.current.forEach((_, id) => destroyPeerConn(id))
@@ -214,7 +259,7 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
       reactionTimersRef.current.forEach(clearTimeout)
       reactionTimersRef.current.clear()
     }
-  }, [roomId, userName, setPeer, removePeer, patchPeer, addMessage, setActivePoll])
+  }, [roomId, userName, setPeer, removePeer, patchPeer, addMessage, setActivePoll, addQuestion, updateQuestion, setQuestionsHistory])
 
   return null
 })

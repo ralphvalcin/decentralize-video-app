@@ -68,7 +68,7 @@ beforeEach(() => {
   mockPeerInstance.addTrack.mockClear()
   mockPeerInstance.destroyed = false
   usePeerStore.setState({ peers: new Map() })
-  useSessionStore.setState({ messages: [] })
+  useSessionStore.setState({ messages: [], questions: [] })
   useCallStore.setState({ userName: 'Ralph' })
 })
 
@@ -598,4 +598,122 @@ test('reset() does not trigger reconnect', async () => {
   act(() => { useCallStore.getState().reset() })
   expect(mockSocket.disconnect).not.toHaveBeenCalled()
   expect(io).toHaveBeenCalledTimes(1)
+})
+
+test('poll-updated sets activePoll in session store', async () => {
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  act(() => {
+    fireSocketEvent('poll-updated', {
+      id: 'p1', question: 'Q?', options: ['Yes', 'No'],
+      createdAt: 1, createdBy: 'Alice', isActive: true, votes: { 'socket-a': 0 },
+    })
+  })
+  expect(useSessionStore.getState().activePoll?.id).toBe('p1')
+  expect(useSessionStore.getState().activePoll?.votes).toEqual({ 'socket-a': 0 })
+})
+
+test('polls-history sets the last active poll', async () => {
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  act(() => {
+    fireSocketEvent('polls-history', [
+      { id: 'p-old', question: 'Old?', options: [], createdAt: 1, createdBy: 'Alice', isActive: false, votes: {} },
+      { id: 'p-active', question: 'Active?', options: [], createdAt: 2, createdBy: 'Alice', isActive: true, votes: {} },
+    ])
+  })
+  expect(useSessionStore.getState().activePoll?.id).toBe('p-active')
+})
+
+test('polls-history with no active poll sets activePoll to null', async () => {
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  useSessionStore.setState({ activePoll: { id: 'old', question: 'Q?', options: [], createdAt: 1, createdBy: 'Alice', isActive: true, votes: {} } })
+  act(() => {
+    fireSocketEvent('polls-history', [
+      { id: 'p-ended', question: 'Old?', options: [], createdAt: 1, createdBy: 'Alice', isActive: false, votes: {} },
+    ])
+  })
+  expect(useSessionStore.getState().activePoll).toBeNull()
+})
+
+test('new-question appends to questions store', async () => {
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  act(() => {
+    fireSocketEvent('new-question', {
+      id: 'q1', text: 'Hello?', author: 'Bob', authorId: 's1',
+      timestamp: 1000, votes: 0, votedBy: [], answer: null,
+      answeredBy: null, answeredAt: null, isAnswered: false,
+    })
+  })
+  expect(useSessionStore.getState().questions).toHaveLength(1)
+  expect(useSessionStore.getState().questions[0].id).toBe('q1')
+})
+
+test('question-updated calls updateQuestion in store', async () => {
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  useSessionStore.setState({
+    questions: [{
+      id: 'q1', text: 'Hello?', author: 'Bob', authorId: 's1',
+      timestamp: 1000, votes: 0, votedBy: [], answer: null,
+      answeredBy: null, answeredAt: null, isAnswered: false,
+    }],
+  })
+  act(() => {
+    fireSocketEvent('question-updated', {
+      id: 'q1', text: 'Hello?', author: 'Bob', authorId: 's1',
+      timestamp: 1000, votes: 5, votedBy: ['s2'], answer: null,
+      answeredBy: null, answeredAt: null, isAnswered: false,
+    })
+  })
+  expect(useSessionStore.getState().questions[0].votes).toBe(5)
+})
+
+test('questions-history replaces questions in store', async () => {
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  act(() => {
+    fireSocketEvent('questions-history', [
+      { id: 'q-a', text: 'First?', author: 'Alice', authorId: 's1', timestamp: 1, votes: 0, votedBy: [], answer: null, answeredBy: null, answeredAt: null, isAnswered: false },
+      { id: 'q-b', text: 'Second?', author: 'Bob', authorId: 's2', timestamp: 2, votes: 0, votedBy: [], answer: null, answeredBy: null, answeredAt: null, isAnswered: false },
+    ])
+  })
+  expect(useSessionStore.getState().questions).toHaveLength(2)
+  expect(useSessionStore.getState().questions[0].id).toBe('q-a')
+})
+
+test('votePoll emits vote-poll via socket', async () => {
+  const ref = createRef<PeerManagerHandle>()
+  await act(async () => { render(<PeerManager ref={ref} roomId="room-1" />) })
+  act(() => { ref.current?.votePoll('poll-1', 0) })
+  expect(mockSocket.emit).toHaveBeenCalledWith('vote-poll', { pollId: 'poll-1', optionIndex: 0 })
+})
+
+test('submitQuestion emits submit-question via socket', async () => {
+  const ref = createRef<PeerManagerHandle>()
+  await act(async () => { render(<PeerManager ref={ref} roomId="room-1" />) })
+  act(() => { ref.current?.submitQuestion('When is it?') })
+  expect(mockSocket.emit).toHaveBeenCalledWith('submit-question', { text: 'When is it?' })
+})
+
+test('voteQuestion emits vote-question via socket', async () => {
+  const ref = createRef<PeerManagerHandle>()
+  await act(async () => { render(<PeerManager ref={ref} roomId="room-1" />) })
+  act(() => { ref.current?.voteQuestion('q-1') })
+  expect(mockSocket.emit).toHaveBeenCalledWith('vote-question', { questionId: 'q-1' })
+})
+
+test('answerQuestion emits answer-question via socket', async () => {
+  const ref = createRef<PeerManagerHandle>()
+  await act(async () => { render(<PeerManager ref={ref} roomId="room-1" />) })
+  act(() => { ref.current?.answerQuestion('q-1', 'Because.') })
+  expect(mockSocket.emit).toHaveBeenCalledWith('answer-question', { questionId: 'q-1', answer: 'Because.' })
+})
+
+test('unmount removes Q&A socket listeners', async () => {
+  let unmount!: () => void
+  await act(async () => { unmount = render(<PeerManager roomId="room-1" />).unmount })
+  mockSocket.off.mockClear()
+  act(() => { unmount() })
+  expect(mockSocket.off).toHaveBeenCalledWith('poll-updated')
+  expect(mockSocket.off).toHaveBeenCalledWith('polls-history')
+  expect(mockSocket.off).toHaveBeenCalledWith('new-question')
+  expect(mockSocket.off).toHaveBeenCalledWith('question-updated')
+  expect(mockSocket.off).toHaveBeenCalledWith('questions-history')
 })
