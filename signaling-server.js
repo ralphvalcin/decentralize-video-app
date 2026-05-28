@@ -1175,8 +1175,9 @@ io.on('connection', (socket) => {
     const user = users[socket.id];
     if (user && user.roomId) {
       const poll = {
-        ...pollData,
         id: String(Date.now() + Math.random()),
+        question: sanitizeInput(pollData.question),
+        options: Array.isArray(pollData.options) ? pollData.options.map(o => sanitizeInput(String(o))) : [],
         roomId: user.roomId,
         createdBy: user.name,
         createdAt: Date.now(),
@@ -1212,8 +1213,8 @@ io.on('connection', (socket) => {
     const user = users[socket.id];
     if (user && user.roomId) {
       const question = {
-        ...questionData,
         id: String(Date.now() + Math.random()),
+        text: sanitizeInput(questionData.text),
         roomId: user.roomId,
         author: user.name,
         authorId: socket.id,
