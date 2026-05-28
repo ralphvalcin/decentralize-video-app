@@ -5,9 +5,9 @@ import { JSDOM } from 'jsdom';
 import http from 'http';
 import crypto from 'crypto';
 // import bcrypt from 'bcryptjs'; // Currently unused
-import { EventEmitter } from 'events';
 import cron from 'node-cron';
 import { TURNCredentialService } from './src/services/TURNCredentialService.js';
+import { RoomManager } from './lib/RoomManager.js';
 
 const window = new JSDOM('').window;
 const purify = DOMPurify(window);
@@ -280,126 +280,9 @@ class ConnectionPoolManager extends EventEmitter {
   }
 }
 
-// Enhanced Room Manager
-class RoomManager extends EventEmitter {
-  constructor(performanceMonitor) {
-    super();
-    this.performanceMonitor = performanceMonitor;
-    
-    // Room data with TTL tracking
-    this.roomMessages = new Map();
-    this.roomPolls = new Map();
-    this.roomQuestions = new Map();
-    this.roomReactions = new Map();
-    this.roomRaisedHands = new Map();
-    this.roomMetadata = new Map(); // lastActivity, createdAt, participantCount
-    
-    this.startCleanupScheduler();
-  }
-  
-  initializeRoom(roomId) {
-    if (!this.roomMessages.has(roomId)) {
-      this.roomMessages.set(roomId, []);
-      this.roomPolls.set(roomId, []);
-      this.roomQuestions.set(roomId, []);
-      this.roomReactions.set(roomId, []);
-      this.roomRaisedHands.set(roomId, []);
-      this.roomMetadata.set(roomId, {
-        createdAt: Date.now(),
-        lastActivity: Date.now(),
-        participantCount: 0
-      });
-      
-      this.performanceMonitor.recordRoomActivity(roomId, 'created');
-      this.emit('room-created', roomId);
-    }
-    
-    this.updateRoomActivity(roomId);
-  }
-  
-  updateRoomActivity(roomId) {
-    const metadata = this.roomMetadata.get(roomId);
-    if (metadata) {
-      metadata.lastActivity = Date.now();
-    }
-  }
-  
-  addMessage(roomId, message) {
-    this.initializeRoom(roomId);
-    const messages = this.roomMessages.get(roomId);
-    messages.push(message);
-    
-    // Keep only last N messages
-    if (messages.length > config.MESSAGE_HISTORY_LIMIT) {
-      messages.splice(0, messages.length - config.MESSAGE_HISTORY_LIMIT);
-    }
-    
-    this.updateRoomActivity(roomId);
-  }
-  
-  getRoomData(roomId) {
-    return {
-      messages: this.roomMessages.get(roomId) || [],
-      polls: this.roomPolls.get(roomId) || [],
-      questions: this.roomQuestions.get(roomId) || [],
-      reactions: this.roomReactions.get(roomId) || [],
-      raisedHands: this.roomRaisedHands.get(roomId) || []
-    };
-  }
-  
-  cleanupInactiveRooms() {
-    const now = Date.now();
-    const roomsToCleanup = [];
-    
-    for (const [roomId, metadata] of this.roomMetadata) {
-      if (now - metadata.lastActivity > config.INACTIVE_ROOM_TTL) {
-        roomsToCleanup.push(roomId);
-      }
-    }
-    
-    for (const roomId of roomsToCleanup) {
-      this.cleanupRoom(roomId);
-    }
-    
-    if (roomsToCleanup.length > 0) {
-      console.log(`Cleaned up ${roomsToCleanup.length} inactive rooms`);
-      this.emit('rooms-cleaned', roomsToCleanup);
-    }
-    
-    return roomsToCleanup.length;
-  }
-  
-  cleanupRoom(roomId) {
-    this.roomMessages.delete(roomId);
-    this.roomPolls.delete(roomId);
-    this.roomQuestions.delete(roomId);
-    this.roomReactions.delete(roomId);
-    this.roomRaisedHands.delete(roomId);
-    this.roomMetadata.delete(roomId);
-    
-    this.performanceMonitor.recordRoomActivity(roomId, 'cleaned');
-  }
-  
-  startCleanupScheduler() {
-    // Run cleanup every 5 minutes
-    cron.schedule('*/5 * * * *', () => {
-      const cleanedCount = this.cleanupInactiveRooms();
-      console.log(`Room cleanup completed. Cleaned ${cleanedCount} inactive rooms.`);
-    });
-  }
-  
-  getRoomStats() {
-    return {
-      totalRooms: this.roomMetadata.size,
-      roomsWithActivity: Array.from(this.roomMetadata.values())
-        .filter(meta => Date.now() - meta.lastActivity < 3600000).length // active in last hour
-    };
-  }
-}
-
 const performanceMonitor = new PerformanceMonitor();
 const connectionPool = new ConnectionPoolManager(performanceMonitor);
-const roomManager = new RoomManager(performanceMonitor);
+const roomManager = new RoomManager(performanceMonitor, config, cron);
 
 // Initialize TURN Credential Service
 const turnCredentialService = new TURNCredentialService({
@@ -1293,32 +1176,29 @@ io.on('connection', (socket) => {
     if (user && user.roomId) {
       const poll = {
         ...pollData,
-        id: Date.now() + Math.random(),
+        id: String(Date.now() + Math.random()),
         roomId: user.roomId,
         createdBy: user.name,
         createdAt: Date.now(),
         votes: {},
         isActive: true
       };
-      
-      // roomPolls[user.roomId].push(poll); // TODO: Fix room data management
+
+      roomManager.addPoll(user.roomId, poll)
       io.to(user.roomId).emit('new-poll', poll);
     }
   });
 
-  socket.on('vote-poll', () => {
+  socket.on('vote-poll', (voteData) => {
     if (!rateLimiter.checkLimit(socket.id, 'vote-poll', 20)) {
       socket.emit('error', { message: 'Rate limit exceeded' });
       return;
     }
-    
+
     const user = users[socket.id];
     if (user && user.roomId) {
-      // const poll = roomPolls[user.roomId].find(p => p.id === voteData.pollId); // TODO: Fix room data management
-      // if (poll && poll.isActive) {
-      //   poll.votes[socket.id] = voteData.optionIndex;
-      //   io.to(user.roomId).emit('poll-updated', poll);
-      // } // TODO: Fix room data management
+      const updated = roomManager.recordPollVote(user.roomId, voteData.pollId, socket.id, voteData.optionIndex)
+      if (updated) io.to(user.roomId).emit('poll-updated', updated)
     }
   });
 
@@ -1333,7 +1213,7 @@ io.on('connection', (socket) => {
     if (user && user.roomId) {
       const question = {
         ...questionData,
-        id: Date.now() + Math.random(),
+        id: String(Date.now() + Math.random()),
         roomId: user.roomId,
         author: user.name,
         authorId: socket.id,
@@ -1345,45 +1225,38 @@ io.on('connection', (socket) => {
         answeredAt: null,
         isAnswered: false
       };
-      
-      // roomQuestions[user.roomId].push(question); // TODO: Fix room data management
+
+      roomManager.addQuestion(user.roomId, question)
       io.to(user.roomId).emit('new-question', question);
     }
   });
 
-  socket.on('vote-question', () => {
+  socket.on('vote-question', (voteData) => {
     if (!rateLimiter.checkLimit(socket.id, 'vote-question', 30)) {
       socket.emit('error', { message: 'Rate limit exceeded' });
       return;
     }
-    
+
     const user = users[socket.id];
     if (user && user.roomId) {
-      // const question = roomQuestions[user.roomId].find(q => q.id === voteData.questionId); // TODO: Fix room data management
-      // if (question && !question.votedBy.includes(socket.id)) {
-      //   question.votes += 1;
-      //   question.votedBy.push(socket.id);
-      //   io.to(user.roomId).emit('question-updated', question);
-      // } // TODO: Fix room data management
+      const updated = roomManager.recordQuestionVote(user.roomId, voteData.questionId, socket.id)
+      if (updated) io.to(user.roomId).emit('question-updated', updated)
     }
   });
 
-  socket.on('answer-question', () => {
+  socket.on('answer-question', (answerData) => {
     if (!rateLimiter.checkLimit(socket.id, 'answer-question', 10)) {
       socket.emit('error', { message: 'Rate limit exceeded' });
       return;
     }
-    
+
     const user = users[socket.id];
     if (user && user.roomId) {
-      // const question = roomQuestions[user.roomId].find(q => q.id === answerData.questionId); // TODO: Fix room data management
-      // if (question) {
-      //   question.answer = sanitizeInput(answerData.answer);
-      //   question.answeredBy = user.name;
-      //   question.answeredAt = Date.now();
-      //   question.isAnswered = true;
-      //   io.to(user.roomId).emit('question-updated', question);
-      // } // TODO: Fix room data management
+      const updated = roomManager.recordQuestionAnswer(
+        user.roomId, answerData.questionId,
+        sanitizeInput(answerData.answer), user.name
+      )
+      if (updated) io.to(user.roomId).emit('question-updated', updated)
     }
   });
 
