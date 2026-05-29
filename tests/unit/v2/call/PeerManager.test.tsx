@@ -5,6 +5,17 @@ import { useSessionStore } from '../../../../src/v2/store/useSessionStore'
 import { useCallStore } from '../../../../src/v2/store/useCallStore'
 import type { PeerManagerHandle } from '../../../../src/v2/call/PeerManager'
 
+// chatCrypto mock — deterministic substitute for Web Crypto operations
+jest.mock('../../../../src/v2/lib/chatCrypto', () => ({
+  deriveKey: jest.fn().mockResolvedValue({ type: 'mock-aes-gcm-key' }),
+  encryptMessage: jest.fn((text: string) => Promise.resolve(`ENCRYPTED:${text}`)),
+  decryptMessage: jest.fn((encoded: string) =>
+    encoded.startsWith('ENCRYPTED:')
+      ? Promise.resolve(encoded.slice(10))
+      : Promise.resolve(encoded)
+  ),
+}))
+
 // Event-capturing simple-peer mock — overrides global jest.setup.js mock for this file
 const peerCallbacks: Record<string, Function> = {}
 const mockPeerInstance = {
@@ -124,7 +135,7 @@ test('removes peer on user-left', async () => {
 
 test('loads chat-history into store', async () => {
   await act(async () => { render(<PeerManager roomId="room-1" />) })
-  act(() => {
+  await act(async () => {
     fireSocketEvent('chat-history', [
       { id: 'msg-0', sender: 'peer-a', senderName: 'Alice', text: 'hey', timestamp: 500 },
     ])
@@ -136,7 +147,7 @@ test('loads chat-history into store', async () => {
 
 test('adds incoming chat messages to store', async () => {
   await act(async () => { render(<PeerManager roomId="room-1" />) })
-  act(() => {
+  await act(async () => {
     fireSocketEvent('new-message', { id: 'msg-1', sender: 'peer-a', senderName: 'Alice', text: 'Hello!', timestamp: 1000 })
   })
   expect(useSessionStore.getState().messages[0]?.text).toBe('Hello!')
@@ -145,7 +156,7 @@ test('adds incoming chat messages to store', async () => {
 
 test('new-message falls back to sender id when senderName missing', async () => {
   await act(async () => { render(<PeerManager roomId="room-1" />) })
-  act(() => {
+  await act(async () => {
     fireSocketEvent('new-message', { id: 'msg-2', sender: 'peer-b', text: 'hi', timestamp: 2000 })
   })
   expect(useSessionStore.getState().messages[0]?.peerName).toBe('peer-b')
@@ -168,11 +179,14 @@ test('logs server error event without throwing', async () => {
   consoleSpy.mockRestore()
 })
 
-test('sendMessage emits send-message via socket', async () => {
+test('sendMessage encrypts text before emitting', async () => {
   const ref = createRef<PeerManagerHandle>()
   await act(async () => { render(<PeerManager ref={ref} roomId="room-1" />) })
-  act(() => { ref.current?.sendMessage('Hi there') })
-  expect(mockSocket.emit).toHaveBeenCalledWith('send-message', expect.objectContaining({ text: 'Hi there' }))
+  await act(async () => { ref.current?.sendMessage('Hi there') })
+  expect(mockSocket.emit).toHaveBeenCalledWith(
+    'send-message',
+    expect.objectContaining({ text: 'ENCRYPTED:Hi there' }),
+  )
 })
 
 test('sendReaction emits send-reaction via socket', async () => {
@@ -450,7 +464,7 @@ test('new-reaction replaces existing reaction and resets timer', async () => {
 
 test('chat-history uses senderName when server provides it', async () => {
   await act(async () => { render(<PeerManager roomId="room-1" />) })
-  act(() => {
+  await act(async () => {
     fireSocketEvent('chat-history', [
       { id: 'msg-1', sender: 'socket-id-abc', senderName: 'Alice', text: 'Hello', timestamp: 1000 },
     ])
@@ -520,7 +534,7 @@ test('unmount removes turn-credentials listeners to prevent ghost callbacks', as
 
 test('chat-history falls back to sender when senderName absent', async () => {
   await act(async () => { render(<PeerManager roomId="room-1" />) })
-  act(() => {
+  await act(async () => {
     fireSocketEvent('chat-history', [
       { id: 'msg-2', sender: 'socket-id-abc', text: 'Hello', timestamp: 1000 },
     ])
@@ -704,6 +718,59 @@ test('answerQuestion emits answer-question via socket', async () => {
   await act(async () => { render(<PeerManager ref={ref} roomId="room-1" />) })
   act(() => { ref.current?.answerQuestion('q-1', 'Because.') })
   expect(mockSocket.emit).toHaveBeenCalledWith('answer-question', { questionId: 'q-1', answer: 'Because.' })
+})
+
+test('new-message: decrypts ciphertext before storing in session store', async () => {
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  await act(async () => {
+    fireSocketEvent('new-message', {
+      id: 'msg-enc', sender: 'peer-a', senderName: 'Alice',
+      text: 'ENCRYPTED:Hello world', timestamp: 1000,
+    })
+  })
+  expect(useSessionStore.getState().messages[0]?.text).toBe('Hello world')
+  expect(useSessionStore.getState().messages[0]?.peerName).toBe('Alice')
+})
+
+test('chat-history: decrypts all messages before storing', async () => {
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  await act(async () => {
+    fireSocketEvent('chat-history', [
+      { id: 'm1', sender: 'peer-a', senderName: 'Alice', text: 'ENCRYPTED:First', timestamp: 1 },
+      { id: 'm2', sender: 'peer-b', senderName: 'Bob', text: 'ENCRYPTED:Second', timestamp: 2 },
+    ])
+  })
+  expect(useSessionStore.getState().messages[0]?.text).toBe('First')
+  expect(useSessionStore.getState().messages[1]?.text).toBe('Second')
+})
+
+test('new-message: corrupted ciphertext falls back to [encrypted message]', async () => {
+  const { decryptMessage } = require('../../../../src/v2/lib/chatCrypto') as {
+    decryptMessage: jest.Mock
+  }
+  decryptMessage.mockRejectedValueOnce(new Error('Decryption failed'))
+
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  await act(async () => {
+    fireSocketEvent('new-message', { id: 'msg-bad', sender: 'peer-a', text: 'corrupted-data', timestamp: 1000 })
+  })
+  expect(useSessionStore.getState().messages[0]?.text).toBe('[encrypted message]')
+})
+
+test('sendMessage is dropped when key is not yet derived', async () => {
+  const { deriveKey } = require('../../../../src/v2/lib/chatCrypto') as {
+    deriveKey: jest.Mock
+  }
+  deriveKey.mockReturnValueOnce(new Promise(() => {}))
+
+  const ref = createRef<PeerManagerHandle>()
+  await act(async () => { render(<PeerManager ref={ref} roomId="room-1" />) })
+  mockSocket.emit.mockClear()
+  act(() => { ref.current?.sendMessage('Too early') })
+  const sendMessageCalls = mockSocket.emit.mock.calls.filter(
+    ([event]) => event === 'send-message',
+  )
+  expect(sendMessageCalls).toHaveLength(0)
 })
 
 test('unmount removes Q&A socket listeners', async () => {
