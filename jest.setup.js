@@ -1,4 +1,43 @@
 require('@testing-library/jest-dom');
+const { webcrypto } = require('crypto');
+const { TextEncoder, TextDecoder } = require('util');
+
+// Polyfill TextEncoder and TextDecoder for Node.js test environment
+Object.defineProperty(globalThis, 'TextEncoder', {
+  value: TextEncoder,
+  configurable: true,
+});
+Object.defineProperty(globalThis, 'TextDecoder', {
+  value: TextDecoder,
+  configurable: true,
+});
+
+// Polyfill btoa and atob for Node.js test environment
+Object.defineProperty(globalThis, 'btoa', {
+  value: (str) => Buffer.from(str, 'binary').toString('base64'),
+  configurable: true,
+});
+Object.defineProperty(globalThis, 'atob', {
+  value: (str) => Buffer.from(str, 'base64').toString('binary'),
+  configurable: true,
+});
+
+// Polyfill crypto.subtle for Node.js test environment
+Object.defineProperty(globalThis, 'crypto', {
+  value: {
+    getRandomValues: (arr) => {
+      if (arr instanceof Uint8Array) {
+        for (let i = 0; i < arr.length; i++) {
+          arr[i] = Math.floor(Math.random() * 256);
+        }
+        return arr;
+      }
+      throw new TypeError('crypto.getRandomValues requires a Uint8Array');
+    },
+    subtle: webcrypto.subtle,
+  },
+  configurable: true,
+});
 
 // Extend timeout for complex tests
 jest.setTimeout(10000);
