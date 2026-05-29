@@ -31,6 +31,7 @@ export function MediaController() {
       })
       .catch((err) => {
         console.error('[MediaController] getUserMedia failed:', err)
+        useCallStore.getState().setMediaError(err instanceof Error ? err.message : String(err))
       })
     return () => {
       cancelled = true

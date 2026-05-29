@@ -66,3 +66,10 @@ test('reset does not clear localStream', () => {
   useCallStore.getState().reset()
   expect(useCallStore.getState().localStream).toBe(stream)
 })
+
+test('setMediaError stores error message and reset clears it', () => {
+  useCallStore.getState().setMediaError('NotAllowedError')
+  expect(useCallStore.getState().mediaError).toBe('NotAllowedError')
+  useCallStore.getState().reset()
+  expect(useCallStore.getState().mediaError).toBeNull()
+})

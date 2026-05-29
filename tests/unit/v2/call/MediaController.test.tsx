@@ -19,7 +19,7 @@ describe('MediaController', () => {
     mockAudioTrack.stop.mockClear()
     mockVideoTrack.stop.mockClear()
     jest.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(mockStream as any)
-    useCallStore.setState({ localStream: null, isMuted: false, isCamOff: false })
+    useCallStore.setState({ localStream: null, isMuted: false, isCamOff: false, mediaError: null })
   })
 
   afterEach(() => { jest.restoreAllMocks() })
@@ -122,5 +122,14 @@ describe('MediaController', () => {
     expect(mockVideoTrack.onended).toBeNull()
     expect(useCallStore.getState().isMuted).toBe(false)
     expect(useCallStore.getState().isCamOff).toBe(false)
+  })
+
+  test('permission denied: sets mediaError in store', async () => {
+    jest.spyOn(navigator.mediaDevices, 'getUserMedia').mockRejectedValue(
+      new DOMException('Permission denied', 'NotAllowedError')
+    )
+    jest.spyOn(console, 'error').mockImplementation(() => {})
+    await act(async () => { render(<MediaController />) })
+    expect(useCallStore.getState().mediaError).toBe('Permission denied')
   })
 })
