@@ -766,7 +766,7 @@ test('sendMessage is dropped when key is not yet derived', async () => {
   const ref = createRef<PeerManagerHandle>()
   await act(async () => { render(<PeerManager ref={ref} roomId="room-1" />) })
   mockSocket.emit.mockClear()
-  act(() => { ref.current?.sendMessage('Too early') })
+  await act(async () => { ref.current?.sendMessage('Too early') })
   const sendMessageCalls = mockSocket.emit.mock.calls.filter(
     ([event]) => event === 'send-message',
   )
