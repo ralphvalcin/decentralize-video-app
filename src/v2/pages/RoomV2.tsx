@@ -11,6 +11,7 @@ import { ChatPanel } from '../call/ChatPanel'
 import { ParticipantsPanel } from '../call/ParticipantsPanel'
 import { PollBanner } from '../call/PollBanner'
 import { QAPanel } from '../call/QAPanel'
+import { AISidePanel } from '../call/AISidePanel'
 
 export default function RoomV2() {
   const { roomId } = useParams<{ roomId: string }>()
@@ -21,6 +22,7 @@ export default function RoomV2() {
   const isChatOpen = useUIStore((s) => s.isChatOpen)
   const isParticipantsOpen = useUIStore((s) => s.isParticipantsOpen)
   const isQAOpen = useUIStore((s) => s.isQAOpen)
+  const isAIOpen = useUIStore((s) => s.isAIOpen)
 
   useEffect(() => {
     if (!userName) navigate(`/?redirect=/room/${roomId}`)
@@ -63,6 +65,10 @@ export default function RoomV2() {
             onVoteQuestion={(id) => peerManagerRef.current?.voteQuestion(id)}
             onAnswerQuestion={(id, ans) => peerManagerRef.current?.answerQuestion(id, ans)}
           />
+        )}
+
+        {isAIOpen && (
+          <AISidePanel peerManagerRef={peerManagerRef} />
         )}
       </div>
     </div>

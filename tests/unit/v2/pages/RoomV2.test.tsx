@@ -31,11 +31,16 @@ beforeEach(() => {
   mockSocket.emit.mockClear()
   mockSocket.disconnect.mockClear()
   jest.spyOn(navigator.mediaDevices, 'getUserMedia').mockRejectedValue(new Error('no cam'))
+  global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 503 } as unknown as Response)
   useCallStore.setState({ userName: 'Ralph', isMuted: false, isCamOff: false, localStream: null, screenSharePeerId: null })
-  useUIStore.setState({ isChatOpen: false, isParticipantsOpen: false })
+  useUIStore.setState({ isChatOpen: false, isParticipantsOpen: false, isQAOpen: false, isAIOpen: false })
   useSessionStore.setState({ activePoll: null, pollResponses: {} })
 })
-afterEach(() => { jest.restoreAllMocks() })
+afterEach(() => {
+  jest.restoreAllMocks()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  delete (global as any).fetch
+})
 
 async function renderRoom(roomId = 'test-room') {
   const RoomV2 = (await import('../../../../src/v2/pages/RoomV2')).default
@@ -161,4 +166,17 @@ test('end call resets isMuted and isCamOff before navigating', async () => {
   expect(useCallStore.getState().isMuted).toBe(false)
   expect(useCallStore.getState().isCamOff).toBe(false)
   expect(mockNavigate).toHaveBeenCalledWith('/')
+})
+
+test('AI side panel is hidden by default', async () => {
+  await renderRoom()
+  await screen.findByTestId('room-v2')
+  expect(screen.queryByTestId('ai-side-panel')).not.toBeInTheDocument()
+})
+
+test('AI side panel appears when isAIOpen is true', async () => {
+  await renderRoom()
+  await screen.findByTestId('room-v2')
+  act(() => { useUIStore.getState().toggleAI() })
+  expect(await screen.findByTestId('ai-side-panel')).toBeInTheDocument()
 })
