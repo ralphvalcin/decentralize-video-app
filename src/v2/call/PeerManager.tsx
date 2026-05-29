@@ -120,150 +120,150 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
       })
     }
 
-    ;(async () => {
-      const socket = io(SIGNALING_URL, { reconnectionAttempts: 5 })
-      socketRef.current = socket
+    const secret = process.env.VITE_CHAT_ENCRYPTION_SECRET ?? ''
+    deriveKey(roomId, secret).then((key) => {
+      cryptoKeyRef.current = key
+    })
 
-      const secret = process.env.VITE_CHAT_ENCRYPTION_SECRET ?? ''
-      cryptoKeyRef.current = await deriveKey(roomId, secret)
+    const socket = io(SIGNALING_URL, { reconnectionAttempts: 5 })
+    socketRef.current = socket
 
-      socket.on('connect', () => {
-        socket.emit('request-room-token', { roomId, userName })
+    socket.on('connect', () => {
+      socket.emit('request-room-token', { roomId, userName })
+    })
+
+    // Use on (not once) so reconnects re-join correctly
+    socket.on('room-token', ({ token }: { token: string }) => {
+      socket.emit('join-room', { roomId, token, name: userName, role: 'guest' })
+
+      // Request TURN credentials right after joining; update ref when they arrive.
+      // iceServersRef starts as ICE_SERVERS so peer creation never blocks.
+      // Off before re-registering: prevents stale listeners from prior cycles on reconnect.
+      socket.off('turn-credentials')
+      socket.off('turn-credentials-error')
+      socket.emit('request-turn-credentials')
+      socket.once('turn-credentials', (config: { servers: RTCIceServer[] }) => {
+        if (Array.isArray(config?.servers) && config.servers.length > 0) {
+          iceServersRef.current = config.servers
+        }
       })
-
-      // Use on (not once) so reconnects re-join correctly
-      socket.on('room-token', ({ token }: { token: string }) => {
-        socket.emit('join-room', { roomId, token, name: userName, role: 'guest' })
-
-        // Request TURN credentials right after joining; update ref when they arrive.
-        // iceServersRef starts as ICE_SERVERS so peer creation never blocks.
-        // Off before re-registering: prevents stale listeners from prior cycles on reconnect.
-        socket.off('turn-credentials')
-        socket.off('turn-credentials-error')
-        socket.emit('request-turn-credentials')
-        socket.once('turn-credentials', (config: { servers: RTCIceServer[] }) => {
-          if (Array.isArray(config?.servers) && config.servers.length > 0) {
-            iceServersRef.current = config.servers
-          }
-        })
-        socket.once('turn-credentials-error', (err: { code: string }) => {
-          console.warn('[PeerManager] TURN credential error:', err?.code, '— using STUN fallback')
-        })
+      socket.once('turn-credentials-error', (err: { code: string }) => {
+        console.warn('[PeerManager] TURN credential error:', err?.code, '— using STUN fallback')
       })
+    })
 
-      socket.on('all-users', (users: Array<{ id: string; name: string; role?: string }>) => {
-        users.forEach((u) => {
-          const role = (u.role as 'host' | 'guest') ?? 'guest'
-          // On reconnect the server re-sends all-users; destroy any stale connection first
-          // so we don't orphan a Peer with open data channels and listeners.
-          if (peerConnsRef.current.has(u.id)) destroyPeerConn(u.id)
-          setPeer(u.id, makePeerRecord(u.id, u.name, role))
-          const stream = useCallStore.getState().localStream
-          const peer = new Peer({
-            initiator: true,
-            trickle: false,
-            stream: stream ?? undefined,
-            config: { iceServers: iceServersRef.current },
-          })
-          wirePeerEvents(peer, u.id)
-          peer.on('signal', (signal) => {
-            socket.emit('sending-signal', { userToSignal: u.id, callerID: socket.id, signal })
-          })
-          peerConnsRef.current.set(u.id, { peer, name: u.name, role })
-        })
-      })
-
-      socket.on('user-joined', ({ signal, callerID, name, role }: { signal: unknown; callerID: string; name: string; role?: string }) => {
-        const peerRole = (role as 'host' | 'guest') ?? 'guest'
-        setPeer(callerID, makePeerRecord(callerID, name, peerRole))
-        if (!signal) return   // no signal = peer record only, no WebRTC yet
+    socket.on('all-users', (users: Array<{ id: string; name: string; role?: string }>) => {
+      users.forEach((u) => {
+        const role = (u.role as 'host' | 'guest') ?? 'guest'
+        // On reconnect the server re-sends all-users; destroy any stale connection first
+        // so we don't orphan a Peer with open data channels and listeners.
+        if (peerConnsRef.current.has(u.id)) destroyPeerConn(u.id)
+        setPeer(u.id, makePeerRecord(u.id, u.name, role))
         const stream = useCallStore.getState().localStream
         const peer = new Peer({
-          initiator: false,
+          initiator: true,
           trickle: false,
           stream: stream ?? undefined,
           config: { iceServers: iceServersRef.current },
         })
-        wirePeerEvents(peer, callerID)
-        peer.on('signal', (returnSignal) => {
-          socket.emit('returning-signal', { signal: returnSignal, callerID })
+        wirePeerEvents(peer, u.id)
+        peer.on('signal', (signal) => {
+          socket.emit('sending-signal', { userToSignal: u.id, callerID: socket.id, signal })
         })
-        peer.signal(signal as any)
-        peerConnsRef.current.set(callerID, { peer, name, role: peerRole })
+        peerConnsRef.current.set(u.id, { peer, name: u.name, role })
       })
+    })
 
-      socket.on('receiving-returned-signal', ({ signal, id }: { signal: unknown; id: string }) => {
-        const conn = peerConnsRef.current.get(id)
-        if (conn && !conn.peer.destroyed) conn.peer.signal(signal as any)
+    socket.on('user-joined', ({ signal, callerID, name, role }: { signal: unknown; callerID: string; name: string; role?: string }) => {
+      const peerRole = (role as 'host' | 'guest') ?? 'guest'
+      setPeer(callerID, makePeerRecord(callerID, name, peerRole))
+      if (!signal) return   // no signal = peer record only, no WebRTC yet
+      const stream = useCallStore.getState().localStream
+      const peer = new Peer({
+        initiator: false,
+        trickle: false,
+        stream: stream ?? undefined,
+        config: { iceServers: iceServersRef.current },
       })
-
-      socket.on('user-left', (socketId: string) => {
-        removePeer(socketId)
-        destroyPeerConn(socketId)
+      wirePeerEvents(peer, callerID)
+      peer.on('signal', (returnSignal) => {
+        socket.emit('returning-signal', { signal: returnSignal, callerID })
       })
+      peer.signal(signal as any)
+      peerConnsRef.current.set(callerID, { peer, name, role: peerRole })
+    })
 
-      socket.on('chat-history', async (messages: Array<{ id: string; sender: string; senderName?: string; text: string; timestamp: number }>) => {
-        const key = cryptoKeyRef.current
-        for (const m of messages) {
-          const text = key
-            ? await decryptMessage(m.text, key).catch(() => '[encrypted message]')
-            : m.text
-          addMessage({ id: m.id, peerId: m.sender, peerName: m.senderName ?? m.sender, text, sentAt: m.timestamp })
-        }
-      })
+    socket.on('receiving-returned-signal', ({ signal, id }: { signal: unknown; id: string }) => {
+      const conn = peerConnsRef.current.get(id)
+      if (conn && !conn.peer.destroyed) conn.peer.signal(signal as any)
+    })
 
-      socket.on('new-message', async (m: { id: string; sender: string; senderName?: string; text: string; timestamp: number }) => {
-        const key = cryptoKeyRef.current
+    socket.on('user-left', (socketId: string) => {
+      removePeer(socketId)
+      destroyPeerConn(socketId)
+    })
+
+    socket.on('chat-history', async (messages: Array<{ id: string; sender: string; senderName?: string; text: string; timestamp: number }>) => {
+      const key = cryptoKeyRef.current
+      for (const m of messages) {
         const text = key
           ? await decryptMessage(m.text, key).catch(() => '[encrypted message]')
           : m.text
         addMessage({ id: m.id, peerId: m.sender, peerName: m.senderName ?? m.sender, text, sentAt: m.timestamp })
-      })
+      }
+    })
 
-      socket.on('new-poll', (poll: Poll) => {
-        setActivePoll(poll)
-      })
+    socket.on('new-message', async (m: { id: string; sender: string; senderName?: string; text: string; timestamp: number }) => {
+      const key = cryptoKeyRef.current
+      const text = key
+        ? await decryptMessage(m.text, key).catch(() => '[encrypted message]')
+        : m.text
+      addMessage({ id: m.id, peerId: m.sender, peerName: m.senderName ?? m.sender, text, sentAt: m.timestamp })
+    })
 
-      socket.on('poll-ended', () => {
-        setActivePoll(null)
-      })
+    socket.on('new-poll', (poll: Poll) => {
+      setActivePoll(poll)
+    })
 
-      socket.on('poll-updated', (poll: Poll) => {
-        setActivePoll(poll)
-      })
+    socket.on('poll-ended', () => {
+      setActivePoll(null)
+    })
 
-      socket.on('polls-history', (polls: Poll[]) => {
-        const active = polls.findLast((p) => p.isActive) ?? null
-        setActivePoll(active)
-      })
+    socket.on('poll-updated', (poll: Poll) => {
+      setActivePoll(poll)
+    })
 
-      socket.on('new-question', (q: Question) => {
-        addQuestion(q)
-      })
+    socket.on('polls-history', (polls: Poll[]) => {
+      const active = polls.findLast((p) => p.isActive) ?? null
+      setActivePoll(active)
+    })
 
-      socket.on('question-updated', (q: Question) => {
-        updateQuestion(q)
-      })
+    socket.on('new-question', (q: Question) => {
+      addQuestion(q)
+    })
 
-      socket.on('questions-history', (qs: Question[]) => {
-        setQuestionsHistory(qs)
-      })
+    socket.on('question-updated', (q: Question) => {
+      updateQuestion(q)
+    })
 
-      socket.on('new-reaction', ({ peerId, emoji }: { peerId: string; emoji: string }) => {
-        const existing = reactionTimersRef.current.get(peerId)
-        if (existing) clearTimeout(existing)
-        patchPeer(peerId, { reaction: { emoji, sentAt: Date.now() } })
-        const timer = setTimeout(() => {
-          patchPeer(peerId, { reaction: null })
-          reactionTimersRef.current.delete(peerId)
-        }, 3000)
-        reactionTimersRef.current.set(peerId, timer)
-      })
+    socket.on('questions-history', (qs: Question[]) => {
+      setQuestionsHistory(qs)
+    })
 
-      socket.on('error', (err: { message: string; code: string }) => {
-        console.error('[PeerManager] server error:', err)
-      })
-    })()
+    socket.on('new-reaction', ({ peerId, emoji }: { peerId: string; emoji: string }) => {
+      const existing = reactionTimersRef.current.get(peerId)
+      if (existing) clearTimeout(existing)
+      patchPeer(peerId, { reaction: { emoji, sentAt: Date.now() } })
+      const timer = setTimeout(() => {
+        patchPeer(peerId, { reaction: null })
+        reactionTimersRef.current.delete(peerId)
+      }, 3000)
+      reactionTimersRef.current.set(peerId, timer)
+    })
+
+    socket.on('error', (err: { message: string; code: string }) => {
+      console.error('[PeerManager] server error:', err)
+    })
 
     return () => {
       cryptoKeyRef.current = null
