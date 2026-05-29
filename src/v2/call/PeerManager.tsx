@@ -60,9 +60,13 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
     sendMessage: (text) => {
       const key = cryptoKeyRef.current
       if (!socketRef.current || !key) return
-      encryptMessage(text, key).then((ciphertext) => {
-        socketRef.current?.emit('send-message', { text: ciphertext, timestamp: Date.now() })
-      })
+      encryptMessage(text, key)
+        .then((ciphertext) => {
+          socketRef.current?.emit('send-message', { text: ciphertext, timestamp: Date.now() })
+        })
+        .catch((err) => {
+          console.error('[PeerManager] failed to encrypt message:', err)
+        })
     },
     sendReaction: (emoji) => {
       socketRef.current?.emit('send-reaction', { emoji })
@@ -263,13 +267,25 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
 
     return () => {
       cryptoKeyRef.current = null
-      socketRef.current?.off('turn-credentials')
-      socketRef.current?.off('turn-credentials-error')
+      socketRef.current?.off('connect')
+      socketRef.current?.off('room-token')
+      socketRef.current?.off('all-users')
+      socketRef.current?.off('user-joined')
+      socketRef.current?.off('receiving-returned-signal')
+      socketRef.current?.off('user-left')
+      socketRef.current?.off('chat-history')
+      socketRef.current?.off('new-message')
+      socketRef.current?.off('new-poll')
+      socketRef.current?.off('poll-ended')
       socketRef.current?.off('poll-updated')
       socketRef.current?.off('polls-history')
       socketRef.current?.off('new-question')
       socketRef.current?.off('question-updated')
       socketRef.current?.off('questions-history')
+      socketRef.current?.off('new-reaction')
+      socketRef.current?.off('error')
+      socketRef.current?.off('turn-credentials')
+      socketRef.current?.off('turn-credentials-error')
       socketRef.current?.emit('user-leaving')
       socketRef.current?.disconnect()
       peerConnsRef.current.forEach((_, id) => destroyPeerConn(id))
