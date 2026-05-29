@@ -18,12 +18,14 @@ jest.mock('../../../../src/v2/lib/chatCrypto', () => ({
 
 // Event-capturing simple-peer mock — overrides global jest.setup.js mock for this file
 const peerCallbacks: Record<string, Function> = {}
+const mockRTCConn = { getStats: jest.fn(), iceConnectionState: 'connected' as RTCIceConnectionState }
 const mockPeerInstance = {
   on: jest.fn((event: string, cb: Function) => { peerCallbacks[event] = cb }),
   signal: jest.fn(),
   destroy: jest.fn(),
   addTrack: jest.fn(),
   destroyed: false,
+  _pc: mockRTCConn,
 }
 jest.mock('simple-peer', () => jest.fn(() => mockPeerInstance))
 
@@ -783,4 +785,16 @@ test('unmount removes Q&A socket listeners', async () => {
   expect(mockSocket.off).toHaveBeenCalledWith('new-question')
   expect(mockSocket.off).toHaveBeenCalledWith('question-updated')
   expect(mockSocket.off).toHaveBeenCalledWith('questions-history')
+})
+
+test('getPeerConnections returns RTCPeerConnection for each active peer', async () => {
+  const ref = createRef<PeerManagerHandle>()
+  await act(async () => { render(<PeerManager ref={ref} roomId="room-1" />) })
+  act(() => {
+    fireSocketEvent('all-users', [{ id: 'peer-a', name: 'Alice', role: 'guest' }])
+  })
+  const conns = ref.current?.getPeerConnections()
+  expect(conns).toBeDefined()
+  expect(conns?.size).toBe(1)
+  expect(conns?.get('peer-a')).toBe(mockRTCConn)
 })

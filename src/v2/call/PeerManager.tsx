@@ -22,6 +22,7 @@ export interface PeerManagerHandle {
   submitQuestion: (text: string) => void
   voteQuestion: (questionId: string) => void
   answerQuestion: (questionId: string, answer: string) => void
+  getPeerConnections: () => Map<string, RTCPeerConnection>
 }
 
 interface PeerManagerProps {
@@ -82,6 +83,14 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
     },
     answerQuestion: (questionId, answer) => {
       socketRef.current?.emit('answer-question', { questionId, answer })
+    },
+    getPeerConnections: () => {
+      const result = new Map<string, RTCPeerConnection>()
+      peerConnsRef.current.forEach((conn, id) => {
+        const rtc = (conn.peer as unknown as { _pc: RTCPeerConnection | null })._pc
+        if (rtc) result.set(id, rtc)
+      })
+      return result
     },
   }), [])
 
