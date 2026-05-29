@@ -28,6 +28,7 @@ const config = {
   
   // Performance Limits
   MAX_CONNECTIONS_PER_ROOM: parseInt(process.env.MAX_CONNECTIONS_PER_ROOM) || 100,
+  // Applies to ciphertext (IV + auth tag included); plaintext is ~65% of this limit.
   MAX_MESSAGE_LENGTH: parseInt(process.env.MAX_MESSAGE_LENGTH) || 2000,
   MESSAGE_HISTORY_LIMIT: parseInt(process.env.MESSAGE_HISTORY_LIMIT) || 100,
   

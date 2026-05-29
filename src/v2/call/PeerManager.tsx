@@ -121,9 +121,13 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
     }
 
     const secret = process.env.VITE_CHAT_ENCRYPTION_SECRET ?? ''
-    deriveKey(roomId, secret).then((key) => {
-      cryptoKeyRef.current = key
-    })
+    deriveKey(roomId, secret)
+      .then((key) => {
+        cryptoKeyRef.current = key
+      })
+      .catch((err) => {
+        console.error('[PeerManager] Failed to derive encryption key:', err)
+      })
 
     const socket = io(SIGNALING_URL, { reconnectionAttempts: 5 })
     socketRef.current = socket
