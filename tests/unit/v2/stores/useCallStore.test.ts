@@ -7,6 +7,7 @@ beforeEach(() => {
     isCamOff: false,
     userName: '',
     screenSharePeerId: null,
+    mediaError: null,
   })
 })
 
