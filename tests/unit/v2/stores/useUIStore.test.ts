@@ -6,6 +6,7 @@ beforeEach(() => {
     isChatOpen: false,
     isParticipantsOpen: false,
     isQAOpen: false,
+    isAIOpen: false,
     activeModal: null,
     toasts: [],
     layout: 'spotlight',
@@ -81,4 +82,41 @@ test('opening participants closes QA', () => {
   useUIStore.getState().toggleParticipants()
   expect(useUIStore.getState().isParticipantsOpen).toBe(true)
   expect(useUIStore.getState().isQAOpen).toBe(false)
+})
+
+test('toggleAI flips isAIOpen', () => {
+  useUIStore.getState().toggleAI()
+  expect(useUIStore.getState().isAIOpen).toBe(true)
+  useUIStore.getState().toggleAI()
+  expect(useUIStore.getState().isAIOpen).toBe(false)
+})
+
+test('opening AI closes chat, participants, and QA', () => {
+  useUIStore.setState({ isChatOpen: true, isParticipantsOpen: true, isQAOpen: true })
+  useUIStore.getState().toggleAI()
+  expect(useUIStore.getState().isAIOpen).toBe(true)
+  expect(useUIStore.getState().isChatOpen).toBe(false)
+  expect(useUIStore.getState().isParticipantsOpen).toBe(false)
+  expect(useUIStore.getState().isQAOpen).toBe(false)
+})
+
+test('opening chat closes AI', () => {
+  useUIStore.setState({ isAIOpen: true })
+  useUIStore.getState().toggleChat()
+  expect(useUIStore.getState().isChatOpen).toBe(true)
+  expect(useUIStore.getState().isAIOpen).toBe(false)
+})
+
+test('opening participants closes AI', () => {
+  useUIStore.setState({ isAIOpen: true })
+  useUIStore.getState().toggleParticipants()
+  expect(useUIStore.getState().isParticipantsOpen).toBe(true)
+  expect(useUIStore.getState().isAIOpen).toBe(false)
+})
+
+test('opening QA closes AI', () => {
+  useUIStore.setState({ isAIOpen: true })
+  useUIStore.getState().toggleQA()
+  expect(useUIStore.getState().isQAOpen).toBe(true)
+  expect(useUIStore.getState().isAIOpen).toBe(false)
 })

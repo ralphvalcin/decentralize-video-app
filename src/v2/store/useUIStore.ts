@@ -5,12 +5,14 @@ interface UIStore {
   isChatOpen: boolean
   isParticipantsOpen: boolean
   isQAOpen: boolean
+  isAIOpen: boolean
   activeModal: string | null
   toasts: Toast[]
   layout: 'spotlight' | 'grid'
   toggleChat: () => void
   toggleParticipants: () => void
   toggleQA: () => void
+  toggleAI: () => void
   setActiveModal: (modal: string | null) => void
   addToast: (toast: Toast) => void
   removeToast: (id: string) => void
@@ -21,14 +23,16 @@ export const useUIStore = create<UIStore>((set) => ({
   isChatOpen: false,
   isParticipantsOpen: false,
   isQAOpen: false,
+  isAIOpen: false,
   activeModal: null,
   toasts: [],
   layout: 'spotlight',
 
-  // Panels are mutually exclusive: opening any one closes the other two.
-  toggleChat: () => set((s) => ({ isChatOpen: !s.isChatOpen, isParticipantsOpen: false, isQAOpen: false })),
-  toggleParticipants: () => set((s) => ({ isParticipantsOpen: !s.isParticipantsOpen, isChatOpen: false, isQAOpen: false })),
-  toggleQA: () => set((s) => ({ isQAOpen: !s.isQAOpen, isChatOpen: false, isParticipantsOpen: false })),
+  // Panels are mutually exclusive: opening any one closes all others.
+  toggleChat: () => set((s) => ({ isChatOpen: !s.isChatOpen, isParticipantsOpen: false, isQAOpen: false, isAIOpen: false })),
+  toggleParticipants: () => set((s) => ({ isParticipantsOpen: !s.isParticipantsOpen, isChatOpen: false, isQAOpen: false, isAIOpen: false })),
+  toggleQA: () => set((s) => ({ isQAOpen: !s.isQAOpen, isChatOpen: false, isParticipantsOpen: false, isAIOpen: false })),
+  toggleAI: () => set((s) => ({ isAIOpen: !s.isAIOpen, isChatOpen: false, isParticipantsOpen: false, isQAOpen: false })),
 
   setActiveModal: (modal) => set({ activeModal: modal }),
   addToast: (toast) => set((s) => ({ toasts: [...s.toasts, toast] })),
