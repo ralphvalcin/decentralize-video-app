@@ -21,7 +21,7 @@ jest.mock('framer-motion', () => {
 
 beforeEach(() => {
   useCallStore.setState({ isMuted: false, isCamOff: false })
-  useUIStore.setState({ isChatOpen: false, isParticipantsOpen: false, isQAOpen: false })
+  useUIStore.setState({ isChatOpen: false, isParticipantsOpen: false, isQAOpen: false, isAIOpen: false })
   jest.useFakeTimers()
 })
 
@@ -179,5 +179,32 @@ test('opening Q&A closes chat (mutual exclusion via store)', () => {
   render(<ControlBar onEndCall={jest.fn()} />)
   fireEvent.click(screen.getByTestId('btn-qa'))
   expect(useUIStore.getState().isQAOpen).toBe(true)
+  expect(useUIStore.getState().isChatOpen).toBe(false)
+})
+
+test('AI button exists in control bar', () => {
+  render(<ControlBar onEndCall={jest.fn()} />)
+  expect(screen.getByTestId('btn-ai')).toBeInTheDocument()
+})
+
+test('AI button toggles isAIOpen in store', () => {
+  render(<ControlBar onEndCall={jest.fn()} />)
+  fireEvent.click(screen.getByTestId('btn-ai'))
+  expect(useUIStore.getState().isAIOpen).toBe(true)
+  fireEvent.click(screen.getByTestId('btn-ai'))
+  expect(useUIStore.getState().isAIOpen).toBe(false)
+})
+
+test('AI button renders with primary variant when isAIOpen', () => {
+  useUIStore.setState({ isAIOpen: true })
+  render(<ControlBar onEndCall={jest.fn()} />)
+  expect(screen.getByTestId('btn-ai').className).toMatch(/bg-\[var\(--text-primary\)\]/)
+})
+
+test('opening AI closes chat (mutual exclusion)', () => {
+  useUIStore.setState({ isChatOpen: true })
+  render(<ControlBar onEndCall={jest.fn()} />)
+  fireEvent.click(screen.getByTestId('btn-ai'))
+  expect(useUIStore.getState().isAIOpen).toBe(true)
   expect(useUIStore.getState().isChatOpen).toBe(false)
 })
