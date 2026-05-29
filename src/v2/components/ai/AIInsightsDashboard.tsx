@@ -28,23 +28,29 @@ export function AIInsightsDashboard() {
   const [secondsAgo, setSecondsAgo] = useState(0)
 
   useEffect(() => {
+    const controller = new AbortController()
+
     async function fetchMetrics() {
       try {
-        const res = await fetch(METRICS_URL)
+        const res = await fetch(METRICS_URL, { signal: controller.signal })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data: Metrics = await res.json()
         setMetrics(data)
         setError(false)
         setLastUpdated(Date.now())
         setSecondsAgo(0)
-      } catch {
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return
         setError(true)
       }
     }
 
     fetchMetrics()
     const id = setInterval(fetchMetrics, 30_000)
-    return () => clearInterval(id)
+    return () => {
+      controller.abort()
+      clearInterval(id)
+    }
   }, [])
 
   useEffect(() => {
