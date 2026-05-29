@@ -49,4 +49,10 @@ describe('chatCrypto', () => {
     const ivOnly = btoa(String.fromCharCode(...new Uint8Array(12)))
     await expect(decryptMessage(ivOnly, key)).rejects.toThrow()
   })
+
+  test('encryptMessage: same plaintext produces different ciphertext each call', async () => {
+    const a = await encryptMessage('hello', key)
+    const b = await encryptMessage('hello', key)
+    expect(a).not.toBe(b)
+  })
 })

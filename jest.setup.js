@@ -25,15 +25,7 @@ Object.defineProperty(globalThis, 'atob', {
 // Polyfill crypto.subtle for Node.js test environment
 Object.defineProperty(globalThis, 'crypto', {
   value: {
-    getRandomValues: (arr) => {
-      if (arr instanceof Uint8Array) {
-        for (let i = 0; i < arr.length; i++) {
-          arr[i] = Math.floor(Math.random() * 256);
-        }
-        return arr;
-      }
-      throw new TypeError('crypto.getRandomValues requires a Uint8Array');
-    },
+    getRandomValues: (arr) => webcrypto.getRandomValues(arr),
     subtle: webcrypto.subtle,
   },
   configurable: true,
