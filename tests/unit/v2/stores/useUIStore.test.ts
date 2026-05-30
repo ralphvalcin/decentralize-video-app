@@ -142,3 +142,41 @@ test('toggleCaptions disables transcription store when closing', () => {
   useUIStore.getState().toggleCaptions()
   expect(useTranscriptionStore.getState().isEnabled).toBe(false)
 })
+
+describe('whiteboard toggle', () => {
+  beforeEach(() => {
+    useUIStore.setState({
+      isChatOpen: false,
+      isParticipantsOpen: false,
+      isQAOpen: false,
+      isAIOpen: false,
+      isCaptionsOpen: false,
+      isWhiteboardOpen: false,
+    })
+  })
+
+  test('toggleWhiteboard opens whiteboard', () => {
+    useUIStore.getState().toggleWhiteboard()
+    expect(useUIStore.getState().isWhiteboardOpen).toBe(true)
+  })
+
+  test('toggleWhiteboard closes whiteboard when already open', () => {
+    useUIStore.setState({ isWhiteboardOpen: true })
+    useUIStore.getState().toggleWhiteboard()
+    expect(useUIStore.getState().isWhiteboardOpen).toBe(false)
+  })
+
+  test('toggleWhiteboard closes chat when opening whiteboard', () => {
+    useUIStore.setState({ isChatOpen: true })
+    useUIStore.getState().toggleWhiteboard()
+    expect(useUIStore.getState().isChatOpen).toBe(false)
+    expect(useUIStore.getState().isWhiteboardOpen).toBe(true)
+  })
+
+  test('toggleWhiteboard closes AI panel when opening whiteboard', () => {
+    useUIStore.setState({ isAIOpen: true })
+    useUIStore.getState().toggleWhiteboard()
+    expect(useUIStore.getState().isAIOpen).toBe(false)
+    expect(useUIStore.getState().isWhiteboardOpen).toBe(true)
+  })
+})

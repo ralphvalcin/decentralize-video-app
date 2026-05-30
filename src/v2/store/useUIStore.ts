@@ -8,6 +8,7 @@ interface UIStore {
   isQAOpen: boolean
   isAIOpen: boolean
   isCaptionsOpen: boolean
+  isWhiteboardOpen: boolean
   activeModal: string | null
   toasts: Toast[]
   layout: 'spotlight' | 'grid'
@@ -16,6 +17,7 @@ interface UIStore {
   toggleQA: () => void
   toggleAI: () => void
   toggleCaptions: () => void
+  toggleWhiteboard: () => void
   setActiveModal: (modal: string | null) => void
   addToast: (toast: Toast) => void
   removeToast: (id: string) => void
@@ -28,6 +30,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
   isQAOpen: false,
   isAIOpen: false,
   isCaptionsOpen: false,
+  isWhiteboardOpen: false,
   activeModal: null,
   toasts: [],
   layout: 'spotlight',
@@ -37,6 +40,13 @@ export const useUIStore = create<UIStore>((set, get) => ({
   toggleParticipants: () => set((s) => ({ isParticipantsOpen: !s.isParticipantsOpen, isChatOpen: false, isQAOpen: false, isAIOpen: false })),
   toggleQA: () => set((s) => ({ isQAOpen: !s.isQAOpen, isChatOpen: false, isParticipantsOpen: false, isAIOpen: false })),
   toggleAI: () => set((s) => ({ isAIOpen: !s.isAIOpen, isChatOpen: false, isParticipantsOpen: false, isQAOpen: false })),
+  toggleWhiteboard: () => set((s) => ({
+    isWhiteboardOpen: !s.isWhiteboardOpen,
+    isChatOpen: false,
+    isParticipantsOpen: false,
+    isQAOpen: false,
+    isAIOpen: false,
+  })),
 
   // Captions are independent — they do not close other panels.
   toggleCaptions: () => {
