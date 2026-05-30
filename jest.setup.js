@@ -119,6 +119,16 @@ jest.mock('@huggingface/transformers', () => ({
   pipeline: jest.fn(),
 }));
 
+// ResizeObserver is not implemented in jsdom — provide a no-op stub so
+// components that use it (e.g. WhiteboardModal canvas sizing) don't crash.
+if (typeof global.ResizeObserver === 'undefined') {
+  global.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
 // MediaRecorder is not implemented in jsdom. Provide a minimal stub so that
 // the typeof-guard in RecordingController (and similar components) behaves the
 // same way it would in a real browser. Tests that specifically verify the
