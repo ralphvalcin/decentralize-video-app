@@ -62,3 +62,14 @@ test('renders all segments when 3 or fewer exist', () => {
   render(<CaptionOverlay />)
   expect(screen.getByText('[Alice]: Only one')).toBeInTheDocument()
 })
+
+test('has role="region" and aria-live="polite" when open', () => {
+  useUIStore.setState({ isCaptionsOpen: true })
+  useTranscriptionStore.setState({
+    segments: [{ speakerId: 's1', userName: 'Alice', text: 'Hello', timestamp: 1 }],
+  })
+  render(<CaptionOverlay />)
+  const overlay = screen.getByTestId('caption-overlay')
+  expect(overlay).toHaveAttribute('role', 'region')
+  expect(overlay).toHaveAttribute('aria-live', 'polite')
+})

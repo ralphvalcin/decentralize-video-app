@@ -12,6 +12,9 @@ export function CaptionOverlay() {
     return (
       <div
         data-testid="caption-overlay"
+        role="region"
+        aria-label="Live captions"
+        aria-live="polite"
         className="absolute bottom-20 left-0 right-0 flex justify-center pointer-events-none"
       >
         <div className="bg-black/60 text-white text-sm px-4 py-2 rounded-lg">
@@ -26,11 +29,14 @@ export function CaptionOverlay() {
   return (
     <div
       data-testid="caption-overlay"
+      role="region"
+      aria-label="Live captions"
+      aria-live="polite"
       className="absolute bottom-20 left-0 right-0 px-4 flex flex-col items-center gap-1 pointer-events-none"
     >
-      {last3.map((seg, i) => (
+      {last3.map((seg) => (
         <div
-          key={`${seg.speakerId}-${seg.timestamp}-${i}`}
+          key={`${seg.speakerId}-${seg.timestamp}`}
           className="bg-black/60 text-white text-sm px-4 py-2 rounded-lg max-w-2xl w-full text-center"
         >
           {`[${seg.userName}]: ${seg.text}`}
