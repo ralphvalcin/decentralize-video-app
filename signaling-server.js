@@ -4,6 +4,7 @@ import DOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
 import http from 'http';
 import crypto from 'crypto';
+import { EventEmitter } from 'events';
 // import bcrypt from 'bcryptjs'; // Currently unused
 import cron from 'node-cron';
 import { TURNCredentialService } from './src/services/TURNCredentialService.js';
