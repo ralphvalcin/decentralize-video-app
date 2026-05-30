@@ -1003,9 +1003,15 @@ io.on('connection', (socket) => {
       const roomData = roomManager.getRoomData(roomId);
       
       // Send only users in the same room
-      const otherUsers = Object.values(users).filter(user => 
+      const otherUsers = Object.values(users).filter(user =>
         user.id !== socket.id && user.roomId === roomId
       );
+
+      // Assign host role to the first user who enters an empty room
+      if (otherUsers.length === 0) {
+        socket.emit('you-are-host')
+      }
+
       socket.emit('all-users', otherUsers);
       
       // Send existing data for this room
@@ -1030,6 +1036,60 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error('Error in join-room:', error);
       socket.emit('error', { message: 'Server error joining room', code: 'SERVER_ERROR' });
+      performanceMonitor.recordError();
+    }
+  });
+
+  // Handle recording started event
+  socket.on('recording-started', (payload) => {
+    try {
+      const user = users[socket.id];
+      if (user && user.roomId) {
+        connectionPool.updateActivity(socket.id);
+
+        // Broadcast to other participants in the room
+        socket.broadcast.to(user.roomId).emit('recording-started', {
+          hostId: socket.id,
+          hostName: user.name,
+          timestamp: Date.now()
+        });
+
+        console.log(`🎥 Recording started in room ${user.roomId} by ${user.name}`);
+        performanceMonitor.recordMessage();
+      } else {
+        socket.emit('error', { message: 'User not in a room', code: 'NOT_IN_ROOM' });
+        performanceMonitor.recordError();
+      }
+    } catch (error) {
+      console.error('Error in recording-started:', error);
+      socket.emit('error', { message: 'Error starting recording', code: 'RECORDING_ERROR' });
+      performanceMonitor.recordError();
+    }
+  });
+
+  // Handle recording stopped event
+  socket.on('recording-stopped', (payload) => {
+    try {
+      const user = users[socket.id];
+      if (user && user.roomId) {
+        connectionPool.updateActivity(socket.id);
+
+        // Broadcast to other participants in the room
+        socket.broadcast.to(user.roomId).emit('recording-stopped', {
+          hostId: socket.id,
+          hostName: user.name,
+          timestamp: Date.now()
+        });
+
+        console.log(`⏹️  Recording stopped in room ${user.roomId} by ${user.name}`);
+        performanceMonitor.recordMessage();
+      } else {
+        socket.emit('error', { message: 'User not in a room', code: 'NOT_IN_ROOM' });
+        performanceMonitor.recordError();
+      }
+    } catch (error) {
+      console.error('Error in recording-stopped:', error);
+      socket.emit('error', { message: 'Error stopping recording', code: 'RECORDING_ERROR' });
       performanceMonitor.recordError();
     }
   });
