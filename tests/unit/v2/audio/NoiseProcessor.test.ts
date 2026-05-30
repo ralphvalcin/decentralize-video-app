@@ -10,7 +10,7 @@ const mockRnnoiseModule = { newState: jest.fn(() => mockDenoiseState) }
 jest.mock('@jitsi/rnnoise-wasm', () => jest.fn())
 
 const mockDestStream = { id: 'dest-stream' } as unknown as MediaStream
-const mockDestination = { stream: mockDestStream, connect: jest.fn() }
+const mockDestination = { stream: mockDestStream, connect: jest.fn(), disconnect: jest.fn() }
 const mockScriptNode = { connect: jest.fn(), disconnect: jest.fn(), onaudioprocess: null as any }
 const mockSource = { connect: jest.fn(), disconnect: jest.fn() }
 const mockCtx = {
@@ -142,4 +142,29 @@ test('dispose() disconnects source, scriptNode, destroys denoiseState, and close
   expect(mockScriptNode.disconnect).toHaveBeenCalled()
   expect(mockDenoiseState.destroy).toHaveBeenCalled()
   expect(mockCtx.close).toHaveBeenCalled()
+})
+
+test('_processAudio carries leftover processed output into the next callback via outputPending', async () => {
+  const processor = new NoiseProcessor()
+  await processor.process({} as MediaStream)
+  processor.setEnabled(true)
+
+  // Override mock to preserve frame values (no fill(0)) so outputPending holds non-zero data
+  mockProcessFrame.mockImplementation((frame: Float32Array) => {
+    // no-op: keep frame values intact to allow detecting them in the output
+    return 0.9
+  })
+
+  // First 4320-sample call: 9 frames × 480 = 4320 processed > 4096 output buffer;
+  // 4320 − 4096 = 224 samples overflow into outputPending
+  ;(processor as any)._processAudio(new Float32Array(4320).fill(0.4), new Float32Array(4096))
+  const pendingAfterFirst = (processor as any).outputPending.length
+  expect(pendingAfterFirst).toBeGreaterThan(0)
+
+  // Second call with fewer than 480 new input samples (no new RNNoise frames),
+  // output should still be filled from outputPending
+  mockProcessFrame.mockClear()
+  const output2 = new Float32Array(256)
+  ;(processor as any)._processAudio(new Float32Array(0), output2)
+  expect(output2[0]).not.toBe(0) // drawn from outputPending, not silence
 })

@@ -56,8 +56,11 @@ export class NoiseProcessor {
   dispose(): void {
     this.source?.disconnect()
     this.scriptNode?.disconnect()
+    this.destination?.disconnect()
     this.denoiseState?.destroy()
     this.ctx?.close()
+    this.inputPending = new Float32Array(0)
+    this.outputPending = new Float32Array(0)
     this.ctx = null
     this.source = null
     this.scriptNode = null
