@@ -101,3 +101,14 @@ jest.mock('simple-peer', () => {
     destroy: jest.fn(),
   }));
 });
+
+// @jitsi/rnnoise-wasm uses ESM; mock globally to prevent import errors in jsdom.
+// Tests that need specific behaviour (NoiseProcessor.test.ts) override this mock locally.
+jest.mock('@jitsi/rnnoise-wasm', () =>
+  jest.fn().mockResolvedValue({
+    newState: jest.fn(() => ({
+      processFrame: jest.fn(() => 0),
+      destroy: jest.fn(),
+    })),
+  })
+);
