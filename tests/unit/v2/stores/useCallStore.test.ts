@@ -7,6 +7,7 @@ beforeEach(() => {
     isCamOff: false,
     isNoiseSuppressed: true,
     userName: '',
+    socketId: null,
     screenSharePeerId: null,
     mediaError: null,
     isHost: false,
@@ -113,4 +114,15 @@ test('reset does not clear isHost', () => {
   useCallStore.setState({ isHost: true })
   useCallStore.getState().reset()
   expect(useCallStore.getState().isHost).toBe(true)
+})
+
+test('setSocketId stores the socket ID', () => {
+  useCallStore.getState().setSocketId('socket-abc')
+  expect(useCallStore.getState().socketId).toBe('socket-abc')
+})
+
+test('reset clears socketId', () => {
+  useCallStore.setState({ socketId: 'socket-abc' })
+  useCallStore.getState().reset()
+  expect(useCallStore.getState().socketId).toBeNull()
 })

@@ -74,3 +74,21 @@ test('setColor updates currentColor', () => {
   useWhiteboardStore.getState().setColor('#ff4444')
   expect(useWhiteboardStore.getState().currentColor).toBe('#ff4444')
 })
+
+describe('reset', () => {
+  test('reset clears strokes and granted peers', () => {
+    useWhiteboardStore.getState().addStroke(makeStroke('s1'))
+    useWhiteboardStore.getState().grantDrawing('peer-x')
+    useWhiteboardStore.getState().reset()
+    expect(useWhiteboardStore.getState().strokes).toHaveLength(0)
+    expect(useWhiteboardStore.getState().grantedPeerIds.size).toBe(0)
+  })
+
+  test('reset restores default tool and color', () => {
+    useWhiteboardStore.getState().setTool('eraser')
+    useWhiteboardStore.getState().setColor('#ff0000')
+    useWhiteboardStore.getState().reset()
+    expect(useWhiteboardStore.getState().currentTool).toBe('pen')
+    expect(useWhiteboardStore.getState().currentColor).toBe('#222222')
+  })
+})

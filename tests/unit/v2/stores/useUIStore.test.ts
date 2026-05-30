@@ -9,6 +9,7 @@ beforeEach(() => {
     isQAOpen: false,
     isAIOpen: false,
     isCaptionsOpen: false,
+    isWhiteboardOpen: false,
     activeModal: null,
     toasts: [],
     layout: 'spotlight',
@@ -144,17 +145,6 @@ test('toggleCaptions disables transcription store when closing', () => {
 })
 
 describe('whiteboard toggle', () => {
-  beforeEach(() => {
-    useUIStore.setState({
-      isChatOpen: false,
-      isParticipantsOpen: false,
-      isQAOpen: false,
-      isAIOpen: false,
-      isCaptionsOpen: false,
-      isWhiteboardOpen: false,
-    })
-  })
-
   test('toggleWhiteboard opens whiteboard', () => {
     useUIStore.getState().toggleWhiteboard()
     expect(useUIStore.getState().isWhiteboardOpen).toBe(true)
@@ -178,5 +168,33 @@ describe('whiteboard toggle', () => {
     useUIStore.getState().toggleWhiteboard()
     expect(useUIStore.getState().isAIOpen).toBe(false)
     expect(useUIStore.getState().isWhiteboardOpen).toBe(true)
+  })
+
+  test('opening chat closes whiteboard', () => {
+    useUIStore.setState({ isWhiteboardOpen: true })
+    useUIStore.getState().toggleChat()
+    expect(useUIStore.getState().isWhiteboardOpen).toBe(false)
+    expect(useUIStore.getState().isChatOpen).toBe(true)
+  })
+
+  test('opening participants closes whiteboard', () => {
+    useUIStore.setState({ isWhiteboardOpen: true })
+    useUIStore.getState().toggleParticipants()
+    expect(useUIStore.getState().isWhiteboardOpen).toBe(false)
+    expect(useUIStore.getState().isParticipantsOpen).toBe(true)
+  })
+
+  test('opening QA closes whiteboard', () => {
+    useUIStore.setState({ isWhiteboardOpen: true })
+    useUIStore.getState().toggleQA()
+    expect(useUIStore.getState().isWhiteboardOpen).toBe(false)
+    expect(useUIStore.getState().isQAOpen).toBe(true)
+  })
+
+  test('opening AI closes whiteboard', () => {
+    useUIStore.setState({ isWhiteboardOpen: true })
+    useUIStore.getState().toggleAI()
+    expect(useUIStore.getState().isWhiteboardOpen).toBe(false)
+    expect(useUIStore.getState().isAIOpen).toBe(true)
   })
 })

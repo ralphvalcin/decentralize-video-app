@@ -36,10 +36,10 @@ export const useUIStore = create<UIStore>((set, get) => ({
   layout: 'spotlight',
 
   // Panels are mutually exclusive: opening any one closes all others.
-  toggleChat: () => set((s) => ({ isChatOpen: !s.isChatOpen, isParticipantsOpen: false, isQAOpen: false, isAIOpen: false })),
-  toggleParticipants: () => set((s) => ({ isParticipantsOpen: !s.isParticipantsOpen, isChatOpen: false, isQAOpen: false, isAIOpen: false })),
-  toggleQA: () => set((s) => ({ isQAOpen: !s.isQAOpen, isChatOpen: false, isParticipantsOpen: false, isAIOpen: false })),
-  toggleAI: () => set((s) => ({ isAIOpen: !s.isAIOpen, isChatOpen: false, isParticipantsOpen: false, isQAOpen: false })),
+  toggleChat: () => set((s) => ({ isChatOpen: !s.isChatOpen, isParticipantsOpen: false, isQAOpen: false, isAIOpen: false, isWhiteboardOpen: false })),
+  toggleParticipants: () => set((s) => ({ isParticipantsOpen: !s.isParticipantsOpen, isChatOpen: false, isQAOpen: false, isAIOpen: false, isWhiteboardOpen: false })),
+  toggleQA: () => set((s) => ({ isQAOpen: !s.isQAOpen, isChatOpen: false, isParticipantsOpen: false, isAIOpen: false, isWhiteboardOpen: false })),
+  toggleAI: () => set((s) => ({ isAIOpen: !s.isAIOpen, isChatOpen: false, isParticipantsOpen: false, isQAOpen: false, isWhiteboardOpen: false })),
   toggleWhiteboard: () => set((s) => ({
     isWhiteboardOpen: !s.isWhiteboardOpen,
     isChatOpen: false,
