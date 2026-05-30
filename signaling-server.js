@@ -535,7 +535,8 @@ class RateLimiter {
       'submit-question': { limit: 10, window: 300000 },
       'vote-question': { limit: 30, window: 60000 },
       'answer-question': { limit: 10, window: 300000 },
-      'turn-credentials': { limit: 10, window: 60000 } // 10 per minute
+      'turn-credentials': { limit: 10, window: 60000 }, // 10 per minute
+      'whiteboard-stroke': { limit: 60, window: 60000 }
     };
     
     // Cleanup old entries every 5 minutes
@@ -1096,6 +1097,10 @@ io.on('connection', (socket) => {
 
   // Whiteboard events — broadcast stroke/clear/grant/revoke to room
   socket.on('whiteboard-stroke', (stroke) => {
+    if (!rateLimiter.checkLimit(socket.id, 'whiteboard-stroke')) {
+      socket.emit('error', { message: 'Rate limit exceeded for whiteboard', code: 'RATE_LIMIT_EXCEEDED' });
+      return;
+    }
     try {
       const user = users[socket.id];
       if (user && user.roomId) {
