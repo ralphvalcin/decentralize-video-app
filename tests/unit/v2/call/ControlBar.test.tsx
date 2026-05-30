@@ -316,3 +316,30 @@ describe('Recording buttons', () => {
     expect(onStopRecording).toHaveBeenCalled()
   })
 })
+
+test('renders whiteboard toggle button', () => {
+  render(
+    <ControlBar
+      onEndCall={jest.fn()}
+      onSendReaction={jest.fn()}
+      onStartRecording={jest.fn()}
+      onStopRecording={jest.fn()}
+    />
+  )
+  expect(screen.getByTestId('btn-whiteboard')).toBeInTheDocument()
+})
+
+test('whiteboard button calls toggleWhiteboard on click', () => {
+  const toggleWhiteboard = jest.fn()
+  useUIStore.setState({ ...useUIStore.getState(), toggleWhiteboard })
+  render(
+    <ControlBar
+      onEndCall={jest.fn()}
+      onSendReaction={jest.fn()}
+      onStartRecording={jest.fn()}
+      onStopRecording={jest.fn()}
+    />
+  )
+  fireEvent.click(screen.getByTestId('btn-whiteboard'))
+  expect(toggleWhiteboard).toHaveBeenCalled()
+})

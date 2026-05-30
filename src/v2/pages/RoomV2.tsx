@@ -17,6 +17,9 @@ import { CaptionOverlay } from '../components/ai/CaptionOverlay'
 import { RecordingController } from '../call/RecordingController'
 import { RecordingIndicator } from '../components/RecordingIndicator'
 import { useSessionStore } from '../store/useSessionStore'
+import { WhiteboardController } from '../call/WhiteboardController'
+import { WhiteboardModal } from '../call/WhiteboardModal'
+import { useWhiteboardStore } from '../store/useWhiteboardStore'
 
 export default function RoomV2() {
   const { roomId } = useParams<{ roomId: string }>()
@@ -28,6 +31,12 @@ export default function RoomV2() {
   const isParticipantsOpen = useUIStore((s) => s.isParticipantsOpen)
   const isQAOpen = useUIStore((s) => s.isQAOpen)
   const isAIOpen = useUIStore((s) => s.isAIOpen)
+  const isWhiteboardOpen = useUIStore((s) => s.isWhiteboardOpen)
+  const toggleWhiteboard = useUIStore((s) => s.toggleWhiteboard)
+  const socketId = useCallStore((s) => s.socketId)
+  const isHost = useCallStore((s) => s.isHost)
+  const grantedPeerIds = useWhiteboardStore((s) => s.grantedPeerIds)
+  const canDraw = isHost || grantedPeerIds.has(socketId ?? '')
   const setRecordingState = useSessionStore((s) => s.setRecordingState)
 
   useEffect(() => {
@@ -39,6 +48,7 @@ export default function RoomV2() {
       <MediaController />
       <TranscriptionController />
       <RecordingController roomId={roomId ?? ''} />
+      {isWhiteboardOpen && <WhiteboardController />}
       <PeerManager ref={peerManagerRef} roomId={roomId ?? ''} />
 
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] shrink-0">
@@ -91,6 +101,21 @@ export default function RoomV2() {
           <AISidePanel peerManagerRef={peerManagerRef} />
         )}
       </div>
+
+      {isWhiteboardOpen && (
+        <WhiteboardModal
+          canDraw={canDraw}
+          onClose={toggleWhiteboard}
+          onStroke={(stroke) => {
+            useWhiteboardStore.getState().addStroke(stroke)
+            peerManagerRef.current?.broadcastWhiteboardStroke(stroke)
+          }}
+          onClear={() => {
+            useWhiteboardStore.getState().clearStrokes()
+            peerManagerRef.current?.broadcastWhiteboardClear()
+          }}
+        />
+      )}
     </div>
   )
 }

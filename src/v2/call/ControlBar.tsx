@@ -33,6 +33,8 @@ export function ControlBar({ onEndCall, onSendReaction, onStartRecording, onStop
   const toggleNoiseSuppression = useCallStore((s) => s.toggleNoiseSuppression)
   const isCaptionsOpen = useUIStore((s) => s.isCaptionsOpen)
   const toggleCaptions = useUIStore((s) => s.toggleCaptions)
+  const isWhiteboardOpen = useUIStore((s) => s.isWhiteboardOpen)
+  const toggleWhiteboard = useUIStore((s) => s.toggleWhiteboard)
   const isCaptionsLoading = useTranscriptionStore((s) => s.isLoading)
   const isHost = useCallStore((s) => s.isHost)
   const recordingState = useSessionStore((s) => s.recordingState)
@@ -161,6 +163,15 @@ export function ControlBar({ onEndCall, onSendReaction, onStartRecording, onStop
             aria-label="Captions"
           >
             {isCaptionsLoading ? 'CC …' : isCaptionsOpen ? 'CC ✓' : 'CC'}
+          </Button>
+
+          <Button
+            data-testid="btn-whiteboard"
+            variant={isWhiteboardOpen ? 'primary' : 'ghost'}
+            onClick={toggleWhiteboard}
+            aria-label="Whiteboard"
+          >
+            ✏️
           </Button>
 
           {isHost && recordingState !== 'recording' && (
