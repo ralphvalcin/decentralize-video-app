@@ -12,6 +12,7 @@ interface WhiteboardStore {
   revokeDrawing: (peerId: string) => void
   setTool: (tool: 'pen' | 'eraser') => void
   setColor: (color: string) => void
+  reset: () => void
 }
 
 export const useWhiteboardStore = create<WhiteboardStore>((set) => ({
@@ -32,4 +33,10 @@ export const useWhiteboardStore = create<WhiteboardStore>((set) => ({
     }),
   setTool: (tool) => set({ currentTool: tool }),
   setColor: (color) => set({ currentColor: color }),
+  reset: () => set({
+    strokes: [],
+    grantedPeerIds: new Set(),
+    currentTool: 'pen',
+    currentColor: '#222222',
+  }),
 }))

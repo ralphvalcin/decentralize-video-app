@@ -49,6 +49,12 @@ test('grantDrawing preserves existing grants', () => {
   expect(useWhiteboardStore.getState().grantedPeerIds.has('peer-y')).toBe(true)
 })
 
+test('grantDrawing is idempotent — duplicate grant does not grow the set', () => {
+  useWhiteboardStore.getState().grantDrawing('peer-x')
+  useWhiteboardStore.getState().grantDrawing('peer-x')
+  expect(useWhiteboardStore.getState().grantedPeerIds.size).toBe(1)
+})
+
 test('revokeDrawing removes peerId from grantedPeerIds', () => {
   useWhiteboardStore.getState().grantDrawing('peer-x')
   useWhiteboardStore.getState().revokeDrawing('peer-x')
