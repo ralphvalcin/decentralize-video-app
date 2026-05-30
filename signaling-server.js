@@ -481,7 +481,7 @@ function gracefulShutdown(signal) {
   }, 30000);
 }
 
-if (process.env.NODE_ENV !== 'test') server.listen(config.PORT, () => {
+if (process.env.NODE_ENV !== 'test') server.listen(config.PORT, '0.0.0.0', () => {
   console.log(`🚀 Signaling server is running on port ${config.PORT}`);
   console.log(`📊 Health check available at http://localhost:${config.PORT}/health`);
   console.log(`📈 Metrics available at http://localhost:${config.PORT}/metrics`);
