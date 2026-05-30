@@ -20,7 +20,7 @@ jest.mock('framer-motion', () => {
 })
 
 beforeEach(() => {
-  useCallStore.setState({ isMuted: false, isCamOff: false })
+  useCallStore.setState({ isMuted: false, isCamOff: false, isNoiseSuppressed: true })
   useUIStore.setState({ isChatOpen: false, isParticipantsOpen: false, isQAOpen: false, isAIOpen: false })
   jest.useFakeTimers()
 })
@@ -207,4 +207,30 @@ test('opening AI closes chat (mutual exclusion)', () => {
   fireEvent.click(screen.getByTestId('btn-ai'))
   expect(useUIStore.getState().isAIOpen).toBe(true)
   expect(useUIStore.getState().isChatOpen).toBe(false)
+})
+
+test('noise button renders in the control bar', () => {
+  render(<ControlBar onEndCall={jest.fn()} />)
+  expect(screen.getByTestId('btn-noise')).toBeInTheDocument()
+})
+
+test('noise button shows primary variant when noise suppression is on', () => {
+  useCallStore.setState({ isNoiseSuppressed: true })
+  render(<ControlBar onEndCall={jest.fn()} />)
+  expect(screen.getByTestId('btn-noise')).toHaveTextContent('🎛 Noise: On')
+})
+
+test('noise button shows ghost variant label when noise suppression is off', () => {
+  useCallStore.setState({ isNoiseSuppressed: false })
+  render(<ControlBar onEndCall={jest.fn()} />)
+  expect(screen.getByTestId('btn-noise')).toHaveTextContent('🎛 Noise: Off')
+})
+
+test('clicking noise button toggles isNoiseSuppressed in store', () => {
+  render(<ControlBar onEndCall={jest.fn()} />)
+  expect(useCallStore.getState().isNoiseSuppressed).toBe(true)
+  fireEvent.click(screen.getByTestId('btn-noise'))
+  expect(useCallStore.getState().isNoiseSuppressed).toBe(false)
+  fireEvent.click(screen.getByTestId('btn-noise'))
+  expect(useCallStore.getState().isNoiseSuppressed).toBe(true)
 })

@@ -25,6 +25,8 @@ export function ControlBar({ onEndCall, onSendReaction }: ControlBarProps) {
   const toggleQA = useUIStore((s) => s.toggleQA)
   const isAIOpen = useUIStore((s) => s.isAIOpen)
   const toggleAI = useUIStore((s) => s.toggleAI)
+  const isNoiseSuppressed = useCallStore((s) => s.isNoiseSuppressed)
+  const toggleNoiseSuppression = useCallStore((s) => s.toggleNoiseSuppression)
   const [showReactions, setShowReactions] = useState(false)
   const [visible, setVisible] = useState(true)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -131,6 +133,15 @@ export function ControlBar({ onEndCall, onSendReaction }: ControlBarProps) {
             aria-label="AI Insights"
           >
             🤖
+          </Button>
+
+          <Button
+            data-testid="btn-noise"
+            variant={isNoiseSuppressed ? 'primary' : 'ghost'}
+            onClick={toggleNoiseSuppression}
+            aria-label="Noise Suppression"
+          >
+            {isNoiseSuppressed ? '🎛 Noise: On' : '🎛 Noise: Off'}
           </Button>
 
           <Button
