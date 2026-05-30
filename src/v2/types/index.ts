@@ -69,3 +69,10 @@ export interface PeerRecord {
   isAway: boolean             // Page Visibility API
   isTyping: boolean           // typing indicator in chat
 }
+
+export interface TranscriptSegment {
+  speakerId: string
+  userName: string
+  text: string
+  timestamp: number
+}
