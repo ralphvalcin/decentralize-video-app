@@ -5,7 +5,8 @@ import { useCallStore } from '../store/useCallStore'
 import { usePeerStore } from '../store/usePeerStore'
 import { useSessionStore } from '../store/useSessionStore'
 import { useUIStore } from '../store/useUIStore'
-import type { PeerRecord, Poll, Question } from '../types'
+import { useWhiteboardStore } from '../store/useWhiteboardStore'
+import type { PeerRecord, Poll, Question, Stroke } from '../types'
 import { deriveKey, encryptMessage, decryptMessage } from '../lib/chatCrypto'
 
 // process.env is replaced at build time by vite.config.ts define; also works in Jest
@@ -26,6 +27,10 @@ export interface PeerManagerHandle {
   getPeerConnections: () => Map<string, RTCPeerConnection>
   broadcastRecordingStarted: () => void
   broadcastRecordingStopped: () => void
+  broadcastWhiteboardStroke: (stroke: Stroke) => void
+  broadcastWhiteboardClear: () => void
+  broadcastWhiteboardGrant: (peerId: string) => void
+  broadcastWhiteboardRevoke: (peerId: string) => void
 }
 
 interface PeerManagerProps {
@@ -60,6 +65,7 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
   const updateQuestion = useSessionStore((s) => s.updateQuestion)
   const setQuestionsHistory = useSessionStore((s) => s.setQuestionsHistory)
   const setIsHost = useCallStore((s) => s.setIsHost)
+  const setSocketId = useCallStore((s) => s.setSocketId)
   const setRecordingState = useSessionStore((s) => s.setRecordingState)
   const addToast = useUIStore((s) => s.addToast)
 
@@ -105,6 +111,22 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
     broadcastRecordingStopped: () => {
       if (!socketRef.current?.connected) return
       socketRef.current.emit('recording-stopped')
+    },
+    broadcastWhiteboardStroke: (stroke) => {
+      if (!socketRef.current?.connected) return
+      socketRef.current.emit('whiteboard-stroke', stroke)
+    },
+    broadcastWhiteboardClear: () => {
+      if (!socketRef.current?.connected) return
+      socketRef.current.emit('whiteboard-clear')
+    },
+    broadcastWhiteboardGrant: (peerId) => {
+      if (!socketRef.current?.connected) return
+      socketRef.current.emit('whiteboard-grant', { peerId })
+    },
+    broadcastWhiteboardRevoke: (peerId) => {
+      if (!socketRef.current?.connected) return
+      socketRef.current.emit('whiteboard-revoke', { peerId })
     },
   }), [])
 
@@ -156,6 +178,7 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
     socketRef.current = socket
 
     socket.on('connect', () => {
+      setSocketId(socket.id ?? null)
       socket.emit('request-room-token', { roomId, userName })
     })
 
@@ -306,6 +329,22 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
       addToast({ id: `rec-stop-${Date.now()}`, message: 'Recording ended', variant: 'info' })
     })
 
+    socket.on('whiteboard-stroke', (stroke: Stroke) => {
+      useWhiteboardStore.getState().addStroke(stroke)
+    })
+
+    socket.on('whiteboard-clear', () => {
+      useWhiteboardStore.getState().clearStrokes()
+    })
+
+    socket.on('whiteboard-grant', ({ peerId }: { peerId: string }) => {
+      useWhiteboardStore.getState().grantDrawing(peerId)
+    })
+
+    socket.on('whiteboard-revoke', ({ peerId }: { peerId: string }) => {
+      useWhiteboardStore.getState().revokeDrawing(peerId)
+    })
+
     return () => {
       cryptoKeyRef.current = null
       socketRef.current?.off('connect')
@@ -330,6 +369,11 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
       socketRef.current?.off('you-are-host')
       socketRef.current?.off('recording-started')
       socketRef.current?.off('recording-stopped')
+      socketRef.current?.off('whiteboard-stroke')
+      socketRef.current?.off('whiteboard-clear')
+      socketRef.current?.off('whiteboard-grant')
+      socketRef.current?.off('whiteboard-revoke')
+      setSocketId(null)
       // If recording was active when this peer leaves, notify others
       if (useSessionStore.getState().recordingState === 'recording' && socketRef.current?.connected) {
         socketRef.current.emit('recording-stopped')
@@ -342,7 +386,7 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
       reactionTimersRef.current.forEach(clearTimeout)
       reactionTimersRef.current.clear()
     }
-  }, [roomId, userName, setPeer, removePeer, patchPeer, addMessage, setActivePoll, addQuestion, updateQuestion, setQuestionsHistory, setIsHost, setRecordingState, addToast])
+  }, [roomId, userName, setPeer, removePeer, patchPeer, addMessage, setActivePoll, addQuestion, updateQuestion, setQuestionsHistory, setIsHost, setSocketId, setRecordingState, addToast])
 
   return null
 })

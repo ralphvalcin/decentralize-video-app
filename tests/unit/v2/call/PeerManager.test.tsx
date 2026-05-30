@@ -5,6 +5,21 @@ import { useSessionStore } from '../../../../src/v2/store/useSessionStore'
 import { useCallStore } from '../../../../src/v2/store/useCallStore'
 import type { PeerManagerHandle } from '../../../../src/v2/call/PeerManager'
 
+jest.mock('../../../../src/v2/store/useWhiteboardStore', () => {
+  const state = {
+    addStroke: jest.fn(),
+    clearStrokes: jest.fn(),
+    grantDrawing: jest.fn(),
+    revokeDrawing: jest.fn(),
+    reset: jest.fn(),
+  }
+  return {
+    useWhiteboardStore: {
+      getState: jest.fn(() => state),
+    },
+  }
+})
+
 // chatCrypto mock — deterministic substitute for Web Crypto operations
 jest.mock('../../../../src/v2/lib/chatCrypto', () => ({
   deriveKey: jest.fn().mockResolvedValue({ type: 'mock-aes-gcm-key' }),
@@ -53,6 +68,7 @@ const mockSocket = {
   emit: jest.fn(),
   disconnect: jest.fn(),
   id: 'mock-socket-id',
+  connected: true,
 }
 jest.mock('socket.io-client', () => ({ io: jest.fn(() => mockSocket) }))
 
@@ -797,4 +813,62 @@ test('getPeerConnections returns RTCPeerConnection for each active peer', async 
   expect(conns).toBeDefined()
   expect(conns?.size).toBe(1)
   expect(conns?.get('peer-a')).toBe(mockRTCConn)
+})
+
+test('broadcastWhiteboardStroke emits whiteboard-stroke with stroke payload', async () => {
+  const ref = createRef<PeerManagerHandle>()
+  await act(async () => { render(<PeerManager ref={ref} roomId="room-1" />) })
+  const stroke = { id: 'stroke-1', tool: 'pen' as const, color: '#222', width: 3, points: [], drawerId: 'me' }
+  act(() => { ref.current?.broadcastWhiteboardStroke(stroke) })
+  expect(mockSocket.emit).toHaveBeenCalledWith('whiteboard-stroke', stroke)
+})
+
+test('broadcastWhiteboardClear emits whiteboard-clear', async () => {
+  const ref = createRef<PeerManagerHandle>()
+  await act(async () => { render(<PeerManager ref={ref} roomId="room-1" />) })
+  act(() => { ref.current?.broadcastWhiteboardClear() })
+  expect(mockSocket.emit).toHaveBeenCalledWith('whiteboard-clear')
+})
+
+test('broadcastWhiteboardGrant emits whiteboard-grant with peerId', async () => {
+  const ref = createRef<PeerManagerHandle>()
+  await act(async () => { render(<PeerManager ref={ref} roomId="room-1" />) })
+  act(() => { ref.current?.broadcastWhiteboardGrant('peer-abc') })
+  expect(mockSocket.emit).toHaveBeenCalledWith('whiteboard-grant', { peerId: 'peer-abc' })
+})
+
+test('broadcastWhiteboardRevoke emits whiteboard-revoke with peerId', async () => {
+  const ref = createRef<PeerManagerHandle>()
+  await act(async () => { render(<PeerManager ref={ref} roomId="room-1" />) })
+  act(() => { ref.current?.broadcastWhiteboardRevoke('peer-abc') })
+  expect(mockSocket.emit).toHaveBeenCalledWith('whiteboard-revoke', { peerId: 'peer-abc' })
+})
+
+test('incoming whiteboard-stroke calls useWhiteboardStore.addStroke', async () => {
+  const { addStroke } = (require('../../../../src/v2/store/useWhiteboardStore') as any).useWhiteboardStore.getState()
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  const stroke = { id: 's1', tool: 'pen' as const, color: '#222', width: 3, points: [], drawerId: 'peer-a' }
+  await act(async () => { fireSocketEvent('whiteboard-stroke', stroke) })
+  expect(addStroke).toHaveBeenCalledWith(stroke)
+})
+
+test('incoming whiteboard-clear calls useWhiteboardStore.clearStrokes', async () => {
+  const { clearStrokes } = (require('../../../../src/v2/store/useWhiteboardStore') as any).useWhiteboardStore.getState()
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  await act(async () => { fireSocketEvent('whiteboard-clear') })
+  expect(clearStrokes).toHaveBeenCalled()
+})
+
+test('incoming whiteboard-grant calls useWhiteboardStore.grantDrawing', async () => {
+  const { grantDrawing } = (require('../../../../src/v2/store/useWhiteboardStore') as any).useWhiteboardStore.getState()
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  await act(async () => { fireSocketEvent('whiteboard-grant', { peerId: 'peer-x' }) })
+  expect(grantDrawing).toHaveBeenCalledWith('peer-x')
+})
+
+test('incoming whiteboard-revoke calls useWhiteboardStore.revokeDrawing', async () => {
+  const { revokeDrawing } = (require('../../../../src/v2/store/useWhiteboardStore') as any).useWhiteboardStore.getState()
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  await act(async () => { fireSocketEvent('whiteboard-revoke', { peerId: 'peer-x' }) })
+  expect(revokeDrawing).toHaveBeenCalledWith('peer-x')
 })
