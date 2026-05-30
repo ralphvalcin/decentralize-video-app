@@ -4,6 +4,7 @@ import { io, Socket } from 'socket.io-client'
 import { useCallStore } from '../store/useCallStore'
 import { usePeerStore } from '../store/usePeerStore'
 import { useSessionStore } from '../store/useSessionStore'
+import { useUIStore } from '../store/useUIStore'
 import type { PeerRecord, Poll, Question } from '../types'
 import { deriveKey, encryptMessage, decryptMessage } from '../lib/chatCrypto'
 
@@ -23,6 +24,8 @@ export interface PeerManagerHandle {
   voteQuestion: (questionId: string) => void
   answerQuestion: (questionId: string, answer: string) => void
   getPeerConnections: () => Map<string, RTCPeerConnection>
+  broadcastRecordingStarted: () => void
+  broadcastRecordingStopped: () => void
 }
 
 interface PeerManagerProps {
@@ -56,6 +59,9 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
   const addQuestion = useSessionStore((s) => s.addQuestion)
   const updateQuestion = useSessionStore((s) => s.updateQuestion)
   const setQuestionsHistory = useSessionStore((s) => s.setQuestionsHistory)
+  const setIsHost = useCallStore((s) => s.setIsHost)
+  const setRecordingState = useSessionStore((s) => s.setRecordingState)
+  const addToast = useUIStore((s) => s.addToast)
 
   useImperativeHandle(ref, () => ({
     sendMessage: (text) => {
@@ -91,6 +97,12 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
         if (rtc) result.set(id, rtc)
       })
       return result
+    },
+    broadcastRecordingStarted: () => {
+      socketRef.current?.emit('recording-started')
+    },
+    broadcastRecordingStopped: () => {
+      socketRef.current?.emit('recording-stopped')
     },
   }), [])
 
@@ -278,6 +290,20 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
       console.error('[PeerManager] server error:', err)
     })
 
+    socket.on('you-are-host', () => {
+      setIsHost(true)
+    })
+
+    socket.on('recording-started', () => {
+      setRecordingState('recording')
+      addToast({ id: `rec-start-${Date.now()}`, message: 'Recording has started', variant: 'info' })
+    })
+
+    socket.on('recording-stopped', () => {
+      setRecordingState('idle')
+      addToast({ id: `rec-stop-${Date.now()}`, message: 'Recording ended', variant: 'info' })
+    })
+
     return () => {
       cryptoKeyRef.current = null
       socketRef.current?.off('connect')
@@ -299,6 +325,9 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
       socketRef.current?.off('error')
       socketRef.current?.off('turn-credentials')
       socketRef.current?.off('turn-credentials-error')
+      socketRef.current?.off('you-are-host')
+      socketRef.current?.off('recording-started')
+      socketRef.current?.off('recording-stopped')
       socketRef.current?.emit('user-leaving')
       socketRef.current?.disconnect()
       peerConnsRef.current.forEach((_, id) => destroyPeerConn(id))
@@ -307,7 +336,7 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
       reactionTimersRef.current.forEach(clearTimeout)
       reactionTimersRef.current.clear()
     }
-  }, [roomId, userName, setPeer, removePeer, patchPeer, addMessage, setActivePoll, addQuestion, updateQuestion, setQuestionsHistory])
+  }, [roomId, userName, setPeer, removePeer, patchPeer, addMessage, setActivePoll, addQuestion, updateQuestion, setQuestionsHistory, setIsHost, setRecordingState, addToast])
 
   return null
 })
