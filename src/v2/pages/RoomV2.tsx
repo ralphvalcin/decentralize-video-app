@@ -14,6 +14,9 @@ import { QAPanel } from '../call/QAPanel'
 import { AISidePanel } from '../call/AISidePanel'
 import { TranscriptionController } from '../call/TranscriptionController'
 import { CaptionOverlay } from '../components/ai/CaptionOverlay'
+import { RecordingController } from '../call/RecordingController'
+import { RecordingIndicator } from '../components/RecordingIndicator'
+import { useSessionStore } from '../store/useSessionStore'
 
 export default function RoomV2() {
   const { roomId } = useParams<{ roomId: string }>()
@@ -25,6 +28,7 @@ export default function RoomV2() {
   const isParticipantsOpen = useUIStore((s) => s.isParticipantsOpen)
   const isQAOpen = useUIStore((s) => s.isQAOpen)
   const isAIOpen = useUIStore((s) => s.isAIOpen)
+  const setRecordingState = useSessionStore((s) => s.setRecordingState)
 
   useEffect(() => {
     if (!userName) navigate(`/?redirect=/room/${roomId}`)
@@ -34,6 +38,7 @@ export default function RoomV2() {
     <div className="v2 flex flex-col h-screen bg-[var(--surface-base)]" data-testid="room-v2">
       <MediaController />
       <TranscriptionController />
+      <RecordingController roomId={roomId ?? ''} />
       <PeerManager ref={peerManagerRef} roomId={roomId ?? ''} />
 
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] shrink-0">
@@ -49,9 +54,20 @@ export default function RoomV2() {
           <ThumbnailStrip />
           <PollBanner onVotePoll={(id, idx) => peerManagerRef.current?.votePoll(id, idx)} />
           <CaptionOverlay />
+          <div className="absolute top-4 right-4 z-10">
+            <RecordingIndicator />
+          </div>
           <ControlBar
             onEndCall={() => { resetCall(); navigate('/') }}
             onSendReaction={(emoji) => peerManagerRef.current?.sendReaction(emoji)}
+            onStartRecording={() => {
+              setRecordingState('recording')
+              peerManagerRef.current?.broadcastRecordingStarted()
+            }}
+            onStopRecording={() => {
+              setRecordingState('idle')
+              peerManagerRef.current?.broadcastRecordingStopped()
+            }}
           />
         </div>
 
