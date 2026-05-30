@@ -1120,7 +1120,7 @@ io.on('connection', (socket) => {
   socket.on('whiteboard-grant', ({ peerId }) => {
     try {
       const user = users[socket.id];
-      if (user && user.roomId) {
+      if (user && user.roomId && user.role === 'host') {
         socket.broadcast.to(user.roomId).emit('whiteboard-grant', { peerId });
       }
     } catch (error) {
@@ -1131,7 +1131,7 @@ io.on('connection', (socket) => {
   socket.on('whiteboard-revoke', ({ peerId }) => {
     try {
       const user = users[socket.id];
-      if (user && user.roomId) {
+      if (user && user.roomId && user.role === 'host') {
         socket.broadcast.to(user.roomId).emit('whiteboard-revoke', { peerId });
       }
     } catch (error) {

@@ -96,6 +96,12 @@ beforeEach(() => {
   mockPeerInstance.destroy.mockClear()
   mockPeerInstance.addTrack.mockClear()
   mockPeerInstance.destroyed = false
+  // Clear whiteboard store mocks between tests
+  const wbState = (require('../../../../src/v2/store/useWhiteboardStore') as any).useWhiteboardStore.getState()
+  wbState.addStroke.mockClear()
+  wbState.clearStrokes.mockClear()
+  wbState.grantDrawing.mockClear()
+  wbState.revokeDrawing.mockClear()
   usePeerStore.setState({ peers: new Map() })
   useSessionStore.setState({ messages: [], questions: [] })
   useCallStore.setState({ userName: 'Ralph' })
