@@ -22,6 +22,19 @@ const mockSocket = {
 }
 jest.mock('socket.io-client', () => ({ io: jest.fn(() => mockSocket) }))
 
+// Prevent TranscriptionController from trying to parse import.meta.url
+// (workerFactory uses it, which breaks Jest's CJS Babel transform).
+jest.mock('../../../../src/v2/audio/workerFactory', () => ({
+  createTranscriptionWorker: jest.fn().mockReturnValue({}),
+}))
+jest.mock('../../../../src/v2/audio/TranscriptionManager', () => ({
+  TranscriptionManager: jest.fn().mockImplementation(() => ({
+    addStream: jest.fn(),
+    removeStream: jest.fn(),
+    dispose: jest.fn(),
+  })),
+}))
+
 // Silence getUserMedia in this test file
 beforeEach(() => {
   mockNavigate.mockClear()

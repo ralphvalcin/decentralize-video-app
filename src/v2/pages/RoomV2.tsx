@@ -12,6 +12,8 @@ import { ParticipantsPanel } from '../call/ParticipantsPanel'
 import { PollBanner } from '../call/PollBanner'
 import { QAPanel } from '../call/QAPanel'
 import { AISidePanel } from '../call/AISidePanel'
+import { TranscriptionController } from '../call/TranscriptionController'
+import { CaptionOverlay } from '../components/ai/CaptionOverlay'
 
 export default function RoomV2() {
   const { roomId } = useParams<{ roomId: string }>()
@@ -31,6 +33,7 @@ export default function RoomV2() {
   return (
     <div className="v2 flex flex-col h-screen bg-[var(--surface-base)]" data-testid="room-v2">
       <MediaController />
+      <TranscriptionController />
       <PeerManager ref={peerManagerRef} roomId={roomId ?? ''} />
 
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] shrink-0">
@@ -45,6 +48,7 @@ export default function RoomV2() {
           <SpotlightView />
           <ThumbnailStrip />
           <PollBanner onVotePoll={(id, idx) => peerManagerRef.current?.votePoll(id, idx)} />
+          <CaptionOverlay />
           <ControlBar
             onEndCall={() => { resetCall(); navigate('/') }}
             onSendReaction={(emoji) => peerManagerRef.current?.sendReaction(emoji)}
