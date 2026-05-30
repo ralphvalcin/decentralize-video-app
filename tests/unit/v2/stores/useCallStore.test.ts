@@ -9,6 +9,7 @@ beforeEach(() => {
     userName: '',
     screenSharePeerId: null,
     mediaError: null,
+    isHost: false,
   })
 })
 
@@ -91,4 +92,25 @@ test('reset restores isNoiseSuppressed to true', () => {
   useCallStore.getState().toggleNoiseSuppression() // set to false
   useCallStore.getState().reset()
   expect(useCallStore.getState().isNoiseSuppressed).toBe(true)
+})
+
+test('isHost defaults to false', () => {
+  expect(useCallStore.getState().isHost).toBe(false)
+})
+
+test('setIsHost(true) sets isHost to true', () => {
+  useCallStore.getState().setIsHost(true)
+  expect(useCallStore.getState().isHost).toBe(true)
+})
+
+test('setIsHost(false) clears isHost', () => {
+  useCallStore.setState({ isHost: true })
+  useCallStore.getState().setIsHost(false)
+  expect(useCallStore.getState().isHost).toBe(false)
+})
+
+test('reset does not clear isHost', () => {
+  useCallStore.setState({ isHost: true })
+  useCallStore.getState().reset()
+  expect(useCallStore.getState().isHost).toBe(true)
 })

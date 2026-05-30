@@ -5,6 +5,7 @@ interface CallStore {
   isMuted: boolean
   isCamOff: boolean
   isNoiseSuppressed: boolean
+  isHost: boolean
   userName: string
   screenSharePeerId: string | null
   mediaError: string | null
@@ -12,6 +13,7 @@ interface CallStore {
   setMuted: (value: boolean) => void
   setCamOff: (value: boolean) => void
   toggleNoiseSuppression: () => void
+  setIsHost: (value: boolean) => void
   setUserName: (name: string) => void
   setScreenSharePeerId: (id: string | null) => void
   setMediaError: (err: string | null) => void
@@ -23,6 +25,7 @@ export const useCallStore = create<CallStore>((set) => ({
   isMuted: false,
   isCamOff: false,
   isNoiseSuppressed: true,
+  isHost: false,
   userName: '',
   screenSharePeerId: null,
   mediaError: null,
@@ -30,6 +33,7 @@ export const useCallStore = create<CallStore>((set) => ({
   setMuted: (value) => set({ isMuted: value }),
   setCamOff: (value) => set({ isCamOff: value }),
   toggleNoiseSuppression: () => set((s) => ({ isNoiseSuppressed: !s.isNoiseSuppressed })),
+  setIsHost: (value) => set({ isHost: value }),
   setUserName: (name) => set({ userName: name }),
   setScreenSharePeerId: (id) => set({ screenSharePeerId: id }),
   setMediaError: (err) => set({ mediaError: err }),
