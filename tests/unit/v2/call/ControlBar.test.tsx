@@ -22,7 +22,7 @@ jest.mock('framer-motion', () => {
 
 beforeEach(() => {
   useCallStore.setState({ isMuted: false, isCamOff: false, isNoiseSuppressed: true })
-  useUIStore.setState({ isChatOpen: false, isParticipantsOpen: false, isQAOpen: false, isAIOpen: false, isCaptionsOpen: false })
+  useUIStore.setState({ isChatOpen: false, isParticipantsOpen: false, isQAOpen: false, isAIOpen: false, isCaptionsOpen: false, isWhiteboardOpen: false })
   useTranscriptionStore.setState({ isLoading: false, isEnabled: false, segments: [] })
   jest.useFakeTimers()
 })
@@ -329,9 +329,7 @@ test('renders whiteboard toggle button', () => {
   expect(screen.getByTestId('btn-whiteboard')).toBeInTheDocument()
 })
 
-test('whiteboard button calls toggleWhiteboard on click', () => {
-  const toggleWhiteboard = jest.fn()
-  useUIStore.setState({ ...useUIStore.getState(), toggleWhiteboard })
+test('whiteboard button toggles isWhiteboardOpen in store', () => {
   render(
     <ControlBar
       onEndCall={jest.fn()}
@@ -341,5 +339,24 @@ test('whiteboard button calls toggleWhiteboard on click', () => {
     />
   )
   fireEvent.click(screen.getByTestId('btn-whiteboard'))
-  expect(toggleWhiteboard).toHaveBeenCalled()
+  expect(useUIStore.getState().isWhiteboardOpen).toBe(true)
+  fireEvent.click(screen.getByTestId('btn-whiteboard'))
+  expect(useUIStore.getState().isWhiteboardOpen).toBe(false)
+})
+
+test('whiteboard button renders with primary variant when isWhiteboardOpen is true', () => {
+  useUIStore.setState({ isWhiteboardOpen: true })
+  render(
+    <ControlBar
+      onEndCall={jest.fn()}
+      onSendReaction={jest.fn()}
+      onStartRecording={jest.fn()}
+      onStopRecording={jest.fn()}
+    />
+  )
+  const btn = screen.getByTestId('btn-whiteboard')
+  // Primary variant applies when isWhiteboardOpen — check it differs from ghost
+  expect(btn.className).toMatch(/bg-\[var\(--text-primary\)\]/)
+  // The btn-whiteboard should have aria-label="Whiteboard"
+  expect(btn).toHaveAttribute('aria-label', 'Whiteboard')
 })
