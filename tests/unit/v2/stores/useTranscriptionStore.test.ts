@@ -47,6 +47,23 @@ test('addSegment appends multiple segments in order', () => {
   expect(useTranscriptionStore.getState().segments).toEqual([s1, s2])
 })
 
+test('caps segments at MAX_SEGMENTS (200)', () => {
+  const store = useTranscriptionStore.getState()
+  store.clear()
+  for (let i = 0; i < 205; i++) {
+    useTranscriptionStore.getState().addSegment({
+      speakerId: 'p1',
+      userName: 'Alice',
+      text: `segment ${i}`,
+      timestamp: Date.now() + i,
+    })
+  }
+  const { segments } = useTranscriptionStore.getState()
+  expect(segments).toHaveLength(200)
+  expect(segments[0].text).toBe('segment 5')
+  expect(segments[199].text).toBe('segment 204')
+})
+
 test('clear empties segments', () => {
   useTranscriptionStore.setState({
     segments: [{ speakerId: 's1', userName: 'Alice', text: 'hi', timestamp: 1 }],

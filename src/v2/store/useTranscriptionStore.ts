@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import type { TranscriptSegment } from '../types'
 
+const MAX_SEGMENTS = 200
+
 interface TranscriptionStore {
   isEnabled: boolean
   isLoading: boolean
@@ -19,6 +21,9 @@ export const useTranscriptionStore = create<TranscriptionStore>((set) => ({
   enable: () => set({ isEnabled: true }),
   disable: () => set({ isEnabled: false }),
   setLoading: (value) => set({ isLoading: value }),
-  addSegment: (segment) => set((s) => ({ segments: [...s.segments, segment] })),
+  addSegment: (segment) => set((s) => {
+    const next = [...s.segments, segment]
+    return { segments: next.length > MAX_SEGMENTS ? next.slice(-MAX_SEGMENTS) : next }
+  }),
   clear: () => set({ segments: [] }),
 }))
