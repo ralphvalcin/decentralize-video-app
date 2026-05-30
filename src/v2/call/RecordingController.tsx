@@ -52,7 +52,19 @@ export function RecordingController({ roomId }: RecordingControllerProps) {
 
     const manager = new RecordingManager(roomId)
     managerRef.current = manager
-    manager.start(localStream, remoteStreams)
+
+    try {
+      manager.start(localStream, remoteStreams)
+    } catch {
+      addToast({
+        id: `rec-error-${Date.now()}`,
+        message: 'Failed to start recording. Your browser may not support it.',
+        variant: 'warn',
+      })
+      setRecordingState('idle')
+      managerRef.current = null
+      return
+    }
 
     return () => {
       manager.stop()

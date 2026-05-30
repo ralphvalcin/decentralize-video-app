@@ -330,6 +330,10 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
       socketRef.current?.off('you-are-host')
       socketRef.current?.off('recording-started')
       socketRef.current?.off('recording-stopped')
+      // If recording was active when this peer leaves, notify others
+      if (useSessionStore.getState().recordingState === 'recording' && socketRef.current?.connected) {
+        socketRef.current.emit('recording-stopped')
+      }
       socketRef.current?.emit('user-leaving')
       socketRef.current?.disconnect()
       peerConnsRef.current.forEach((_, id) => destroyPeerConn(id))
