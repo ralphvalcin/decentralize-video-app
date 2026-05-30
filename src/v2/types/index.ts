@@ -76,3 +76,17 @@ export interface TranscriptSegment {
   text: string
   timestamp: number
 }
+
+export interface StrokePoint {
+  x: number  // normalized: rawX / canvasWidth
+  y: number  // normalized: rawY / canvasHeight
+}
+
+export interface Stroke {
+  id: string             // crypto.randomUUID()
+  tool: 'pen' | 'eraser'
+  color: string          // hex e.g. '#ff4444'
+  width: number          // pen: 3, eraser: 20
+  points: StrokePoint[]
+  drawerId: string       // socket ID of the peer who drew
+}
