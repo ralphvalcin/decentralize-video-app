@@ -5,6 +5,7 @@ beforeEach(() => {
     localStream: null,
     isMuted: false,
     isCamOff: false,
+    isNoiseSuppressed: true,
     userName: '',
     screenSharePeerId: null,
     mediaError: null,
@@ -73,4 +74,21 @@ test('setMediaError stores error message and reset clears it', () => {
   expect(useCallStore.getState().mediaError).toBe('NotAllowedError')
   useCallStore.getState().reset()
   expect(useCallStore.getState().mediaError).toBeNull()
+})
+
+test('isNoiseSuppressed defaults to true', () => {
+  expect(useCallStore.getState().isNoiseSuppressed).toBe(true)
+})
+
+test('toggleNoiseSuppression flips isNoiseSuppressed', () => {
+  useCallStore.getState().toggleNoiseSuppression()
+  expect(useCallStore.getState().isNoiseSuppressed).toBe(false)
+  useCallStore.getState().toggleNoiseSuppression()
+  expect(useCallStore.getState().isNoiseSuppressed).toBe(true)
+})
+
+test('reset restores isNoiseSuppressed to true', () => {
+  useCallStore.getState().toggleNoiseSuppression() // set to false
+  useCallStore.getState().reset()
+  expect(useCallStore.getState().isNoiseSuppressed).toBe(true)
 })
