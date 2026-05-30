@@ -1,11 +1,13 @@
 import { create } from 'zustand'
 import type { Toast } from '../types'
+import { useTranscriptionStore } from './useTranscriptionStore'
 
 interface UIStore {
   isChatOpen: boolean
   isParticipantsOpen: boolean
   isQAOpen: boolean
   isAIOpen: boolean
+  isCaptionsOpen: boolean
   activeModal: string | null
   toasts: Toast[]
   layout: 'spotlight' | 'grid'
@@ -13,17 +15,19 @@ interface UIStore {
   toggleParticipants: () => void
   toggleQA: () => void
   toggleAI: () => void
+  toggleCaptions: () => void
   setActiveModal: (modal: string | null) => void
   addToast: (toast: Toast) => void
   removeToast: (id: string) => void
   setLayout: (layout: 'spotlight' | 'grid') => void
 }
 
-export const useUIStore = create<UIStore>((set) => ({
+export const useUIStore = create<UIStore>((set, get) => ({
   isChatOpen: false,
   isParticipantsOpen: false,
   isQAOpen: false,
   isAIOpen: false,
+  isCaptionsOpen: false,
   activeModal: null,
   toasts: [],
   layout: 'spotlight',
@@ -33,6 +37,17 @@ export const useUIStore = create<UIStore>((set) => ({
   toggleParticipants: () => set((s) => ({ isParticipantsOpen: !s.isParticipantsOpen, isChatOpen: false, isQAOpen: false, isAIOpen: false })),
   toggleQA: () => set((s) => ({ isQAOpen: !s.isQAOpen, isChatOpen: false, isParticipantsOpen: false, isAIOpen: false })),
   toggleAI: () => set((s) => ({ isAIOpen: !s.isAIOpen, isChatOpen: false, isParticipantsOpen: false, isQAOpen: false })),
+
+  // Captions are independent — they do not close other panels.
+  toggleCaptions: () => {
+    const opening = !get().isCaptionsOpen
+    set({ isCaptionsOpen: opening })
+    if (opening) {
+      useTranscriptionStore.getState().enable()
+    } else {
+      useTranscriptionStore.getState().disable()
+    }
+  },
 
   setActiveModal: (modal) => set({ activeModal: modal }),
   addToast: (toast) => set((s) => ({ toasts: [...s.toasts, toast] })),

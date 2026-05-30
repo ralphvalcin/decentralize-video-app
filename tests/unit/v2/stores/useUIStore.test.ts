@@ -1,4 +1,5 @@
 import { useUIStore } from '../../../../src/v2/store/useUIStore'
+import { useTranscriptionStore } from '../../../../src/v2/store/useTranscriptionStore'
 import type { Toast } from '../../../../src/v2/types'
 
 beforeEach(() => {
@@ -7,10 +8,12 @@ beforeEach(() => {
     isParticipantsOpen: false,
     isQAOpen: false,
     isAIOpen: false,
+    isCaptionsOpen: false,
     activeModal: null,
     toasts: [],
     layout: 'spotlight',
   })
+  useTranscriptionStore.setState({ isEnabled: false, isLoading: false, segments: [] })
 })
 
 test('toggleChat flips isChatOpen', () => {
@@ -119,4 +122,23 @@ test('opening QA closes AI', () => {
   useUIStore.getState().toggleQA()
   expect(useUIStore.getState().isQAOpen).toBe(true)
   expect(useUIStore.getState().isAIOpen).toBe(false)
+})
+
+test('toggleCaptions flips isCaptionsOpen', () => {
+  useUIStore.getState().toggleCaptions()
+  expect(useUIStore.getState().isCaptionsOpen).toBe(true)
+  useUIStore.getState().toggleCaptions()
+  expect(useUIStore.getState().isCaptionsOpen).toBe(false)
+})
+
+test('toggleCaptions enables transcription store when opening', () => {
+  useUIStore.getState().toggleCaptions()
+  expect(useTranscriptionStore.getState().isEnabled).toBe(true)
+})
+
+test('toggleCaptions disables transcription store when closing', () => {
+  useUIStore.setState({ isCaptionsOpen: true })
+  useTranscriptionStore.setState({ isEnabled: true })
+  useUIStore.getState().toggleCaptions()
+  expect(useTranscriptionStore.getState().isEnabled).toBe(false)
 })

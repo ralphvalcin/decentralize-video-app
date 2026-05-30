@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCallStore } from '../store/useCallStore'
 import { useUIStore } from '../store/useUIStore'
+import { useTranscriptionStore } from '../store/useTranscriptionStore'
 import { Button } from '../ui/Button'
 
 interface ControlBarProps {
@@ -27,6 +28,9 @@ export function ControlBar({ onEndCall, onSendReaction }: ControlBarProps) {
   const toggleAI = useUIStore((s) => s.toggleAI)
   const isNoiseSuppressed = useCallStore((s) => s.isNoiseSuppressed)
   const toggleNoiseSuppression = useCallStore((s) => s.toggleNoiseSuppression)
+  const isCaptionsOpen = useUIStore((s) => s.isCaptionsOpen)
+  const toggleCaptions = useUIStore((s) => s.toggleCaptions)
+  const isCaptionsLoading = useTranscriptionStore((s) => s.isLoading)
   const [showReactions, setShowReactions] = useState(false)
   const [visible, setVisible] = useState(true)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -142,6 +146,16 @@ export function ControlBar({ onEndCall, onSendReaction }: ControlBarProps) {
             aria-label="Noise Suppression"
           >
             {isNoiseSuppressed ? '🎛 Noise: On' : '🎛 Noise: Off'}
+          </Button>
+
+          <Button
+            data-testid="btn-cc"
+            variant={isCaptionsOpen ? 'primary' : 'ghost'}
+            onClick={toggleCaptions}
+            disabled={isCaptionsLoading}
+            aria-label="Captions"
+          >
+            {isCaptionsLoading ? 'CC …' : isCaptionsOpen ? 'CC ✓' : 'CC'}
           </Button>
 
           <Button

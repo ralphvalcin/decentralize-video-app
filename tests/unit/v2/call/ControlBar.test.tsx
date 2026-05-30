@@ -2,6 +2,7 @@ import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 import { ControlBar } from '../../../../src/v2/call/ControlBar'
 import { useCallStore } from '../../../../src/v2/store/useCallStore'
 import { useUIStore } from '../../../../src/v2/store/useUIStore'
+import { useTranscriptionStore } from '../../../../src/v2/store/useTranscriptionStore'
 
 // framer-motion's AnimatePresence calls setState in an rAF callback after exit
 // animations complete — React flags this as outside act(). Strip animations so
@@ -21,7 +22,8 @@ jest.mock('framer-motion', () => {
 
 beforeEach(() => {
   useCallStore.setState({ isMuted: false, isCamOff: false, isNoiseSuppressed: true })
-  useUIStore.setState({ isChatOpen: false, isParticipantsOpen: false, isQAOpen: false, isAIOpen: false })
+  useUIStore.setState({ isChatOpen: false, isParticipantsOpen: false, isQAOpen: false, isAIOpen: false, isCaptionsOpen: false })
+  useTranscriptionStore.setState({ isLoading: false, isEnabled: false, segments: [] })
   jest.useFakeTimers()
 })
 
@@ -233,4 +235,39 @@ test('clicking noise button toggles isNoiseSuppressed in store', () => {
   expect(useCallStore.getState().isNoiseSuppressed).toBe(false)
   fireEvent.click(screen.getByTestId('btn-noise'))
   expect(useCallStore.getState().isNoiseSuppressed).toBe(true)
+})
+
+test('CC button renders in control bar', () => {
+  render(<ControlBar onEndCall={jest.fn()} />)
+  expect(screen.getByTestId('btn-cc')).toBeInTheDocument()
+})
+
+test('CC button shows "CC" when captions are off', () => {
+  render(<ControlBar onEndCall={jest.fn()} />)
+  expect(screen.getByTestId('btn-cc')).toHaveTextContent('CC')
+})
+
+test('CC button shows "CC ✓" when captions are on', () => {
+  useUIStore.setState({ isCaptionsOpen: true })
+  render(<ControlBar onEndCall={jest.fn()} />)
+  expect(screen.getByTestId('btn-cc')).toHaveTextContent('CC ✓')
+})
+
+test('CC button shows "CC …" and is disabled when model is loading', () => {
+  useTranscriptionStore.setState({ isLoading: true })
+  render(<ControlBar onEndCall={jest.fn()} />)
+  expect(screen.getByTestId('btn-cc')).toHaveTextContent('CC …')
+  expect(screen.getByTestId('btn-cc')).toBeDisabled()
+})
+
+test('clicking CC button calls toggleCaptions', () => {
+  render(<ControlBar onEndCall={jest.fn()} />)
+  fireEvent.click(screen.getByTestId('btn-cc'))
+  expect(useUIStore.getState().isCaptionsOpen).toBe(true)
+})
+
+test('CC button renders with primary variant when captions are open', () => {
+  useUIStore.setState({ isCaptionsOpen: true })
+  render(<ControlBar onEndCall={jest.fn()} />)
+  expect(screen.getByTestId('btn-cc').className).toMatch(/bg-\[var\(--text-primary\)\]/)
 })
