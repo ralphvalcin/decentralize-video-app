@@ -12,14 +12,18 @@ let transcriber: ASRPipeline | null = null
       transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny')
       self.postMessage({ type: 'ready' })
     } catch (err) {
-      self.postMessage({ type: 'error', speakerId: '', error: String(err) })
+      self.postMessage({ type: 'error', speakerId: null, error: String(err) })
     }
     return
   }
 
   if (type === 'transcribe') {
+    if (!transcriber) {
+      self.postMessage({ type: 'error', speakerId, error: 'Transcriber not initialized' })
+      return
+    }
     try {
-      const output = (await transcriber!(audio)) as { text: string }
+      const output = (await transcriber(audio)) as { text: string }
       self.postMessage({
         type: 'result',
         speakerId,
