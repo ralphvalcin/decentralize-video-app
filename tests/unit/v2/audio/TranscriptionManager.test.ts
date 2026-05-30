@@ -168,3 +168,20 @@ test('onInitError callback is called when worker posts init error (speakerId nul
   worker.onmessage!({ data: { type: 'error', speakerId: null, error: 'model failed' } } as MessageEvent)
   expect(onInitError).toHaveBeenCalled()
 })
+
+test('addStream with duplicate speakerId cleans up the previous entry first', () => {
+  const worker = makeMockWorker()
+  const manager = new TranscriptionManager(worker as unknown as Worker, jest.fn(), jest.fn())
+  manager.addStream('s1', 'Alice', makeMockStream())
+  const firstSource = sourceA
+
+  // Set up a second AudioContext for the second addStream call
+  const scriptNodeB = makeScriptNode()
+  const sourceB = makeSource()
+  ;(global as any).AudioContext = jest.fn().mockImplementation(() =>
+    makeCtx(scriptNodeB, sourceB)
+  )
+
+  manager.addStream('s1', 'Bob', makeMockStream())
+  expect(firstSource.disconnect).toHaveBeenCalled()
+})

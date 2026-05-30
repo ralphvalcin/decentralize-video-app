@@ -87,6 +87,10 @@ export class TranscriptionManager {
     if (typeof AudioContext === 'undefined') return
     if (stream.getAudioTracks().length === 0) return
 
+    if (this.speakers.has(speakerId)) {
+      this.removeStream(speakerId)
+    }
+
     const ctx = new AudioContext({ sampleRate: 48000 })
     const source = ctx.createMediaStreamSource(stream)
     const scriptNode = ctx.createScriptProcessor(4096, 1, 1)
