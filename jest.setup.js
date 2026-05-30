@@ -112,3 +112,9 @@ jest.mock('@jitsi/rnnoise-wasm', () =>
     })),
   })
 );
+
+// @huggingface/transformers uses ESM; mock globally to prevent import errors in jsdom.
+// Tests that need specific behaviour (TranscriptionWorker.test.ts) override this mock locally.
+jest.mock('@huggingface/transformers', () => ({
+  pipeline: jest.fn(),
+}));
