@@ -19,7 +19,7 @@ export function WhiteboardToolbar({
     <div className="flex items-center gap-2 px-4 py-2 bg-[var(--surface-raised)] border-b border-[var(--border-subtle)]">
       <button
         data-testid="btn-tool-pen"
-        aria-pressed={currentTool === 'pen'}
+        aria-pressed={currentTool === 'pen' ? 'true' : 'false'}
         aria-label="Pen"
         onClick={() => onToolChange('pen')}
         className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
@@ -33,7 +33,7 @@ export function WhiteboardToolbar({
 
       <button
         data-testid="btn-tool-eraser"
-        aria-pressed={currentTool === 'eraser'}
+        aria-pressed={currentTool === 'eraser' ? 'true' : 'false'}
         aria-label="Eraser"
         onClick={() => onToolChange('eraser')}
         className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
@@ -52,6 +52,7 @@ export function WhiteboardToolbar({
           <button
             key={color}
             data-testid={`btn-color-${color}`}
+            aria-pressed={currentColor === color ? 'true' : 'false'}
             aria-label={`Color ${color}`}
             onClick={() => onColorChange(color)}
             style={{ background: color }}

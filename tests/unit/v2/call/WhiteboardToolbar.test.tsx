@@ -49,3 +49,9 @@ test('renders clear button and calls onClear when clicked', () => {
   fireEvent.click(screen.getByTestId('btn-clear'))
   expect(defaultProps.onClear).toHaveBeenCalled()
 })
+
+test('renders eraser button as active when currentTool is eraser', () => {
+  render(<WhiteboardToolbar {...defaultProps} currentTool="eraser" />)
+  expect(screen.getByTestId('btn-tool-eraser')).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByTestId('btn-tool-pen')).toHaveAttribute('aria-pressed', 'false')
+})
