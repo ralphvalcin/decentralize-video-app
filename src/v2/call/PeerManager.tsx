@@ -99,10 +99,12 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
       return result
     },
     broadcastRecordingStarted: () => {
-      socketRef.current?.emit('recording-started')
+      if (!socketRef.current?.connected) return
+      socketRef.current.emit('recording-started')
     },
     broadcastRecordingStopped: () => {
-      socketRef.current?.emit('recording-stopped')
+      if (!socketRef.current?.connected) return
+      socketRef.current.emit('recording-stopped')
     },
   }), [])
 
