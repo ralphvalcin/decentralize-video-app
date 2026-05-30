@@ -51,7 +51,7 @@ Host clicks Stop OR leaves the room:
 Service class. Owns the canvas draw loop, Web Audio graph, and MediaRecorder lifecycle. Accepts `{ localStream, remoteStreams }` on `start()`, tears everything down on `stop()`, and triggers the file download. No React, no store — pure logic.
 
 **`src/v2/call/RecordingController.tsx`**
-Thin React component mounted once in `RoomV2` (same pattern as `TranscriptionController`). Reads `recordingState` from `useSessionStore`, reads streams from `useCallStore` + `usePeerStore`, instantiates `RecordingManager`, and handles socket events. Listens for host leaving (`onEndCall`) to auto-stop.
+Thin React component mounted once in `RoomV2` (same pattern as `TranscriptionController`). Reads `recordingState` from `useSessionStore`, reads streams from `useCallStore` + `usePeerStore`, instantiates `RecordingManager`, and handles socket events. Receives `peerManagerRef` as a prop and calls `broadcastRecordingStarted()` / `broadcastRecordingStopped()` on it to emit socket events. Listens for host leaving (`onEndCall`) to auto-stop.
 
 **`src/v2/components/RecordingIndicator.tsx`**
 Red pulsing dot + elapsed timer (e.g. `● REC 00:42`). Visible to all participants when `recordingState === 'recording'`. Positioned top-right of the video grid in `RoomV2`.
@@ -64,7 +64,7 @@ Red pulsing dot + elapsed timer (e.g. `● REC 00:42`). Visible to all participa
 | `src/v2/store/useSessionStore.ts` | No changes — `recordingState` + `setRecordingState` already exist |
 | `src/v2/call/ControlBar.tsx` | Add Record/Stop button, visible only when `isHost`, red when recording |
 | `src/v2/pages/RoomV2.tsx` | Mount `<RecordingController />` and `<RecordingIndicator />` |
-| `src/v2/call/PeerManager.tsx` | Handle `you-are-host` event → `setIsHost(true)`; expose socket for recording events |
+| `src/v2/call/PeerManager.tsx` | Handle `you-are-host` event → `setIsHost(true)`; add `broadcastRecordingStarted()` + `broadcastRecordingStopped()` to `PeerManagerHandle` |
 | `signaling-server.js` | Emit `you-are-host` to first user in empty room; broadcast `recording-started` / `recording-stopped` to room |
 
 ## Data Flow
