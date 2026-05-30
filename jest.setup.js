@@ -118,3 +118,21 @@ jest.mock('@jitsi/rnnoise-wasm', () =>
 jest.mock('@huggingface/transformers', () => ({
   pipeline: jest.fn(),
 }));
+
+// MediaRecorder is not implemented in jsdom. Provide a minimal stub so that
+// the typeof-guard in RecordingController (and similar components) behaves the
+// same way it would in a real browser. Tests that specifically verify the
+// "unsupported" path delete global.MediaRecorder themselves and restore it
+// after the assertion.
+if (typeof global.MediaRecorder === 'undefined') {
+  global.MediaRecorder = jest.fn().mockImplementation(() => ({
+    start: jest.fn(),
+    stop: jest.fn(),
+    pause: jest.fn(),
+    resume: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    state: 'inactive',
+  }));
+  global.MediaRecorder.isTypeSupported = jest.fn(() => true);
+}
