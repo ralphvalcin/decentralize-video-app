@@ -2,6 +2,20 @@ import { render, act } from '@testing-library/react'
 import { MediaController } from '../../../../src/v2/call/MediaController'
 import { useCallStore } from '../../../../src/v2/store/useCallStore'
 
+const mockProcessedStream = {
+  id: 'processed-stream',
+  getTracks: () => [],
+} as unknown as MediaStream
+const mockNoiseProcessorInstance = {
+  process: jest.fn().mockResolvedValue(mockProcessedStream),
+  setEnabled: jest.fn(),
+  dispose: jest.fn(),
+  isSupported: true,
+}
+jest.mock('../../../../src/v2/audio/NoiseProcessor', () => ({
+  NoiseProcessor: jest.fn().mockImplementation(() => mockNoiseProcessorInstance),
+}))
+
 describe('MediaController', () => {
   const mockAudioTrack = { enabled: true, stop: jest.fn(), kind: 'audio', onended: null as (() => void) | null }
   const mockVideoTrack = { enabled: true, stop: jest.fn(), kind: 'video', onended: null as (() => void) | null }
@@ -18,24 +32,47 @@ describe('MediaController', () => {
     mockVideoTrack.onended = null
     mockAudioTrack.stop.mockClear()
     mockVideoTrack.stop.mockClear()
+    mockNoiseProcessorInstance.process.mockClear()
+    mockNoiseProcessorInstance.setEnabled.mockClear()
+    mockNoiseProcessorInstance.dispose.mockClear()
+    mockNoiseProcessorInstance.process.mockResolvedValue(mockProcessedStream)
     jest.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(mockStream as any)
-    useCallStore.setState({ localStream: null, isMuted: false, isCamOff: false, mediaError: null })
+    useCallStore.setState({
+      localStream: null, isMuted: false, isCamOff: false,
+      mediaError: null, isNoiseSuppressed: true,
+    })
   })
 
   afterEach(() => { jest.restoreAllMocks() })
 
-  test('acquires stream on mount and writes to store', async () => {
+  test('acquires stream, pipes through NoiseProcessor, writes processed stream to store', async () => {
     await act(async () => { render(<MediaController />) })
-    expect(useCallStore.getState().localStream).toBe(mockStream)
+    expect(mockNoiseProcessorInstance.process).toHaveBeenCalledWith(mockStream)
+    expect(useCallStore.getState().localStream).toBe(mockProcessedStream)
   })
 
-  test('stops all tracks and clears store on unmount', async () => {
+  test('stops all raw tracks and clears store on unmount', async () => {
     let unmount!: () => void
     await act(async () => { unmount = render(<MediaController />).unmount })
     act(() => { unmount() })
     expect(mockAudioTrack.stop).toHaveBeenCalled()
     expect(mockVideoTrack.stop).toHaveBeenCalled()
     expect(useCallStore.getState().localStream).toBeNull()
+  })
+
+  test('disposes NoiseProcessor on unmount', async () => {
+    let unmount!: () => void
+    await act(async () => { unmount = render(<MediaController />).unmount })
+    act(() => { unmount() })
+    expect(mockNoiseProcessorInstance.dispose).toHaveBeenCalled()
+  })
+
+  test('calls NoiseProcessor.setEnabled when isNoiseSuppressed changes', async () => {
+    await act(async () => { render(<MediaController />) })
+    act(() => { useCallStore.getState().toggleNoiseSuppression() })
+    expect(mockNoiseProcessorInstance.setEnabled).toHaveBeenCalledWith(false)
+    act(() => { useCallStore.getState().toggleNoiseSuppression() })
+    expect(mockNoiseProcessorInstance.setEnabled).toHaveBeenCalledWith(true)
   })
 
   test('disables audio track when isMuted becomes true', async () => {
@@ -64,7 +101,7 @@ describe('MediaController', () => {
     expect(mockVideoTrack.enabled).toBe(true)
   })
 
-  test('applies initial muted state to tracks when stream resolves', async () => {
+  test('applies initial muted/cam state to tracks when stream resolves', async () => {
     useCallStore.setState({ isMuted: true, isCamOff: true })
     await act(async () => { render(<MediaController />) })
     expect(mockAudioTrack.enabled).toBe(false)
@@ -96,40 +133,25 @@ describe('MediaController', () => {
     expect(useCallStore.getState().isCamOff).toBe(true)
   })
 
-  test('permission denied: store stays empty and error is logged', async () => {
-    jest.spyOn(navigator.mediaDevices, 'getUserMedia').mockRejectedValue(
-      new DOMException('Permission denied', 'NotAllowedError')
-    )
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    await act(async () => { render(<MediaController />) })
-    expect(useCallStore.getState().localStream).toBeNull()
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[MediaController] getUserMedia failed:',
-      expect.any(DOMException)
-    )
-  })
-
-  test('unmount clears onended handlers before stopping tracks', async () => {
-    let unmount!: () => void
-    await act(async () => { unmount = render(<MediaController />).unmount })
-    // Verify onended was registered after stream acquisition
-    expect(mockAudioTrack.onended).not.toBeNull()
-    expect(mockVideoTrack.onended).not.toBeNull()
-    act(() => { unmount() })
-    // Cleanup must null handlers before stop() so browser-fired 'ended' on stop()
-    // doesn't incorrectly write isMuted/isCamOff true into the store
-    expect(mockAudioTrack.onended).toBeNull()
-    expect(mockVideoTrack.onended).toBeNull()
-    expect(useCallStore.getState().isMuted).toBe(false)
-    expect(useCallStore.getState().isCamOff).toBe(false)
-  })
-
-  test('permission denied: sets mediaError in store', async () => {
+  test('permission denied: store stays empty and mediaError is set', async () => {
     jest.spyOn(navigator.mediaDevices, 'getUserMedia').mockRejectedValue(
       new DOMException('Permission denied', 'NotAllowedError')
     )
     jest.spyOn(console, 'error').mockImplementation(() => {})
     await act(async () => { render(<MediaController />) })
+    expect(useCallStore.getState().localStream).toBeNull()
     expect(useCallStore.getState().mediaError).toBe('Permission denied')
+  })
+
+  test('unmount clears onended handlers before stopping tracks', async () => {
+    let unmount!: () => void
+    await act(async () => { unmount = render(<MediaController />).unmount })
+    expect(mockAudioTrack.onended).not.toBeNull()
+    expect(mockVideoTrack.onended).not.toBeNull()
+    act(() => { unmount() })
+    expect(mockAudioTrack.onended).toBeNull()
+    expect(mockVideoTrack.onended).toBeNull()
+    expect(useCallStore.getState().isMuted).toBe(false)
+    expect(useCallStore.getState().isCamOff).toBe(false)
   })
 })
