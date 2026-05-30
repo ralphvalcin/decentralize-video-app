@@ -271,3 +271,48 @@ test('CC button renders with primary variant when captions are open', () => {
   render(<ControlBar onEndCall={jest.fn()} />)
   expect(screen.getByTestId('btn-cc').className).toMatch(/bg-\[var\(--text-primary\)\]/)
 })
+
+import { useSessionStore } from '../../../../src/v2/store/useSessionStore'
+
+describe('Recording buttons', () => {
+  beforeEach(() => {
+    useCallStore.setState({ isHost: false })
+    useSessionStore.setState({ recordingState: 'idle' })
+  })
+
+  test('Record button is hidden when isHost is false', () => {
+    render(<ControlBar onEndCall={jest.fn()} />)
+    expect(screen.queryByTestId('btn-record')).not.toBeInTheDocument()
+  })
+
+  test('Record button is visible when isHost is true', () => {
+    useCallStore.setState({ isHost: true })
+    render(<ControlBar onEndCall={jest.fn()} />)
+    expect(screen.getByTestId('btn-record')).toBeInTheDocument()
+  })
+
+  test('clicking Record calls onStartRecording', () => {
+    const onStartRecording = jest.fn()
+    useCallStore.setState({ isHost: true })
+    render(<ControlBar onEndCall={jest.fn()} onStartRecording={onStartRecording} />)
+    fireEvent.click(screen.getByTestId('btn-record'))
+    expect(onStartRecording).toHaveBeenCalled()
+  })
+
+  test('Stop button visible when recordingState is recording (host)', () => {
+    useCallStore.setState({ isHost: true })
+    useSessionStore.setState({ recordingState: 'recording' })
+    render(<ControlBar onEndCall={jest.fn()} />)
+    expect(screen.getByTestId('btn-stop-record')).toBeInTheDocument()
+    expect(screen.queryByTestId('btn-record')).not.toBeInTheDocument()
+  })
+
+  test('clicking Stop calls onStopRecording', () => {
+    const onStopRecording = jest.fn()
+    useCallStore.setState({ isHost: true })
+    useSessionStore.setState({ recordingState: 'recording' })
+    render(<ControlBar onEndCall={jest.fn()} onStopRecording={onStopRecording} />)
+    fireEvent.click(screen.getByTestId('btn-stop-record'))
+    expect(onStopRecording).toHaveBeenCalled()
+  })
+})

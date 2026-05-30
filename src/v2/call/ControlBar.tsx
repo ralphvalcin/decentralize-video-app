@@ -3,17 +3,20 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useCallStore } from '../store/useCallStore'
 import { useUIStore } from '../store/useUIStore'
 import { useTranscriptionStore } from '../store/useTranscriptionStore'
+import { useSessionStore } from '../store/useSessionStore'
 import { Button } from '../ui/Button'
 
 interface ControlBarProps {
   onEndCall: () => void
   onSendReaction?: (emoji: string) => void
+  onStartRecording?: () => void
+  onStopRecording?: () => void
 }
 
 const REACTIONS = ['👍', '❤️', '😂', '😮', '👏']
 const HIDE_AFTER_MS = 3000
 
-export function ControlBar({ onEndCall, onSendReaction }: ControlBarProps) {
+export function ControlBar({ onEndCall, onSendReaction, onStartRecording, onStopRecording }: ControlBarProps) {
   const isMuted = useCallStore((s) => s.isMuted)
   const isCamOff = useCallStore((s) => s.isCamOff)
   const setMuted = useCallStore((s) => s.setMuted)
@@ -31,6 +34,8 @@ export function ControlBar({ onEndCall, onSendReaction }: ControlBarProps) {
   const isCaptionsOpen = useUIStore((s) => s.isCaptionsOpen)
   const toggleCaptions = useUIStore((s) => s.toggleCaptions)
   const isCaptionsLoading = useTranscriptionStore((s) => s.isLoading)
+  const isHost = useCallStore((s) => s.isHost)
+  const recordingState = useSessionStore((s) => s.recordingState)
   const [showReactions, setShowReactions] = useState(false)
   const [visible, setVisible] = useState(true)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -157,6 +162,28 @@ export function ControlBar({ onEndCall, onSendReaction }: ControlBarProps) {
           >
             {isCaptionsLoading ? 'CC …' : isCaptionsOpen ? 'CC ✓' : 'CC'}
           </Button>
+
+          {isHost && recordingState !== 'recording' && (
+            <Button
+              data-testid="btn-record"
+              variant="ghost"
+              onClick={onStartRecording}
+              aria-label="Start Recording"
+            >
+              ⏺ Rec
+            </Button>
+          )}
+
+          {isHost && recordingState === 'recording' && (
+            <Button
+              data-testid="btn-stop-record"
+              variant="danger"
+              onClick={onStopRecording}
+              aria-label="Stop Recording"
+            >
+              ⏹ Stop Rec
+            </Button>
+          )}
 
           <Button
             data-testid="btn-end-call"
