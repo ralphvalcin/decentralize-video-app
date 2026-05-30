@@ -1094,6 +1094,51 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Whiteboard events — broadcast stroke/clear/grant/revoke to room
+  socket.on('whiteboard-stroke', (stroke) => {
+    try {
+      const user = users[socket.id];
+      if (user && user.roomId) {
+        socket.broadcast.to(user.roomId).emit('whiteboard-stroke', stroke);
+      }
+    } catch (error) {
+      console.error('Error in whiteboard-stroke:', error);
+    }
+  });
+
+  socket.on('whiteboard-clear', () => {
+    try {
+      const user = users[socket.id];
+      if (user && user.roomId) {
+        socket.broadcast.to(user.roomId).emit('whiteboard-clear');
+      }
+    } catch (error) {
+      console.error('Error in whiteboard-clear:', error);
+    }
+  });
+
+  socket.on('whiteboard-grant', ({ peerId }) => {
+    try {
+      const user = users[socket.id];
+      if (user && user.roomId) {
+        socket.broadcast.to(user.roomId).emit('whiteboard-grant', { peerId });
+      }
+    } catch (error) {
+      console.error('Error in whiteboard-grant:', error);
+    }
+  });
+
+  socket.on('whiteboard-revoke', ({ peerId }) => {
+    try {
+      const user = users[socket.id];
+      if (user && user.roomId) {
+        socket.broadcast.to(user.roomId).emit('whiteboard-revoke', { peerId });
+      }
+    } catch (error) {
+      console.error('Error in whiteboard-revoke:', error);
+    }
+  });
+
   socket.on('sending-signal', (payload) => {
     try {
       connectionPool.updateActivity(socket.id);
