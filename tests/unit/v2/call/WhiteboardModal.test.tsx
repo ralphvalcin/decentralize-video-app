@@ -9,14 +9,22 @@ jest.mock('../../../../src/v2/call/ThumbnailStrip', () => ({
 const defaultProps = {
   onStroke: jest.fn(),
   onClear: jest.fn(),
-  onGrant: jest.fn(),
-  onRevoke: jest.fn(),
   onClose: jest.fn(),
   canDraw: true,
 }
 
 beforeEach(() => {
   jest.clearAllMocks()
+  // Polyfill crypto.randomUUID for jsdom environments that lack it
+  if (!crypto.randomUUID) {
+    Object.defineProperty(crypto, 'randomUUID', {
+      value: () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = Math.random() * 16 | 0
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16)
+      }),
+      configurable: true,
+    })
+  }
   useWhiteboardStore.setState({ strokes: [], grantedPeerIds: new Set(), currentTool: 'pen', currentColor: '#222222' })
   HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
     clearRect: jest.fn(),
@@ -69,4 +77,30 @@ test('renders ThumbnailStrip', () => {
 test('shows read-only label when canDraw is false', () => {
   render(<WhiteboardModal {...defaultProps} canDraw={false} />)
   expect(screen.getByText('View only')).toBeInTheDocument()
+})
+
+test('calls onStroke after mousedown → mousemove → mouseup sequence', () => {
+  render(<WhiteboardModal {...defaultProps} canDraw={true} />)
+  const canvas = screen.getByTestId('whiteboard-canvas')
+
+  fireEvent.mouseDown(canvas, { clientX: 10, clientY: 10 })
+  fireEvent.mouseMove(canvas, { clientX: 20, clientY: 20 })
+  fireEvent.mouseUp(canvas)
+
+  expect(defaultProps.onStroke).toHaveBeenCalledTimes(1)
+  const stroke = defaultProps.onStroke.mock.calls[0][0]
+  expect(stroke.id).toBeDefined()
+  expect(stroke.points.length).toBeGreaterThanOrEqual(2)
+  expect(stroke.tool).toBe('pen')
+})
+
+test('does not call onStroke when canDraw is false', () => {
+  render(<WhiteboardModal {...defaultProps} canDraw={false} />)
+  const canvas = screen.getByTestId('whiteboard-canvas')
+
+  fireEvent.mouseDown(canvas, { clientX: 10, clientY: 10 })
+  fireEvent.mouseMove(canvas, { clientX: 20, clientY: 20 })
+  fireEvent.mouseUp(canvas)
+
+  expect(defaultProps.onStroke).not.toHaveBeenCalled()
 })

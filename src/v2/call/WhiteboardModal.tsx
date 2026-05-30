@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react'
 import { useWhiteboardStore } from '../store/useWhiteboardStore'
+import { useCallStore } from '../store/useCallStore'
 import { WhiteboardToolbar } from './WhiteboardToolbar'
 import { ThumbnailStrip } from './ThumbnailStrip'
 import type { Stroke, StrokePoint } from '../types'
@@ -7,8 +8,6 @@ import type { Stroke, StrokePoint } from '../types'
 interface WhiteboardModalProps {
   onStroke: (stroke: Stroke) => void
   onClear: () => void
-  onGrant: (peerId: string) => void
-  onRevoke: (peerId: string) => void
   onClose: () => void
   canDraw: boolean
 }
@@ -36,11 +35,12 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, w: number, h:
   ctx.restore()
 }
 
-export function WhiteboardModal({ onStroke, onClear, onGrant, onRevoke, onClose, canDraw }: WhiteboardModalProps) {
+export function WhiteboardModal({ onStroke, onClear, onClose, canDraw }: WhiteboardModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const isDrawingRef = useRef(false)
   const currentPointsRef = useRef<StrokePoint[]>([])
 
+  const socketId = useCallStore((s) => s.socketId)
   const strokes = useWhiteboardStore((s) => s.strokes)
   const currentTool = useWhiteboardStore((s) => s.currentTool)
   const currentColor = useWhiteboardStore((s) => s.currentColor)
@@ -58,19 +58,25 @@ export function WhiteboardModal({ onStroke, onClear, onGrant, onRevoke, onClose,
     }
   }, [strokes])
 
+  const redrawRef = useRef<() => void>(redraw)
+  useEffect(() => { redrawRef.current = redraw }, [redraw])
+
   useEffect(() => { redraw() }, [redraw])
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
+    // Sync dimensions immediately before first ResizeObserver callback fires
+    if (canvas.offsetWidth) canvas.width = canvas.offsetWidth
+    if (canvas.offsetHeight) canvas.height = canvas.offsetHeight
     const observer = new ResizeObserver(() => {
       canvas.width = canvas.offsetWidth
       canvas.height = canvas.offsetHeight
-      redraw()
+      redrawRef.current()
     })
     observer.observe(canvas)
     return () => observer.disconnect()
-  }, [redraw])
+  }, [])  // created once on mount only
 
   function getPoint(e: React.MouseEvent<HTMLCanvasElement>): StrokePoint {
     const canvas = canvasRef.current!
@@ -120,7 +126,7 @@ export function WhiteboardModal({ onStroke, onClear, onGrant, onRevoke, onClose,
       color: currentColor,
       width: currentTool === 'eraser' ? 20 : 3,
       points,
-      drawerId: '__local',
+      drawerId: socketId ?? '__local',
     }
     onStroke(stroke)
   }
