@@ -1,4 +1,4 @@
-import createRnnoiseProcessor from '@jitsi/rnnoise-wasm'
+import { createRNNWasmModule } from '@jitsi/rnnoise-wasm'
 
 interface DenoiseState {
   processFrame(frame: Float32Array): number
@@ -22,7 +22,7 @@ export class NoiseProcessor {
       return rawStream
     }
     try {
-      const rnnoise = await createRnnoiseProcessor()
+      const rnnoise = await createRNNWasmModule()
       this.denoiseState = rnnoise.newState()
       this.ctx = new AudioContext({ sampleRate: 48000 })
       this.source = this.ctx.createMediaStreamSource(rawStream)
