@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { Toaster } from 'react-hot-toast'
 import App from './App.jsx'
 import './index.css'
+import './v2/design-system/index.css'
 // import './global.js'
 
 ReactDOM.createRoot(document.getElementById('root')).render(

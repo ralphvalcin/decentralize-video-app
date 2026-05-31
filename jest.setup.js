@@ -1,4 +1,35 @@
 require('@testing-library/jest-dom');
+const { webcrypto } = require('crypto');
+const { TextEncoder, TextDecoder } = require('util');
+
+// Polyfill TextEncoder and TextDecoder for Node.js test environment
+Object.defineProperty(globalThis, 'TextEncoder', {
+  value: TextEncoder,
+  configurable: true,
+});
+Object.defineProperty(globalThis, 'TextDecoder', {
+  value: TextDecoder,
+  configurable: true,
+});
+
+// Polyfill btoa and atob for Node.js test environment
+Object.defineProperty(globalThis, 'btoa', {
+  value: (str) => Buffer.from(str, 'binary').toString('base64'),
+  configurable: true,
+});
+Object.defineProperty(globalThis, 'atob', {
+  value: (str) => Buffer.from(str, 'base64').toString('binary'),
+  configurable: true,
+});
+
+// Polyfill crypto.subtle for Node.js test environment
+Object.defineProperty(globalThis, 'crypto', {
+  value: {
+    getRandomValues: (arr) => webcrypto.getRandomValues(arr),
+    subtle: webcrypto.subtle,
+  },
+  configurable: true,
+});
 
 // Extend timeout for complex tests
 jest.setTimeout(10000);
@@ -70,3 +101,48 @@ jest.mock('simple-peer', () => {
     destroy: jest.fn(),
   }));
 });
+
+// @jitsi/rnnoise-wasm uses ESM; mock globally to prevent import errors in jsdom.
+// Tests that need specific behaviour (NoiseProcessor.test.ts) override this mock locally.
+jest.mock('@jitsi/rnnoise-wasm', () =>
+  jest.fn().mockResolvedValue({
+    newState: jest.fn(() => ({
+      processFrame: jest.fn(() => 0),
+      destroy: jest.fn(),
+    })),
+  })
+);
+
+// @huggingface/transformers uses ESM; mock globally to prevent import errors in jsdom.
+// Tests that need specific behaviour (TranscriptionWorker.test.ts) override this mock locally.
+jest.mock('@huggingface/transformers', () => ({
+  pipeline: jest.fn(),
+}));
+
+// ResizeObserver is not implemented in jsdom — provide a no-op stub so
+// components that use it (e.g. WhiteboardModal canvas sizing) don't crash.
+if (typeof global.ResizeObserver === 'undefined') {
+  global.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
+// MediaRecorder is not implemented in jsdom. Provide a minimal stub so that
+// the typeof-guard in RecordingController (and similar components) behaves the
+// same way it would in a real browser. Tests that specifically verify the
+// "unsupported" path delete global.MediaRecorder themselves and restore it
+// after the assertion.
+if (typeof global.MediaRecorder === 'undefined') {
+  global.MediaRecorder = jest.fn().mockImplementation(() => ({
+    start: jest.fn(),
+    stop: jest.fn(),
+    pause: jest.fn(),
+    resume: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    state: 'inactive',
+  }));
+  global.MediaRecorder.isTypeSupported = jest.fn(() => true);
+}

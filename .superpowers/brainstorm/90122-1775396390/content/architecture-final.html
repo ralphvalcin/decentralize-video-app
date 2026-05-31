@@ -1,0 +1,82 @@
+<h2>Architecture — Locked</h2>
+<p class="subtitle">Final PeerRecord + all four stores. Nothing missing.</p>
+
+<div class="section">
+  <div class="label">Final PeerRecord — Complete</div>
+  <div style="background:#0d0d0d;border:1px solid #22c55e33;border-radius:8px;padding:18px;font-family:monospace;font-size:10px;line-height:1.9;color:#555;">
+    <div style="color:#60a5fa;">interface PeerRecord {</div>
+    <div style="padding-left:20px;">
+      <div style="color:#333;margin-bottom:2px;">// identity</div>
+      <div><span style="color:#888;">id</span>: string</div>
+      <div><span style="color:#888;">name</span>: string</div>
+      <div><span style="color:#888;">role</span>: <span style="color:#a78bfa;">'host' | 'guest'</span></div>
+      <div style="color:#333;margin-top:6px;margin-bottom:2px;">// media</div>
+      <div><span style="color:#888;">stream</span>: MediaStream | null</div>
+      <div><span style="color:#888;">isMuted</span>: boolean</div>
+      <div><span style="color:#888;">isCamOff</span>: boolean</div>
+      <div><span style="color:#888;">videoEnabled</span>: boolean <span style="color:#f59e0b;">← locked ✦</span></div>
+      <div><span style="color:#888;">isScreenSharing</span>: boolean</div>
+      <div style="color:#333;margin-top:6px;margin-bottom:2px;">// connection</div>
+      <div><span style="color:#888;">connectionState</span>: RTCPeerConnectionState</div>
+      <div><span style="color:#888;">networkQuality</span>: <span style="color:#a78bfa;">'good' | 'fair' | 'poor'</span></div>
+      <div style="color:#333;margin-top:6px;margin-bottom:2px;">// interactions</div>
+      <div><span style="color:#888;">isSpeaking</span>: boolean</div>
+      <div><span style="color:#888;">isPinned</span>: boolean</div>
+      <div><span style="color:#888;">hasRaisedHand</span>: boolean</div>
+      <div><span style="color:#888;">handRaisedAt</span>: number | null</div>
+      <div><span style="color:#888;">reaction</span>: Reaction | null</div>
+      <div><span style="color:#888;">isAway</span>: boolean</div>
+      <div><span style="color:#888;">isTyping</span>: boolean <span style="color:#f59e0b;">← locked ✦</span></div>
+    </div>
+    <div style="color:#60a5fa;">}</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Four Stores — Complete</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+    <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:6px;padding:14px;">
+      <div style="color:#22c55e;font-size:10px;font-weight:600;margin-bottom:8px;">usePeerStore</div>
+      <div style="font-size:9px;line-height:1.7;color:#555;font-family:monospace;">
+        <div>peers: Map&lt;string, PeerRecord&gt;</div>
+        <div>setPeer(id, partial)</div>
+        <div>removePeer(id)</div>
+      </div>
+    </div>
+    <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:6px;padding:14px;">
+      <div style="color:#60a5fa;font-size:10px;font-weight:600;margin-bottom:8px;">useCallStore</div>
+      <div style="font-size:9px;line-height:1.7;color:#555;font-family:monospace;">
+        <div>localStream: MediaStream | null</div>
+        <div>isMuted: boolean</div>
+        <div>isCamOff: boolean</div>
+        <div>roomId: string</div>
+        <div>screenSharePeerId: string | null</div>
+      </div>
+    </div>
+    <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:6px;padding:14px;">
+      <div style="color:#a78bfa;font-size:10px;font-weight:600;margin-bottom:8px;">useUIStore</div>
+      <div style="font-size:9px;line-height:1.7;color:#555;font-family:monospace;">
+        <div>isChatOpen: boolean</div>
+        <div>isParticipantsOpen: boolean</div>
+        <div>activeModal: string | null</div>
+        <div>toasts: Toast[]</div>
+        <div>layout: 'spotlight' | 'grid'</div>
+      </div>
+    </div>
+    <div style="background:#0d0d0d;border:1px solid #f59e0b33;border-radius:6px;padding:14px;">
+      <div style="color:#f59e0b;font-size:10px;font-weight:600;margin-bottom:8px;">useSessionStore</div>
+      <div style="font-size:9px;line-height:1.7;color:#555;font-family:monospace;">
+        <div>messages: ChatMessage[]</div>
+        <div>pinnedMessage: ChatMessage | null</div>
+        <div>activePoll: Poll | null</div>
+        <div>pollResponses: Map&lt;string, string&gt;</div>
+        <div>recordingState: 'idle'|'recording'|'paused'</div>
+        <div>recordingConsentPeers: string[] <span style="color:#f59e0b;">← ✦</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="background:#0d1117;border:1px solid #22c55e33;border-radius:8px;padding:14px;text-align:center;">
+  <span style="color:#22c55e;font-size:11px;font-weight:600;">Architecture locked. Ready for design system.</span>
+</div>
