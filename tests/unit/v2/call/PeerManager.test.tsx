@@ -878,3 +878,10 @@ test('incoming whiteboard-revoke calls useWhiteboardStore.revokeDrawing', async 
   await act(async () => { fireSocketEvent('whiteboard-revoke', { peerId: 'peer-x' }) })
   expect(revokeDrawing).toHaveBeenCalledWith('peer-x')
 })
+
+test('user-left revokes whiteboard drawing for departing peer', async () => {
+  const { revokeDrawing } = (require('../../../../src/v2/store/useWhiteboardStore') as any).useWhiteboardStore.getState()
+  await act(async () => { render(<PeerManager roomId="room-1" />) })
+  await act(async () => { fireSocketEvent('user-left', 'peer-departing') })
+  expect(revokeDrawing).toHaveBeenCalledWith('peer-departing')
+})

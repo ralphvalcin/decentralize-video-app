@@ -251,6 +251,7 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
     socket.on('user-left', (socketId: string) => {
       removePeer(socketId)
       destroyPeerConn(socketId)
+      useWhiteboardStore.getState().revokeDrawing(socketId)
     })
 
     socket.on('chat-history', async (messages: Array<{ id: string; sender: string; senderName?: string; text: string; timestamp: number }>) => {
