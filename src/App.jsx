@@ -1,11 +1,10 @@
 import { useEffect, useState, Suspense, lazy } from 'react';
-import ErrorBoundary from './components/ErrorBoundary';
-import PWAInstallPrompt from './components/PWAInstallPrompt';
+import ErrorBoundary from './v2/ui/ErrorBoundary';
+import PWAInstallPrompt from './v2/ui/PWAInstallPrompt';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
-// Lazy load heavy components for better performance
-const Room = lazy(() => import('./components/Room'));
-const Home = lazy(() => import('./components/Home'));
+const HomeV2 = lazy(() => import('./v2/pages/HomeV2'));
+const RoomV2 = lazy(() => import('./v2/pages/RoomV2'));
 
 function App() {
   const [dark, _setDark] = useState(false);
@@ -24,8 +23,8 @@ function App() {
           </div>
         }>
           <Routes>
-            <Route path="/room/:roomId" element={<Room />} />
-            <Route path="/" element={<Home />} />
+            <Route path="/room/:roomId" element={<RoomV2 />} />
+            <Route path="/" element={<HomeV2 />} />
           </Routes>
         </Suspense>
       </Router>

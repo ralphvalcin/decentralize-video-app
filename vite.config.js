@@ -8,7 +8,8 @@ export default defineConfig({
     'process.env': {
       NODE_ENV: JSON.stringify(process.env.NODE_ENV),
       VITE_INFURA_PROJECT_ID: JSON.stringify(process.env.VITE_INFURA_PROJECT_ID),
-      VITE_INFURA_API_SECRET: JSON.stringify(process.env.VITE_INFURA_API_SECRET)
+      VITE_INFURA_API_SECRET: JSON.stringify(process.env.VITE_INFURA_API_SECRET),
+      VITE_SIGNALING_SERVER_URL: JSON.stringify(process.env.VITE_SIGNALING_SERVER_URL)
     }
   },
   resolve: {
@@ -28,8 +29,7 @@ export default defineConfig({
           // Separate vendor libraries
           vendor: ['react', 'react-dom'],
           webrtc: ['simple-peer'],
-          ui: ['react-hot-toast', 'react-grid-layout', 'react-resizable', 'react-rnd'],
-          routing: ['react-router-dom'],
+          ui: ['react-hot-toast', 'react-grid-layout', 'react-resizable', 'react-rnd', 'react-router-dom'],
           socket: ['socket.io-client'],
           state: ['zustand'],
           crypto: ['crypto-js', 'bcryptjs', 'jsonwebtoken'],
