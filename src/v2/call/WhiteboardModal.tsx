@@ -101,15 +101,7 @@ export function WhiteboardModal({ onStroke, onClear, onClose, canDraw, onGrant, 
     }
   }
 
-  function handleMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
-    if (!canDraw) return
-    isDrawingRef.current = true
-    currentPointsRef.current = [getPoint(e)]
-  }
-
-  function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
-    if (!isDrawingRef.current || !canDraw) return
-    currentPointsRef.current.push(getPoint(e))
+  function redrawWithPreview() {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
@@ -126,6 +118,18 @@ export function WhiteboardModal({ onStroke, onClear, onClose, canDraw, onGrant, 
       points: currentPointsRef.current,
       drawerId: '__local',
     }, canvas.width, canvas.height)
+  }
+
+  function handleMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (!canDraw) return
+    isDrawingRef.current = true
+    currentPointsRef.current = [getPoint(e)]
+  }
+
+  function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (!isDrawingRef.current || !canDraw) return
+    currentPointsRef.current.push(getPoint(e))
+    redrawWithPreview()
   }
 
   function finalizeStroke() {
@@ -189,8 +193,8 @@ export function WhiteboardModal({ onStroke, onClear, onClose, canDraw, onGrant, 
         onMouseUp={finalizeStroke}
         onMouseLeave={finalizeStroke}
         onTouchStart={(e) => {
-          e.preventDefault()
           if (!canDraw) return
+          e.preventDefault()
           isDrawingRef.current = true
           currentPointsRef.current = [getTouchPoint(e)]
         }}
@@ -198,24 +202,9 @@ export function WhiteboardModal({ onStroke, onClear, onClose, canDraw, onGrant, 
           e.preventDefault()
           if (!isDrawingRef.current || !canDraw) return
           currentPointsRef.current.push(getTouchPoint(e))
-          const canvas = canvasRef.current
-          if (!canvas) return
-          const ctx = canvas.getContext('2d')
-          if (!ctx) return
-          ctx.clearRect(0, 0, canvas.width, canvas.height)
-          for (const stroke of strokes) {
-            drawStroke(ctx, stroke, canvas.width, canvas.height)
-          }
-          drawStroke(ctx, {
-            id: '__preview',
-            tool: currentTool,
-            color: currentColor,
-            width: currentTool === 'eraser' ? 20 : 3,
-            points: currentPointsRef.current,
-            drawerId: '__local',
-          }, canvas.width, canvas.height)
+          redrawWithPreview()
         }}
-        onTouchEnd={() => finalizeStroke()}
+        onTouchEnd={finalizeStroke}
       />
 
       <div className="shrink-0 border-t border-[var(--border-subtle)]">

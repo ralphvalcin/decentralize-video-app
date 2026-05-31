@@ -139,6 +139,7 @@ test('calls onStroke after touchstart → touchmove → touchend sequence', () =
 
   expect(defaultProps.onStroke).toHaveBeenCalledTimes(1)
   const stroke = defaultProps.onStroke.mock.calls[0][0]
+  expect(stroke.id).toBeDefined()
   expect(stroke.points.length).toBeGreaterThanOrEqual(2)
   expect(stroke.tool).toBe('pen')
 })
