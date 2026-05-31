@@ -119,7 +119,7 @@ test('does not call onStroke when canDraw is false', () => {
 })
 
 test('shows participant dropdown when isHost is true', () => {
-  useCallStore.setState({ socketId: 'host-id', isHost: true, userName: 'Host', localStream: null, isMuted: false, isCamOff: false, isNoiseSuppressed: true, screenSharePeerId: null, mediaError: null })
+  useCallStore.setState({ isHost: true })
   render(<WhiteboardModal {...defaultProps} />)
   expect(screen.getByTestId('participant-dropdown')).toBeInTheDocument()
 })
