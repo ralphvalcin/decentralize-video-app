@@ -4,10 +4,11 @@ import DOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
 import http from 'http';
 import crypto from 'crypto';
-// import bcrypt from 'bcryptjs'; // Currently unused
 import { EventEmitter } from 'events';
+// import bcrypt from 'bcryptjs'; // Currently unused
 import cron from 'node-cron';
 import { TURNCredentialService } from './src/services/TURNCredentialService.js';
+import { RoomManager } from './lib/RoomManager.js';
 
 const window = new JSDOM('').window;
 const purify = DOMPurify(window);
@@ -28,7 +29,8 @@ const config = {
   
   // Performance Limits
   MAX_CONNECTIONS_PER_ROOM: parseInt(process.env.MAX_CONNECTIONS_PER_ROOM) || 100,
-  MAX_MESSAGE_LENGTH: parseInt(process.env.MAX_MESSAGE_LENGTH) || 1000,
+  // Applies to ciphertext (IV + auth tag included); plaintext is ~65% of this limit.
+  MAX_MESSAGE_LENGTH: parseInt(process.env.MAX_MESSAGE_LENGTH) || 2000,
   MESSAGE_HISTORY_LIMIT: parseInt(process.env.MESSAGE_HISTORY_LIMIT) || 100,
   
   // Cleanup Intervals (in milliseconds)
@@ -280,126 +282,9 @@ class ConnectionPoolManager extends EventEmitter {
   }
 }
 
-// Enhanced Room Manager
-class RoomManager extends EventEmitter {
-  constructor(performanceMonitor) {
-    super();
-    this.performanceMonitor = performanceMonitor;
-    
-    // Room data with TTL tracking
-    this.roomMessages = new Map();
-    this.roomPolls = new Map();
-    this.roomQuestions = new Map();
-    this.roomReactions = new Map();
-    this.roomRaisedHands = new Map();
-    this.roomMetadata = new Map(); // lastActivity, createdAt, participantCount
-    
-    this.startCleanupScheduler();
-  }
-  
-  initializeRoom(roomId) {
-    if (!this.roomMessages.has(roomId)) {
-      this.roomMessages.set(roomId, []);
-      this.roomPolls.set(roomId, []);
-      this.roomQuestions.set(roomId, []);
-      this.roomReactions.set(roomId, []);
-      this.roomRaisedHands.set(roomId, []);
-      this.roomMetadata.set(roomId, {
-        createdAt: Date.now(),
-        lastActivity: Date.now(),
-        participantCount: 0
-      });
-      
-      this.performanceMonitor.recordRoomActivity(roomId, 'created');
-      this.emit('room-created', roomId);
-    }
-    
-    this.updateRoomActivity(roomId);
-  }
-  
-  updateRoomActivity(roomId) {
-    const metadata = this.roomMetadata.get(roomId);
-    if (metadata) {
-      metadata.lastActivity = Date.now();
-    }
-  }
-  
-  addMessage(roomId, message) {
-    this.initializeRoom(roomId);
-    const messages = this.roomMessages.get(roomId);
-    messages.push(message);
-    
-    // Keep only last N messages
-    if (messages.length > config.MESSAGE_HISTORY_LIMIT) {
-      messages.splice(0, messages.length - config.MESSAGE_HISTORY_LIMIT);
-    }
-    
-    this.updateRoomActivity(roomId);
-  }
-  
-  getRoomData(roomId) {
-    return {
-      messages: this.roomMessages.get(roomId) || [],
-      polls: this.roomPolls.get(roomId) || [],
-      questions: this.roomQuestions.get(roomId) || [],
-      reactions: this.roomReactions.get(roomId) || [],
-      raisedHands: this.roomRaisedHands.get(roomId) || []
-    };
-  }
-  
-  cleanupInactiveRooms() {
-    const now = Date.now();
-    const roomsToCleanup = [];
-    
-    for (const [roomId, metadata] of this.roomMetadata) {
-      if (now - metadata.lastActivity > config.INACTIVE_ROOM_TTL) {
-        roomsToCleanup.push(roomId);
-      }
-    }
-    
-    for (const roomId of roomsToCleanup) {
-      this.cleanupRoom(roomId);
-    }
-    
-    if (roomsToCleanup.length > 0) {
-      console.log(`Cleaned up ${roomsToCleanup.length} inactive rooms`);
-      this.emit('rooms-cleaned', roomsToCleanup);
-    }
-    
-    return roomsToCleanup.length;
-  }
-  
-  cleanupRoom(roomId) {
-    this.roomMessages.delete(roomId);
-    this.roomPolls.delete(roomId);
-    this.roomQuestions.delete(roomId);
-    this.roomReactions.delete(roomId);
-    this.roomRaisedHands.delete(roomId);
-    this.roomMetadata.delete(roomId);
-    
-    this.performanceMonitor.recordRoomActivity(roomId, 'cleaned');
-  }
-  
-  startCleanupScheduler() {
-    // Run cleanup every 5 minutes
-    cron.schedule('*/5 * * * *', () => {
-      const cleanedCount = this.cleanupInactiveRooms();
-      console.log(`Room cleanup completed. Cleaned ${cleanedCount} inactive rooms.`);
-    });
-  }
-  
-  getRoomStats() {
-    return {
-      totalRooms: this.roomMetadata.size,
-      roomsWithActivity: Array.from(this.roomMetadata.values())
-        .filter(meta => Date.now() - meta.lastActivity < 3600000).length // active in last hour
-    };
-  }
-}
-
 const performanceMonitor = new PerformanceMonitor();
 const connectionPool = new ConnectionPoolManager(performanceMonitor);
-const roomManager = new RoomManager(performanceMonitor);
+const roomManager = new RoomManager(performanceMonitor, config, cron);
 
 // Initialize TURN Credential Service
 const turnCredentialService = new TURNCredentialService({
@@ -408,6 +293,48 @@ const turnCredentialService = new TURNCredentialService({
     authToken: process.env.TWILIO_AUTH_TOKEN
   } : null
 });
+
+// Validate TURN configuration at startup — warn early so ops knows before a call fails
+export function validateTURNConfig() {
+  const servers = [
+    { url: process.env.TURN_SERVER_URL, secret: process.env.TURN_SECRET, label: 'primary' },
+    { url: process.env.TURN_SERVER_URL_2, secret: process.env.TURN_SECRET_2, label: 'secondary' },
+  ];
+
+  const configured = servers.filter(s => s.url || s.secret);
+
+  if (configured.length === 0) {
+    console.warn('[TURN] No TURN servers configured. WebRTC will use STUN only — calls may fail behind symmetric NAT.');
+    return;
+  }
+
+  let anyValid = false;
+  for (const { url, secret, label } of configured) {
+    if (url && !secret) {
+      console.warn(`[TURN] ${label}: TURN_SERVER_URL${label === 'secondary' ? '_2' : ''} is set but secret is missing — server will not be used.`);
+      continue;
+    }
+    if (secret && !url) {
+      console.warn(`[TURN] ${label}: secret is set but TURN_SERVER_URL${label === 'secondary' ? '_2' : ''} is missing — server will not be used.`);
+      continue;
+    }
+    const validHost = /^[a-zA-Z0-9._-]+$/.test(url);
+    if (!validHost) {
+      console.error(`[TURN] ${label}: "${url}" does not look like a valid hostname or IP address.`);
+      continue;
+    }
+    if (secret.length < 16) {
+      console.warn(`[TURN] ${label}: secret is only ${secret.length} chars — use at least 32 random characters (e.g. openssl rand -hex 32).`);
+    }
+    console.log(`[TURN] ${label} TURN server configured: ${url}`);
+    anyValid = true;
+  }
+
+  if (!anyValid) {
+    console.warn('[TURN] No valid TURN servers after validation. WebRTC will use STUN only.');
+  }
+}
+validateTURNConfig();
 
 // Create HTTP server for health checks and metrics
 const server = http.createServer((req, res) => {
@@ -555,7 +482,7 @@ function gracefulShutdown(signal) {
   }, 30000);
 }
 
-server.listen(config.PORT, () => {
+if (process.env.NODE_ENV !== 'test') server.listen(config.PORT, '0.0.0.0', () => {
   console.log(`🚀 Signaling server is running on port ${config.PORT}`);
   console.log(`📊 Health check available at http://localhost:${config.PORT}/health`);
   console.log(`📈 Metrics available at http://localhost:${config.PORT}/metrics`);
@@ -608,7 +535,8 @@ class RateLimiter {
       'submit-question': { limit: 10, window: 300000 },
       'vote-question': { limit: 30, window: 60000 },
       'answer-question': { limit: 10, window: 300000 },
-      'turn-credentials': { limit: 10, window: 60000 } // 10 per minute
+      'turn-credentials': { limit: 10, window: 60000 }, // 10 per minute
+      'whiteboard-stroke': { limit: 60, window: 60000 }
     };
     
     // Cleanup old entries every 5 minutes
@@ -921,6 +849,52 @@ io.use((socket, next) => {
   next();
 });
 
+export async function handleTurnCredentialsRequest(socket, { users, rateLimiter, turnCredentialService, performanceMonitor, logSecurityEvent }) {
+  const requestStart = Date.now();
+
+  // Guard: socket must have joined a room first
+  const user = users[socket.id];
+  if (!user) {
+    socket.emit('turn-credentials-error', {
+      message: 'Must join a room before requesting TURN credentials',
+      code: 'AUTH_REQUIRED',
+    });
+    return;
+  }
+
+  if (!rateLimiter.checkLimit(socket.id, 'turn-credentials', 10)) {
+    socket.emit('turn-credentials-error', { message: 'Rate limit exceeded for TURN credentials', code: 'RATE_LIMIT_EXCEEDED' });
+    performanceMonitor.recordError();
+    return;
+  }
+
+  try {
+    logSecurityEvent('TURN_CREDENTIALS_REQUESTED', user.id, {
+      userAgent: socket.handshake.headers['user-agent'],
+      ip: socket.handshake.address,
+    });
+
+    const turnConfig = await turnCredentialService.getTURNCredentials(user.id);
+
+    if (turnConfig && turnConfig.servers.length > 0) {
+      socket.emit('turn-credentials', turnConfig);
+      logSecurityEvent('TURN_CREDENTIALS_PROVIDED', user.id, {
+        serverCount: turnConfig.servers.length,
+        hasAuthentication: turnConfig.servers.every(s => s.username && s.credential),
+      });
+      performanceMonitor.recordMessage(Date.now() - requestStart);
+    } else {
+      socket.emit('turn-credentials-error', { message: 'No TURN servers configured', code: 'NO_TURN_SERVERS' });
+      performanceMonitor.recordError();
+    }
+  } catch (error) {
+    console.error('Error providing TURN credentials:', error);
+    logSecurityEvent('TURN_CREDENTIALS_ERROR', user.id, { error: error.message, severity: 'high' });
+    socket.emit('turn-credentials-error', { message: 'Failed to generate TURN credentials', code: 'SERVER_ERROR' });
+    performanceMonitor.recordError();
+  }
+}
+
 io.on('connection', (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
   performanceMonitor.recordConnection();
@@ -973,57 +947,9 @@ io.on('connection', (socket) => {
   });
 
   // Handle TURN credentials request
-  socket.on('request-turn-credentials', async () => {
-    const requestStart = Date.now();
-    
-    if (!rateLimiter.checkLimit(socket.id, 'turn-credentials', 10)) {
-      socket.emit('turn-credentials-error', { message: 'Rate limit exceeded for TURN credentials', code: 'RATE_LIMIT_EXCEEDED' });
-      performanceMonitor.recordError();
-      return;
-    }
-
-    try {
-      const user = users[socket.id];
-      const userId = user?.id || socket.id;
-      
-      logSecurityEvent('TURN_CREDENTIALS_REQUESTED', userId, {
-        userAgent: socket.handshake.headers['user-agent'],
-        ip: socket.handshake.address
-      });
-
-      const turnConfig = await turnCredentialService.getTURNCredentials(userId);
-      
-      if (turnConfig && turnConfig.servers.length > 0) {
-        socket.emit('turn-credentials', turnConfig);
-        
-        logSecurityEvent('TURN_CREDENTIALS_PROVIDED', userId, {
-          serverCount: turnConfig.servers.length,
-          hasAuthentication: turnConfig.servers.every(s => s.username && s.credential)
-        });
-        
-        performanceMonitor.recordMessage(Date.now() - requestStart);
-      } else {
-        socket.emit('turn-credentials-error', { 
-          message: 'No TURN servers configured', 
-          code: 'NO_TURN_SERVERS' 
-        });
-        performanceMonitor.recordError();
-      }
-    } catch (error) {
-      console.error('Error providing TURN credentials:', error);
-      
-      logSecurityEvent('TURN_CREDENTIALS_ERROR', socket.id, {
-        error: error.message,
-        severity: 'high'
-      });
-      
-      socket.emit('turn-credentials-error', { 
-        message: 'Failed to generate TURN credentials', 
-        code: 'SERVER_ERROR' 
-      });
-      performanceMonitor.recordError();
-    }
-  });
+  socket.on('request-turn-credentials', () =>
+    handleTurnCredentialsRequest(socket, { users, rateLimiter, turnCredentialService, performanceMonitor, logSecurityEvent })
+  );
   
   socket.on('join-room', (userInfo) => {
     const requestStart = Date.now();
@@ -1078,9 +1004,15 @@ io.on('connection', (socket) => {
       const roomData = roomManager.getRoomData(roomId);
       
       // Send only users in the same room
-      const otherUsers = Object.values(users).filter(user => 
+      const otherUsers = Object.values(users).filter(user =>
         user.id !== socket.id && user.roomId === roomId
       );
+
+      // Assign host role to the first user who enters an empty room
+      if (otherUsers.length === 0) {
+        socket.emit('you-are-host')
+      }
+
       socket.emit('all-users', otherUsers);
       
       // Send existing data for this room
@@ -1106,6 +1038,109 @@ io.on('connection', (socket) => {
       console.error('Error in join-room:', error);
       socket.emit('error', { message: 'Server error joining room', code: 'SERVER_ERROR' });
       performanceMonitor.recordError();
+    }
+  });
+
+  // Handle recording started event
+  socket.on('recording-started', (payload) => {
+    try {
+      const user = users[socket.id];
+      if (user && user.roomId) {
+        connectionPool.updateActivity(socket.id);
+
+        // Broadcast to other participants in the room
+        socket.broadcast.to(user.roomId).emit('recording-started', {
+          hostId: socket.id,
+          hostName: user.name,
+          timestamp: Date.now()
+        });
+
+        console.log(`🎥 Recording started in room ${user.roomId} by ${user.name}`);
+        performanceMonitor.recordMessage();
+      } else {
+        socket.emit('error', { message: 'User not in a room', code: 'NOT_IN_ROOM' });
+        performanceMonitor.recordError();
+      }
+    } catch (error) {
+      console.error('Error in recording-started:', error);
+      socket.emit('error', { message: 'Error starting recording', code: 'RECORDING_ERROR' });
+      performanceMonitor.recordError();
+    }
+  });
+
+  // Handle recording stopped event
+  socket.on('recording-stopped', (payload) => {
+    try {
+      const user = users[socket.id];
+      if (user && user.roomId) {
+        connectionPool.updateActivity(socket.id);
+
+        // Broadcast to other participants in the room
+        socket.broadcast.to(user.roomId).emit('recording-stopped', {
+          hostId: socket.id,
+          hostName: user.name,
+          timestamp: Date.now()
+        });
+
+        console.log(`⏹️  Recording stopped in room ${user.roomId} by ${user.name}`);
+        performanceMonitor.recordMessage();
+      } else {
+        socket.emit('error', { message: 'User not in a room', code: 'NOT_IN_ROOM' });
+        performanceMonitor.recordError();
+      }
+    } catch (error) {
+      console.error('Error in recording-stopped:', error);
+      socket.emit('error', { message: 'Error stopping recording', code: 'RECORDING_ERROR' });
+      performanceMonitor.recordError();
+    }
+  });
+
+  // Whiteboard events — broadcast stroke/clear/grant/revoke to room
+  socket.on('whiteboard-stroke', (stroke) => {
+    if (!rateLimiter.checkLimit(socket.id, 'whiteboard-stroke')) {
+      socket.emit('error', { message: 'Rate limit exceeded for whiteboard', code: 'RATE_LIMIT_EXCEEDED' });
+      return;
+    }
+    try {
+      const user = users[socket.id];
+      if (user && user.roomId) {
+        socket.broadcast.to(user.roomId).emit('whiteboard-stroke', stroke);
+      }
+    } catch (error) {
+      console.error('Error in whiteboard-stroke:', error);
+    }
+  });
+
+  socket.on('whiteboard-clear', () => {
+    try {
+      const user = users[socket.id];
+      if (user && user.roomId) {
+        socket.broadcast.to(user.roomId).emit('whiteboard-clear');
+      }
+    } catch (error) {
+      console.error('Error in whiteboard-clear:', error);
+    }
+  });
+
+  socket.on('whiteboard-grant', ({ peerId }) => {
+    try {
+      const user = users[socket.id];
+      if (user && user.roomId && user.role === 'host') {
+        socket.broadcast.to(user.roomId).emit('whiteboard-grant', { peerId });
+      }
+    } catch (error) {
+      console.error('Error in whiteboard-grant:', error);
+    }
+  });
+
+  socket.on('whiteboard-revoke', ({ peerId }) => {
+    try {
+      const user = users[socket.id];
+      if (user && user.roomId && user.role === 'host') {
+        socket.broadcast.to(user.roomId).emit('whiteboard-revoke', { peerId });
+      }
+    } catch (error) {
+      console.error('Error in whiteboard-revoke:', error);
     }
   });
 
@@ -1252,33 +1287,31 @@ io.on('connection', (socket) => {
     const user = users[socket.id];
     if (user && user.roomId) {
       const poll = {
-        ...pollData,
-        id: Date.now() + Math.random(),
+        id: String(Date.now() + Math.random()),
+        question: sanitizeInput(pollData.question),
+        options: Array.isArray(pollData.options) ? pollData.options.map(o => sanitizeInput(String(o))) : [],
         roomId: user.roomId,
         createdBy: user.name,
         createdAt: Date.now(),
         votes: {},
         isActive: true
       };
-      
-      // roomPolls[user.roomId].push(poll); // TODO: Fix room data management
+
+      roomManager.addPoll(user.roomId, poll)
       io.to(user.roomId).emit('new-poll', poll);
     }
   });
 
-  socket.on('vote-poll', () => {
+  socket.on('vote-poll', (voteData) => {
     if (!rateLimiter.checkLimit(socket.id, 'vote-poll', 20)) {
       socket.emit('error', { message: 'Rate limit exceeded' });
       return;
     }
-    
+
     const user = users[socket.id];
     if (user && user.roomId) {
-      // const poll = roomPolls[user.roomId].find(p => p.id === voteData.pollId); // TODO: Fix room data management
-      // if (poll && poll.isActive) {
-      //   poll.votes[socket.id] = voteData.optionIndex;
-      //   io.to(user.roomId).emit('poll-updated', poll);
-      // } // TODO: Fix room data management
+      const updated = roomManager.recordPollVote(user.roomId, voteData.pollId, socket.id, voteData.optionIndex)
+      if (updated) io.to(user.roomId).emit('poll-updated', updated)
     }
   });
 
@@ -1292,8 +1325,8 @@ io.on('connection', (socket) => {
     const user = users[socket.id];
     if (user && user.roomId) {
       const question = {
-        ...questionData,
-        id: Date.now() + Math.random(),
+        id: String(Date.now() + Math.random()),
+        text: sanitizeInput(questionData.text),
         roomId: user.roomId,
         author: user.name,
         authorId: socket.id,
@@ -1305,45 +1338,38 @@ io.on('connection', (socket) => {
         answeredAt: null,
         isAnswered: false
       };
-      
-      // roomQuestions[user.roomId].push(question); // TODO: Fix room data management
+
+      roomManager.addQuestion(user.roomId, question)
       io.to(user.roomId).emit('new-question', question);
     }
   });
 
-  socket.on('vote-question', () => {
+  socket.on('vote-question', (voteData) => {
     if (!rateLimiter.checkLimit(socket.id, 'vote-question', 30)) {
       socket.emit('error', { message: 'Rate limit exceeded' });
       return;
     }
-    
+
     const user = users[socket.id];
     if (user && user.roomId) {
-      // const question = roomQuestions[user.roomId].find(q => q.id === voteData.questionId); // TODO: Fix room data management
-      // if (question && !question.votedBy.includes(socket.id)) {
-      //   question.votes += 1;
-      //   question.votedBy.push(socket.id);
-      //   io.to(user.roomId).emit('question-updated', question);
-      // } // TODO: Fix room data management
+      const updated = roomManager.recordQuestionVote(user.roomId, voteData.questionId, socket.id)
+      if (updated) io.to(user.roomId).emit('question-updated', updated)
     }
   });
 
-  socket.on('answer-question', () => {
+  socket.on('answer-question', (answerData) => {
     if (!rateLimiter.checkLimit(socket.id, 'answer-question', 10)) {
       socket.emit('error', { message: 'Rate limit exceeded' });
       return;
     }
-    
+
     const user = users[socket.id];
     if (user && user.roomId) {
-      // const question = roomQuestions[user.roomId].find(q => q.id === answerData.questionId); // TODO: Fix room data management
-      // if (question) {
-      //   question.answer = sanitizeInput(answerData.answer);
-      //   question.answeredBy = user.name;
-      //   question.answeredAt = Date.now();
-      //   question.isAnswered = true;
-      //   io.to(user.roomId).emit('question-updated', question);
-      // } // TODO: Fix room data management
+      const updated = roomManager.recordQuestionAnswer(
+        user.roomId, answerData.questionId,
+        sanitizeInput(answerData.answer), user.name
+      )
+      if (updated) io.to(user.roomId).emit('question-updated', updated)
     }
   });
 

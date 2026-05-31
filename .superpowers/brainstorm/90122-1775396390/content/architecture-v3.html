@@ -1,0 +1,95 @@
+<h2>Architecture — Final Shape</h2>
+<p class="subtitle">One ownership rule. Event-driven sync. PeerRecord with all agreed fields.</p>
+
+<div class="section">
+  <div class="label">The Ownership Rule</div>
+  <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:8px;padding:20px;display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;gap:0;border-radius:6px;overflow:hidden;border:1px solid #1e1e1e;">
+      <!-- Peer A -->
+      <div style="flex:1;padding:14px;background:#0d1117;border-right:1px solid #1e1e1e;">
+        <div style="color:#22c55e;font-size:9px;font-weight:600;letter-spacing:1px;margin-bottom:8px;text-transform:uppercase;">Peer A (you)</div>
+        <div style="font-size:9px;line-height:1.8;font-family:monospace;color:#555;">
+          <div><span style="color:#22c55e;">✦ own</span> isMuted, isCamOff</div>
+          <div><span style="color:#22c55e;">✦ own</span> hasRaisedHand</div>
+          <div><span style="color:#22c55e;">✦ own</span> isSpeaking</div>
+          <div><span style="color:#22c55e;">✦ own</span> networkQuality</div>
+          <div><span style="color:#22c55e;">✦ own</span> reaction, isAway</div>
+          <div style="margin-top:6px;color:#333;">↓ emit on change</div>
+        </div>
+      </div>
+      <!-- Socket.io -->
+      <div style="width:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0a0a0a;padding:10px;gap:6px;">
+        <div style="color:#f59e0b;font-size:8px;text-align:center;font-weight:600;letter-spacing:0.5px;">Socket.io</div>
+        <div style="color:#333;font-size:16px;">⇄</div>
+        <div style="color:#333;font-size:8px;text-align:center;">signaling<br/>server</div>
+      </div>
+      <!-- Peer B -->
+      <div style="flex:1;padding:14px;background:#0d1117;border-left:1px solid #1e1e1e;">
+        <div style="color:#60a5fa;font-size:9px;font-weight:600;letter-spacing:1px;margin-bottom:8px;text-transform:uppercase;">Peer B (remote)</div>
+        <div style="font-size:9px;line-height:1.8;font-family:monospace;color:#555;">
+          <div><span style="color:#60a5fa;">⬇ cached</span> isMuted</div>
+          <div><span style="color:#60a5fa;">⬇ cached</span> hasRaisedHand</div>
+          <div><span style="color:#60a5fa;">⬇ cached</span> isSpeaking</div>
+          <div><span style="color:#60a5fa;">⬇ cached</span> networkQuality</div>
+          <div><span style="color:#60a5fa;">⬇ cached</span> reaction, isAway</div>
+          <div style="margin-top:6px;color:#333;">read-only in your store</div>
+        </div>
+      </div>
+    </div>
+    <div style="background:#0a0a0a;border:1px solid #1e1e1e;border-radius:6px;padding:10px;text-align:center;">
+      <span style="color:#555;font-size:10px;">You own your row. Others own theirs. </span>
+      <span style="color:#f59e0b;font-size:10px;font-family:monospace;">PeerManager.tsx</span>
+      <span style="color:#555;font-size:10px;"> is the only bridge between Socket.io events and the store.</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Final PeerRecord Shape</div>
+  <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:8px;padding:18px;font-family:monospace;font-size:10px;line-height:1.9;color:#555;">
+    <div style="color:#60a5fa;">interface PeerRecord {</div>
+    <div style="padding-left:20px;">
+      <div><span style="color:#888;">id</span>: string</div>
+      <div><span style="color:#888;">name</span>: string</div>
+      <div><span style="color:#888;">role</span>: <span style="color:#a78bfa;">'host' | 'guest'</span></div>
+      <div style="margin-top:6px;color:#333;">// media</div>
+      <div><span style="color:#888;">stream</span>: MediaStream | null</div>
+      <div><span style="color:#888;">isMuted</span>: boolean</div>
+      <div><span style="color:#888;">isCamOff</span>: boolean</div>
+      <div><span style="color:#888;">isScreenSharing</span>: boolean</div>
+      <div style="margin-top:6px;color:#333;">// connection</div>
+      <div><span style="color:#888;">connectionState</span>: RTCPeerConnectionState</div>
+      <div><span style="color:#888;">networkQuality</span>: <span style="color:#a78bfa;">'good' | 'fair' | 'poor'</span></div>
+      <div style="margin-top:6px;color:#333;">// interactions</div>
+      <div><span style="color:#888;">isSpeaking</span>: boolean</div>
+      <div><span style="color:#888;">isPinned</span>: boolean</div>
+      <div><span style="color:#888;">hasRaisedHand</span>: boolean</div>
+      <div><span style="color:#888;">handRaisedAt</span>: number | null</div>
+      <div><span style="color:#888;">reaction</span>: Reaction | null</div>
+      <div><span style="color:#888;">isAway</span>: boolean</div>
+    </div>
+    <div style="color:#60a5fa;">}</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Store Responsibilities (clean, no overlap)</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+    <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:6px;padding:12px;">
+      <div style="color:#22c55e;font-size:10px;font-weight:600;margin-bottom:6px;">usePeerStore</div>
+      <div style="font-size:9px;line-height:1.7;color:#555;">All per-peer data. One delete clears everything for a disconnected peer. The only store that touches PeerRecord.</div>
+    </div>
+    <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:6px;padding:12px;">
+      <div style="color:#60a5fa;font-size:10px;font-weight:600;margin-bottom:6px;">useCallStore</div>
+      <div style="font-size:9px;line-height:1.7;color:#555;">Local peer only — your stream, your mute/cam state, roomId, screenSharePeerId. Nothing about remote peers.</div>
+    </div>
+    <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:6px;padding:12px;">
+      <div style="color:#a78bfa;font-size:10px;font-weight:600;margin-bottom:6px;">useUIStore</div>
+      <div style="font-size:9px;line-height:1.7;color:#555;">Local UI only — panels open/closed, active modal, layout mode, toasts. No peer data ever touches this store.</div>
+    </div>
+    <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:6px;padding:12px;">
+      <div style="color:#f59e0b;font-size:10px;font-weight:600;margin-bottom:6px;">useSessionStore</div>
+      <div style="font-size:9px;line-height:1.7;color:#555;">Room-level interactions — active poll, poll responses, pinned message, chat messages, recording state.</div>
+    </div>
+  </div>
+</div>
