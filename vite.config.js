@@ -29,8 +29,7 @@ export default defineConfig({
           // Separate vendor libraries
           vendor: ['react', 'react-dom'],
           webrtc: ['simple-peer'],
-          ui: ['react-hot-toast', 'react-grid-layout', 'react-resizable', 'react-rnd'],
-          routing: ['react-router-dom'],
+          ui: ['react-hot-toast', 'react-grid-layout', 'react-resizable', 'react-rnd', 'react-router-dom'],
           socket: ['socket.io-client'],
           state: ['zustand'],
           crypto: ['crypto-js', 'bcryptjs', 'jsonwebtoken'],
