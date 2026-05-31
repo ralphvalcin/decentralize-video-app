@@ -1,239 +1,108 @@
 /**
- * TURN Credential Service
- * Handles generation and management of TURN server credentials
+ * TURNCredentialService — Time-based TURN credential generation.
+ *
+ * Generates HMAC-SHA1 credentials for coturn-style TURN servers.
+ * Supports optional Twilio Network Traversal Service as a managed alternative.
  */
 
 import crypto from 'crypto';
 
 export class TURNCredentialService {
-  constructor(config = {}) {
-    this.turnServers = config.turnServers || [];
-    this.credentialCache = new Map();
-    this.cacheTTL = config.cacheTTL || 3600000; // 1 hour default
-    this.twilioConfig = config.twilio || null;
-    
-    // Start credential refresh timer
-    this.startCredentialRefresh();
+  constructor({ twilio = null } = {}) {
+    this.twilio = twilio;
+    this.cache = new Map();
+    this.CACHE_TTL = 23 * 60 * 60 * 1000; // 23 hours (credentials valid for 24h)
   }
 
   /**
-   * Generate time-based TURN credentials using the REST API approach
-   * @param {string} secret - TURN server secret
-   * @param {number} ttl - Time to live in seconds (default: 24 hours)
-   * @returns {Object} - { username, password }
+   * Generate time-limited TURN credentials for a given user.
+   * Returns an object with a `servers` array conforming to the WebRTC RTCConfiguration format.
    */
-  generateTURNCredentials(secret, ttl = 86400) {
-    const unixTimeStamp = Math.floor(Date.now() / 1000) + ttl;
-    const username = unixTimeStamp.toString();
-    
-    // Create HMAC-SHA1 hash for the password
-    const hmac = crypto.createHmac('sha1', secret);
-    hmac.update(username);
-    const password = hmac.digest('base64');
-    
-    return { username, password, expires: unixTimeStamp * 1000 };
-  }
+  async getTURNCredentials(userId) {
+    const primaryUrl = process.env.TURN_SERVER_URL;
+    const primarySecret = process.env.TURN_SECRET;
+    const secondaryUrl = process.env.TURN_SERVER_URL_2;
+    const secondarySecret = process.env.TURN_SECRET_2;
+    const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+    const twilioToken = process.env.TWILIO_AUTH_TOKEN;
 
-  /**
-   * Get TURN credentials for all configured servers
-   * @param {string} userId - User identifier for logging
-   * @returns {Object} - TURN configuration object
-   */
-  async getTURNCredentials(userId = 'anonymous') {
-    const cacheKey = `turn-credentials-${userId}`;
-    const cached = this.credentialCache.get(cacheKey);
-    
-    // Return cached credentials if still valid
-    if (cached && Date.now() < cached.expires - 300000) { // Refresh 5 minutes before expiry
-      return cached.config;
+    // If Twilio is configured, prefer managed TURN
+    if (twilioSid && twilioToken) {
+      return this._getTwilioCredentials(twilioSid, twilioToken);
     }
 
-    const turnConfig = {
-      servers: [],
-      iceTransportPolicy: 'all',
-      generated: Date.now()
+    // Self-hosted coturn servers
+    const servers = [];
+
+    if (primaryUrl && primarySecret) {
+      servers.push(this._buildServerConfig(primaryUrl, primarySecret, userId));
+    }
+
+    if (secondaryUrl && secondarySecret) {
+      servers.push(this._buildServerConfig(secondaryUrl, secondarySecret, userId));
+    }
+
+    if (servers.length === 0) {
+      return null;
+    }
+
+    return { servers };
+  }
+
+  _buildServerConfig(url, secret, userId) {
+    // coturn shared-secret format: username = timestamp + 86400 (1 day TTL)
+    // credential = HMAC-SHA1(secret, username)
+    const ttl = 86400;
+    const timestamp = Math.floor(Date.now() / 1000) + ttl;
+    const username = `${timestamp}`;
+    const credential = crypto
+      .createHmac('sha1', secret)
+      .update(username)
+      .digest('base64');
+
+    return {
+      urls: url,
+      username,
+      credential,
     };
-
-    try {
-      // Generate credentials for configured TURN servers
-      if (process.env.TURN_SERVER_URL && process.env.TURN_SECRET) {
-        const credentials = this.generateTURNCredentials(process.env.TURN_SECRET);
-        turnConfig.servers.push({
-          urls: [
-            `turn:${process.env.TURN_SERVER_URL}:3478?transport=udp`,
-            `turn:${process.env.TURN_SERVER_URL}:3478?transport=tcp`,
-            `turns:${process.env.TURN_SERVER_URL}:5349?transport=tcp`
-          ],
-          username: credentials.username,
-          credential: credentials.password,
-          credentialType: 'password'
-        });
-      }
-
-      // Add secondary TURN server if configured
-      if (process.env.TURN_SERVER_URL_2 && process.env.TURN_SECRET_2) {
-        const credentials = this.generateTURNCredentials(process.env.TURN_SECRET_2);
-        turnConfig.servers.push({
-          urls: [
-            `turn:${process.env.TURN_SERVER_URL_2}:3478?transport=udp`,
-            `turn:${process.env.TURN_SERVER_URL_2}:3478?transport=tcp`,
-            `turns:${process.env.TURN_SERVER_URL_2}:5349?transport=tcp`
-          ],
-          username: credentials.username,
-          credential: credentials.password,
-          credentialType: 'password'
-        });
-      }
-
-      // Add Twilio TURN servers if configured
-      if (this.twilioConfig) {
-        const twilioTurnServers = await this.getTwilioTURNServers();
-        turnConfig.servers.push(...twilioTurnServers);
-      }
-
-      // Cache the configuration
-      if (turnConfig.servers.length > 0) {
-        const expires = Math.min(...turnConfig.servers.map(s => s.expires || Date.now() + 86400000));
-        this.credentialCache.set(cacheKey, {
-          config: turnConfig,
-          expires: expires
-        });
-      }
-
-      return turnConfig;
-    } catch (error) {
-      console.error('Error generating TURN credentials:', error);
-      throw new Error(`TURN credential generation failed: ${error.message}`);
-    }
   }
 
-  /**
-   * Get Twilio TURN server credentials
-   * @returns {Array} - Array of Twilio TURN server configurations
-   */
-  async getTwilioTURNServers() {
-    if (!this.twilioConfig?.accountSid || !this.twilioConfig?.authToken) {
-      return [];
+  async _getTwilioCredentials(accountSid, authToken) {
+    const cacheKey = `twilio-${accountSid}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached && Date.now() - cached.fetchedAt < this.CACHE_TTL) {
+      return { servers: cached.servers };
     }
 
     try {
-      // In a real implementation, you would call Twilio's API
-      // This is a placeholder implementation
-      const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${this.twilioConfig.accountSid}/Tokens.json`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Basic ${Buffer.from(`${this.twilioConfig.accountSid}:${this.twilioConfig.authToken}`).toString('base64')}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
+      const response = await fetch(
+        `https://nls.twilio.com/v1/Tokens`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
+            'Content-Type': 'application/json',
+          },
         }
-      });
+      );
 
       if (!response.ok) {
         throw new Error(`Twilio API error: ${response.status}`);
       }
 
       const data = await response.json();
-      
-      return data.ice_servers?.filter(server => 
-        server.urls.some(url => url.includes('turn:'))
-      ) || [];
-    } catch (error) {
-      console.error('Error fetching Twilio TURN servers:', error);
-      return [];
+      const iceServers = data.ice_servers || [];
+      const servers = iceServers.map(s => ({
+        urls: s.url,
+        username: s.username || undefined,
+        credential: s.credential || undefined,
+      })).filter(s => s.urls);
+
+      this.cache.set(cacheKey, { servers, fetchedAt: Date.now() });
+      return { servers };
+    } catch (err) {
+      console.warn('[TURN] Twilio credential fetch failed, falling back to STUN only:', err.message);
+      return null;
     }
-  }
-
-  /**
-   * Validate TURN server configuration
-   * @param {Object} config - TURN configuration to validate
-   * @returns {Object} - Validation result
-   */
-  validateTURNConfig(config) {
-    if (!config || !Array.isArray(config.servers)) {
-      return { isValid: false, error: 'Invalid TURN config structure' };
-    }
-
-    if (config.servers.length === 0) {
-      return { isValid: false, error: 'No TURN servers configured' };
-    }
-
-    for (const server of config.servers) {
-      if (!server.urls || (!Array.isArray(server.urls) && typeof server.urls !== 'string')) {
-        return { isValid: false, error: 'TURN server missing URLs' };
-      }
-      
-      if (!server.username || !server.credential) {
-        return { isValid: false, error: 'TURN server missing credentials' };
-      }
-
-      const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
-      for (const url of urls) {
-        if (!this.isValidTURNUrl(url)) {
-          return { isValid: false, error: `Invalid TURN URL: ${url}` };
-        }
-      }
-    }
-
-    return { isValid: true };
-  }
-
-  /**
-   * Check if a URL is a valid TURN server URL
-   * @param {string} url - URL to validate
-   * @returns {boolean} - True if valid TURN URL
-   */
-  isValidTURNUrl(url) {
-    const turnUrlRegex = /^turns?:[^:\/\s]+:\d+(\?transport=(udp|tcp))?$/;
-    return turnUrlRegex.test(url);
-  }
-
-  /**
-   * Start periodic credential refresh
-   */
-  startCredentialRefresh() {
-    // Refresh credentials every 30 minutes
-    setInterval(() => {
-      this.refreshExpiredCredentials();
-    }, 30 * 60 * 1000);
-  }
-
-  /**
-   * Refresh expired credentials in cache
-   */
-  refreshExpiredCredentials() {
-    const now = Date.now();
-    const refreshThreshold = 5 * 60 * 1000; // 5 minutes
-
-    for (const [key, value] of this.credentialCache.entries()) {
-      if (now >= value.expires - refreshThreshold) {
-        // Remove expired credentials - they'll be regenerated on next request
-        this.credentialCache.delete(key);
-      }
-    }
-  }
-
-  /**
-   * Get service statistics
-   * @returns {Object} - Service statistics
-   */
-  getStats() {
-    const totalServers = (process.env.TURN_SERVER_URL ? 1 : 0) + 
-                        (process.env.TURN_SERVER_URL_2 ? 1 : 0) +
-                        (this.twilioConfig ? 1 : 0);
-
-    return {
-      configuredServers: totalServers,
-      cachedCredentials: this.credentialCache.size,
-      twilioEnabled: !!this.twilioConfig,
-      lastGenerated: Math.max(...Array.from(this.credentialCache.values()).map(v => v.config.generated || 0))
-    };
-  }
-
-  /**
-   * Clear credential cache
-   */
-  clearCache() {
-    this.credentialCache.clear();
   }
 }
-
-export default TURNCredentialService;

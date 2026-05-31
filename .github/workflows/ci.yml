@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0
 
@@ -46,7 +46,7 @@ jobs:
         output: 'trivy-results.sarif'
 
     - name: Upload Trivy scan results
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@v4
       if: always()
       with:
         sarif_file: 'trivy-results.sarif'
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -87,7 +87,7 @@ jobs:
         node-version: ['16', '18', '20']
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
@@ -105,7 +105,7 @@ jobs:
       run: npm run test:integration
 
     - name: Upload test coverage
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       if: matrix.node-version == '18'
       with:
         files: ./coverage/coverage-final.json
@@ -120,7 +120,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -170,7 +170,7 @@ jobs:
       backend-digest: ${{ steps.build-backend.outputs.digest }}
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -255,7 +255,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Deploy Frontend to Vercel
       uses: amondnet/vercel-action@v25
@@ -281,7 +281,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
