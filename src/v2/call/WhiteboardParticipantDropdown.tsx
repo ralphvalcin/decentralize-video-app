@@ -16,7 +16,9 @@ export function WhiteboardParticipantDropdown({ onGrant, onRevoke }: WhiteboardP
   const grantedPeerIds = useWhiteboardStore((s) => s.grantedPeerIds)
   const socketId = useCallStore((s) => s.socketId)
 
-  const otherPeers = Array.from(peers.values()).filter((p) => p.id !== socketId)
+  const otherPeers = Array.from(peers.values()).filter(
+    (p) => socketId !== null && p.id !== socketId
+  )
 
   useEffect(() => {
     if (!isOpen) return

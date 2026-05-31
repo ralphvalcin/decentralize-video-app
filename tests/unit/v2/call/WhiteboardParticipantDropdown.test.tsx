@@ -96,3 +96,17 @@ test('shows empty state message when no other participants', () => {
   fireEvent.click(screen.getByTestId('btn-participants-toggle'))
   expect(screen.getByText('No other participants')).toBeInTheDocument()
 })
+
+test('clicking outside the dropdown closes it', () => {
+  render(
+    <div>
+      <div data-testid="outside">outside</div>
+      <WhiteboardParticipantDropdown {...defaultProps} />
+    </div>
+  )
+  fireEvent.click(screen.getByTestId('btn-participants-toggle'))
+  expect(screen.getByTestId('participant-list')).toBeInTheDocument()
+
+  fireEvent.mouseDown(screen.getByTestId('outside'))
+  expect(screen.queryByTestId('participant-list')).not.toBeInTheDocument()
+})
