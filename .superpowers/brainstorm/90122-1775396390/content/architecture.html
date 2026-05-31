@@ -1,0 +1,88 @@
+<h2>Section 1 — Component Architecture</h2>
+<p class="subtitle">New file structure. Old files untouched until cutover. TypeScript + Zustand throughout.</p>
+
+<div class="section">
+  <div class="label">New Directory Layout</div>
+  <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:8px;padding:20px;font-family:monospace;font-size:11px;line-height:1.8;color:#555;">
+    <div><span style="color:#333;">src/</span></div>
+    <div style="padding-left:16px;"><span style="color:#22c55e;">v2/</span> <span style="color:#333;">← all new work lives here</span></div>
+    <div style="padding-left:32px;"><span style="color:#60a5fa;">design-system/</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">tokens.ts</span> <span style="color:#333;">← colors, spacing, typography</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">index.css</span> <span style="color:#333;">← CSS variables from tokens</span></div>
+    <div style="padding-left:32px;"><span style="color:#60a5fa;">store/</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">useCallStore.ts</span> <span style="color:#333;">← Zustand: peers, media, layout</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">useUIStore.ts</span> <span style="color:#333;">← Zustand: panels, modals, toasts</span></div>
+    <div style="padding-left:32px;"><span style="color:#60a5fa;">pages/</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">HomeV2.tsx</span> <span style="color:#333;">← Split Hero lobby</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">RoomV2.tsx</span> <span style="color:#333;">← thin orchestrator only</span></div>
+    <div style="padding-left:32px;"><span style="color:#60a5fa;">call/</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">PeerManager.tsx</span> <span style="color:#333;">← WebRTC logic, no UI</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">MediaController.tsx</span> <span style="color:#333;">← mic/cam/stream logic</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">SpotlightView.tsx</span> <span style="color:#333;">← pinned speaker tile</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">ThumbnailStrip.tsx</span> <span style="color:#333;">← scrollable participant strip</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">ControlBar.tsx</span> <span style="color:#333;">← mic, cam, end, more</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">ChatPanel.tsx</span> <span style="color:#333;">← persistent side panel</span></div>
+    <div style="padding-left:32px;"><span style="color:#60a5fa;">ui/</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">Button.tsx, Avatar.tsx</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">VideoTile.tsx, Badge.tsx</span></div>
+    <div style="padding-left:16px;"><span style="color:#333;">components/ ← existing, untouched</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Key Principle — RoomV2 is thin</div>
+  <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:8px;padding:16px;display:flex;gap:24px;align-items:flex-start;">
+    <div style="flex:1;">
+      <div style="color:#ef4444;font-size:10px;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Before — Room.jsx</div>
+      <div style="font-size:10px;line-height:1.7;color:#555;font-family:monospace;">
+        <div>WebRTC logic ✗</div>
+        <div>Media stream mgmt ✗</div>
+        <div>Socket.io events ✗</div>
+        <div>Chat state ✗</div>
+        <div>UI rendering ✗</div>
+        <div>Error handling ✗</div>
+        <div style="color:#333;margin-top:6px;">→ 1 giant file, hard to change anything</div>
+      </div>
+    </div>
+    <div style="width:1px;background:#1e1e1e;align-self:stretch;"></div>
+    <div style="flex:1;">
+      <div style="color:#22c55e;font-size:10px;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">After — RoomV2.tsx</div>
+      <div style="font-size:10px;line-height:1.7;color:#555;font-family:monospace;">
+        <div>Mounts PeerManager ✓</div>
+        <div>Mounts MediaController ✓</div>
+        <div>Reads from Zustand ✓</div>
+        <div>Renders layout shell ✓</div>
+        <div style="color:#333;margin-top:6px;">→ ~80 lines, easy to reason about</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">State Management — Zustand Stores</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:6px;padding:14px;">
+      <div style="color:#60a5fa;font-size:10px;font-weight:600;margin-bottom:8px;">useCallStore</div>
+      <div style="font-size:10px;line-height:1.7;color:#555;font-family:monospace;">
+        <div>peers: Peer[]</div>
+        <div>localStream: MediaStream</div>
+        <div>spotlightPeerId: string</div>
+        <div>connectionStates: Map</div>
+        <div>isMuted: boolean</div>
+        <div>isCamOff: boolean</div>
+      </div>
+    </div>
+    <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:6px;padding:14px;">
+      <div style="color:#a78bfa;font-size:10px;font-weight:600;margin-bottom:8px;">useUIStore</div>
+      <div style="font-size:10px;line-height:1.7;color:#555;font-family:monospace;">
+        <div>isChatOpen: boolean</div>
+        <div>isParticipantsOpen: boolean</div>
+        <div>activeModal: string | null</div>
+        <div>toasts: Toast[]</div>
+        <div>layout: 'spotlight' | 'grid'</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="color:#555;font-size:11px;text-align:center;margin-top:8px;">Does this architecture look right? Any pieces you'd add or change?</p>

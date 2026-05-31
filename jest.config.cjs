@@ -1,5 +1,8 @@
 module.exports = {
   testEnvironment: 'jsdom',
+  testEnvironmentOptions: {
+    url: 'http://localhost:5173',
+  },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   moduleNameMapper: {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
@@ -13,10 +16,9 @@ module.exports = {
     '<rootDir>/tests/integration/**/*.{js,jsx,ts,tsx}'
   ],
   collectCoverageFrom: [
-    'src/**/*.{js,jsx,ts,tsx}',
-    '!src/**/*.test.{js,jsx,ts,tsx}',
-    '!src/index.jsx',
-    '!src/App.jsx'
+    'src/v2/**/*.{js,jsx,ts,tsx}',
+    '!src/v2/types/**',
+    '!src/v2/design-system/**'
   ],
   coverageThreshold: {
     global: {

@@ -1,0 +1,91 @@
+<h2>Section 1 — Component Architecture (updated)</h2>
+<p class="subtitle">Three Zustand stores: call state, UI state, and interaction state.</p>
+
+<div class="section">
+  <div class="label">New Directory Layout</div>
+  <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:8px;padding:20px;font-family:monospace;font-size:11px;line-height:1.8;color:#555;">
+    <div><span style="color:#333;">src/</span></div>
+    <div style="padding-left:16px;"><span style="color:#22c55e;">v2/</span></div>
+    <div style="padding-left:32px;"><span style="color:#60a5fa;">design-system/</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">tokens.ts</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">index.css</span></div>
+    <div style="padding-left:32px;"><span style="color:#60a5fa;">store/</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">useCallStore.ts</span> <span style="color:#333;">← peers, media, connections</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">useUIStore.ts</span> <span style="color:#333;">← panels, modals, layout</span></div>
+    <div style="padding-left:48px;"><span style="color:#f59e0b;">useInteractionStore.ts</span> <span style="color:#333;">← reactions, hands, polls ← NEW</span></div>
+    <div style="padding-left:32px;"><span style="color:#60a5fa;">pages/</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">HomeV2.tsx</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">RoomV2.tsx</span></div>
+    <div style="padding-left:32px;"><span style="color:#60a5fa;">call/</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">PeerManager.tsx</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">MediaController.tsx</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">SpotlightView.tsx</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">ThumbnailStrip.tsx</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">ControlBar.tsx</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">ChatPanel.tsx</span></div>
+    <div style="padding-left:32px;"><span style="color:#60a5fa;">ui/</span></div>
+    <div style="padding-left:48px;"><span style="color:#888;">Button.tsx, Avatar.tsx, VideoTile.tsx, Badge.tsx</span></div>
+    <div style="padding-left:16px;"><span style="color:#333;">components/ ← existing, untouched</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Three Zustand Stores</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+    <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:6px;padding:14px;">
+      <div style="color:#60a5fa;font-size:10px;font-weight:600;margin-bottom:8px;">useCallStore</div>
+      <div style="font-size:10px;line-height:1.7;color:#555;font-family:monospace;">
+        <div>peers: Peer[]</div>
+        <div>localStream: MediaStream</div>
+        <div>spotlightPeerId: string</div>
+        <div>connectionStates: Map</div>
+        <div>isMuted: boolean</div>
+        <div>isCamOff: boolean</div>
+      </div>
+    </div>
+    <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:6px;padding:14px;">
+      <div style="color:#a78bfa;font-size:10px;font-weight:600;margin-bottom:8px;">useUIStore</div>
+      <div style="font-size:10px;line-height:1.7;color:#555;font-family:monospace;">
+        <div>isChatOpen: boolean</div>
+        <div>isParticipantsOpen: boolean</div>
+        <div>activeModal: string | null</div>
+        <div>toasts: Toast[]</div>
+        <div>layout: 'spotlight' | 'grid'</div>
+      </div>
+    </div>
+    <div style="background:#0d0d0d;border:1px solid #f59e0b33;border-radius:6px;padding:14px;">
+      <div style="color:#f59e0b;font-size:10px;font-weight:600;margin-bottom:8px;">useInteractionStore ✦</div>
+      <div style="font-size:10px;line-height:1.7;color:#555;font-family:monospace;">
+        <div>activeSpeaker: string</div>
+        <div>raisedHands: string[]</div>
+        <div>reactions: Reaction[]</div>
+        <div>activePoll: Poll | null</div>
+        <div>pollResponses: Map</div>
+        <div>typingPeers: string[]</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">How the stores connect</div>
+  <div style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:8px;padding:16px;font-size:10px;line-height:1.9;color:#555;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <span style="color:#60a5fa;font-family:monospace;">useCallStore</span>
+      <span style="color:#333;">→ drives</span>
+      <span style="color:#888;">SpotlightView, ThumbnailStrip, ControlBar</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <span style="color:#a78bfa;font-family:monospace;">useUIStore</span>
+      <span style="color:#333;">→ drives</span>
+      <span style="color:#888;">ChatPanel open/close, layout switching, modals</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="color:#f59e0b;font-family:monospace;">useInteractionStore</span>
+      <span style="color:#333;">→ drives</span>
+      <span style="color:#888;">reaction overlays on VideoTile, raised hand badges, poll UI, typing dots in chat</span>
+    </div>
+  </div>
+</div>
+
+<p style="color:#555;font-size:11px;text-align:center;margin-top:8px;">Does this cover the interaction map? Anything missing from useInteractionStore?</p>
