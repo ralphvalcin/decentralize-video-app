@@ -91,6 +91,16 @@ export function WhiteboardModal({ onStroke, onClear, onClose, canDraw, onGrant, 
     }
   }
 
+  function getTouchPoint(e: React.TouchEvent<HTMLCanvasElement>): StrokePoint {
+    const canvas = canvasRef.current!
+    const rect = canvas.getBoundingClientRect()
+    const touch = e.touches[0]
+    return {
+      x: (touch.clientX - rect.left) / (canvas.width || 1),
+      y: (touch.clientY - rect.top) / (canvas.height || 1),
+    }
+  }
+
   function handleMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
     if (!canDraw) return
     isDrawingRef.current = true
@@ -178,6 +188,34 @@ export function WhiteboardModal({ onStroke, onClear, onClose, canDraw, onGrant, 
         onMouseMove={handleMouseMove}
         onMouseUp={finalizeStroke}
         onMouseLeave={finalizeStroke}
+        onTouchStart={(e) => {
+          e.preventDefault()
+          if (!canDraw) return
+          isDrawingRef.current = true
+          currentPointsRef.current = [getTouchPoint(e)]
+        }}
+        onTouchMove={(e) => {
+          e.preventDefault()
+          if (!isDrawingRef.current || !canDraw) return
+          currentPointsRef.current.push(getTouchPoint(e))
+          const canvas = canvasRef.current
+          if (!canvas) return
+          const ctx = canvas.getContext('2d')
+          if (!ctx) return
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
+          for (const stroke of strokes) {
+            drawStroke(ctx, stroke, canvas.width, canvas.height)
+          }
+          drawStroke(ctx, {
+            id: '__preview',
+            tool: currentTool,
+            color: currentColor,
+            width: currentTool === 'eraser' ? 20 : 3,
+            points: currentPointsRef.current,
+            drawerId: '__local',
+          }, canvas.width, canvas.height)
+        }}
+        onTouchEnd={() => finalizeStroke()}
       />
 
       <div className="shrink-0 border-t border-[var(--border-subtle)]">

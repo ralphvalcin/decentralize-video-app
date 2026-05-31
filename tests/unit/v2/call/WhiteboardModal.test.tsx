@@ -128,3 +128,28 @@ test('hides participant dropdown when isHost is false', () => {
   render(<WhiteboardModal {...defaultProps} />)
   expect(screen.queryByTestId('participant-dropdown')).not.toBeInTheDocument()
 })
+
+test('calls onStroke after touchstart → touchmove → touchend sequence', () => {
+  render(<WhiteboardModal {...defaultProps} canDraw={true} />)
+  const canvas = screen.getByTestId('whiteboard-canvas')
+
+  fireEvent.touchStart(canvas, { touches: [{ clientX: 10, clientY: 10 }] })
+  fireEvent.touchMove(canvas, { touches: [{ clientX: 20, clientY: 20 }] })
+  fireEvent.touchEnd(canvas, { touches: [] })
+
+  expect(defaultProps.onStroke).toHaveBeenCalledTimes(1)
+  const stroke = defaultProps.onStroke.mock.calls[0][0]
+  expect(stroke.points.length).toBeGreaterThanOrEqual(2)
+  expect(stroke.tool).toBe('pen')
+})
+
+test('does not call onStroke on touch when canDraw is false', () => {
+  render(<WhiteboardModal {...defaultProps} canDraw={false} />)
+  const canvas = screen.getByTestId('whiteboard-canvas')
+
+  fireEvent.touchStart(canvas, { touches: [{ clientX: 10, clientY: 10 }] })
+  fireEvent.touchMove(canvas, { touches: [{ clientX: 20, clientY: 20 }] })
+  fireEvent.touchEnd(canvas, { touches: [] })
+
+  expect(defaultProps.onStroke).not.toHaveBeenCalled()
+})
