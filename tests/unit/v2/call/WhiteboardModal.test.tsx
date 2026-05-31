@@ -1,15 +1,27 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { WhiteboardModal } from '../../../../src/v2/call/WhiteboardModal'
 import { useWhiteboardStore } from '../../../../src/v2/store/useWhiteboardStore'
+import { useCallStore } from '../../../../src/v2/store/useCallStore'
 
 jest.mock('../../../../src/v2/call/ThumbnailStrip', () => ({
   ThumbnailStrip: () => <div data-testid="thumbnail-strip" />,
+}))
+
+jest.mock('../../../../src/v2/call/WhiteboardParticipantDropdown', () => ({
+  WhiteboardParticipantDropdown: ({ onGrant, onRevoke }: { onGrant: (id: string) => void; onRevoke: (id: string) => void }) => (
+    <div data-testid="participant-dropdown">
+      <button data-testid="mock-grant" onClick={() => onGrant('peer-x')}>Grant</button>
+      <button data-testid="mock-revoke" onClick={() => onRevoke('peer-x')}>Revoke</button>
+    </div>
+  ),
 }))
 
 const defaultProps = {
   onStroke: jest.fn(),
   onClear: jest.fn(),
   onClose: jest.fn(),
+  onGrant: jest.fn(),
+  onRevoke: jest.fn(),
   canDraw: true,
 }
 
@@ -26,6 +38,7 @@ beforeEach(() => {
     })
   }
   useWhiteboardStore.setState({ strokes: [], grantedPeerIds: new Set(), currentTool: 'pen', currentColor: '#222222' })
+  useCallStore.setState({ socketId: 'local-socket', isHost: false, userName: 'User', localStream: null, isMuted: false, isCamOff: false, isNoiseSuppressed: true, screenSharePeerId: null, mediaError: null })
   HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
     clearRect: jest.fn(),
     beginPath: jest.fn(),
@@ -103,4 +116,15 @@ test('does not call onStroke when canDraw is false', () => {
   fireEvent.mouseUp(canvas)
 
   expect(defaultProps.onStroke).not.toHaveBeenCalled()
+})
+
+test('shows participant dropdown when isHost is true', () => {
+  useCallStore.setState({ socketId: 'host-id', isHost: true, userName: 'Host', localStream: null, isMuted: false, isCamOff: false, isNoiseSuppressed: true, screenSharePeerId: null, mediaError: null })
+  render(<WhiteboardModal {...defaultProps} />)
+  expect(screen.getByTestId('participant-dropdown')).toBeInTheDocument()
+})
+
+test('hides participant dropdown when isHost is false', () => {
+  render(<WhiteboardModal {...defaultProps} />)
+  expect(screen.queryByTestId('participant-dropdown')).not.toBeInTheDocument()
 })

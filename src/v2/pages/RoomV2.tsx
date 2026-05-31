@@ -114,6 +114,14 @@ export default function RoomV2() {
             useWhiteboardStore.getState().clearStrokes()
             peerManagerRef.current?.broadcastWhiteboardClear()
           }}
+          onGrant={(peerId) => {
+            useWhiteboardStore.getState().grantDrawing(peerId)
+            peerManagerRef.current?.broadcastWhiteboardGrant(peerId)
+          }}
+          onRevoke={(peerId) => {
+            useWhiteboardStore.getState().revokeDrawing(peerId)
+            peerManagerRef.current?.broadcastWhiteboardRevoke(peerId)
+          }}
         />
       )}
     </div>

@@ -3,6 +3,7 @@ import { useWhiteboardStore } from '../store/useWhiteboardStore'
 import { useCallStore } from '../store/useCallStore'
 import { WhiteboardToolbar } from './WhiteboardToolbar'
 import { ThumbnailStrip } from './ThumbnailStrip'
+import { WhiteboardParticipantDropdown } from './WhiteboardParticipantDropdown'
 import type { Stroke, StrokePoint } from '../types'
 
 interface WhiteboardModalProps {
@@ -10,6 +11,8 @@ interface WhiteboardModalProps {
   onClear: () => void
   onClose: () => void
   canDraw: boolean
+  onGrant: (peerId: string) => void
+  onRevoke: (peerId: string) => void
 }
 
 function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, w: number, h: number) {
@@ -35,12 +38,13 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, w: number, h:
   ctx.restore()
 }
 
-export function WhiteboardModal({ onStroke, onClear, onClose, canDraw }: WhiteboardModalProps) {
+export function WhiteboardModal({ onStroke, onClear, onClose, canDraw, onGrant, onRevoke }: WhiteboardModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const isDrawingRef = useRef(false)
   const currentPointsRef = useRef<StrokePoint[]>([])
 
   const socketId = useCallStore((s) => s.socketId)
+  const isHost = useCallStore((s) => s.isHost)
   const strokes = useWhiteboardStore((s) => s.strokes)
   const currentTool = useWhiteboardStore((s) => s.currentTool)
   const currentColor = useWhiteboardStore((s) => s.currentColor)
@@ -142,14 +146,17 @@ export function WhiteboardModal({ onStroke, onClear, onClose, canDraw }: Whitebo
             </span>
           )}
         </div>
-        <button
-          data-testid="btn-whiteboard-close"
-          aria-label="Close whiteboard"
-          onClick={onClose}
-          className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-1.5 rounded hover:bg-[var(--surface-hover)] transition-colors"
-        >
-          ↩ Exit
-        </button>
+        <div className="flex items-center gap-2">
+          {isHost && <WhiteboardParticipantDropdown onGrant={onGrant} onRevoke={onRevoke} />}
+          <button
+            data-testid="btn-whiteboard-close"
+            aria-label="Close whiteboard"
+            onClick={onClose}
+            className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-1.5 rounded hover:bg-[var(--surface-hover)] transition-colors"
+          >
+            ↩ Exit
+          </button>
+        </div>
       </div>
 
       {canDraw && (
