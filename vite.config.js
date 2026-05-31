@@ -8,7 +8,8 @@ export default defineConfig({
     'process.env': {
       NODE_ENV: JSON.stringify(process.env.NODE_ENV),
       VITE_INFURA_PROJECT_ID: JSON.stringify(process.env.VITE_INFURA_PROJECT_ID),
-      VITE_INFURA_API_SECRET: JSON.stringify(process.env.VITE_INFURA_API_SECRET)
+      VITE_INFURA_API_SECRET: JSON.stringify(process.env.VITE_INFURA_API_SECRET),
+      VITE_SIGNALING_SERVER_URL: JSON.stringify(process.env.VITE_SIGNALING_SERVER_URL)
     }
   },
   resolve: {
