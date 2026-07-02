@@ -21,6 +21,8 @@ export interface PeerManagerHandle {
   sendMessage: (text: string) => void
   sendReaction: (emoji: string) => void
   votePoll: (pollId: string, optionIndex: number) => void
+  raiseHand: () => void
+  lowerHand: () => void
   submitQuestion: (text: string) => void
   voteQuestion: (questionId: string) => void
   answerQuestion: (questionId: string, answer: string) => void
@@ -86,6 +88,12 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
     },
     votePoll: (pollId, optionIndex) => {
       socketRef.current?.emit('vote-poll', { pollId, optionIndex })
+    },
+    raiseHand: () => {
+      socketRef.current?.emit('raise-hand')
+    },
+    lowerHand: () => {
+      socketRef.current?.emit('lower-hand')
     },
     submitQuestion: (text) => {
       socketRef.current?.emit('submit-question', { text })
@@ -287,6 +295,22 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
     socket.on('polls-history', (polls: Poll[]) => {
       const active = polls.findLast((p) => p.isActive) ?? null
       setActivePoll(active)
+    })
+
+    socket.on('hand-raised', ({ userId, timestamp }: { userId: string; userName: string; timestamp: number }) => {
+      if (userId === socket.id) {
+        useCallStore.getState().setHandRaised(true)
+      } else {
+        patchPeer(userId, { hasRaisedHand: true, handRaisedAt: timestamp })
+      }
+    })
+
+    socket.on('hand-lowered', ({ userId }: { userId: string }) => {
+      if (userId === socket.id) {
+        useCallStore.getState().setHandRaised(false)
+      } else {
+        patchPeer(userId, { hasRaisedHand: false, handRaisedAt: null })
+      }
     })
 
     socket.on('new-question', (q: Question) => {

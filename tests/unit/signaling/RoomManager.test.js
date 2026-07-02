@@ -106,3 +106,34 @@ test('recordQuestionAnswer returns null for unknown question', () => {
   rm.initializeRoom('r1')
   expect(rm.recordQuestionAnswer('r1', 'nope', 'A', 'Alice')).toBeNull()
 })
+
+// addRaisedHand / removeRaisedHand
+test('addRaisedHand stores a hand and returns it', () => {
+  rm.initializeRoom('r1')
+  const hand = { userId: 'socket-1', userName: 'Alice', timestamp: 111 }
+  expect(rm.addRaisedHand('r1', hand)).toEqual(hand)
+  expect(rm.getRoomData('r1').raisedHands).toHaveLength(1)
+})
+
+test('addRaisedHand is idempotent per user (no duplicate hands)', () => {
+  rm.initializeRoom('r1')
+  rm.addRaisedHand('r1', { userId: 'socket-1', userName: 'Alice', timestamp: 111 })
+  const second = rm.addRaisedHand('r1', { userId: 'socket-1', userName: 'Alice', timestamp: 222 })
+  expect(second).toBeNull()
+  expect(rm.getRoomData('r1').raisedHands).toHaveLength(1)
+})
+
+test('removeRaisedHand removes the matching user and returns true', () => {
+  rm.initializeRoom('r1')
+  rm.addRaisedHand('r1', { userId: 'socket-1', userName: 'Alice', timestamp: 111 })
+  rm.addRaisedHand('r1', { userId: 'socket-2', userName: 'Bob', timestamp: 222 })
+  expect(rm.removeRaisedHand('r1', 'socket-1')).toBe(true)
+  const hands = rm.getRoomData('r1').raisedHands
+  expect(hands).toHaveLength(1)
+  expect(hands[0].userId).toBe('socket-2')
+})
+
+test('removeRaisedHand returns false when the user has no raised hand', () => {
+  rm.initializeRoom('r1')
+  expect(rm.removeRaisedHand('r1', 'ghost')).toBe(false)
+})

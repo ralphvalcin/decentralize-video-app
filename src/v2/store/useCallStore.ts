@@ -6,6 +6,7 @@ interface CallStore {
   isMuted: boolean
   isCamOff: boolean
   isNoiseSuppressed: boolean
+  hasRaisedHand: boolean
   isHost: boolean
   userName: string
   socketId: string | null
@@ -15,6 +16,7 @@ interface CallStore {
   setMuted: (value: boolean) => void
   setCamOff: (value: boolean) => void
   toggleNoiseSuppression: () => void
+  setHandRaised: (value: boolean) => void
   setIsHost: (value: boolean) => void
   setUserName: (name: string) => void
   setSocketId: (id: string | null) => void
@@ -28,6 +30,7 @@ export const useCallStore = create<CallStore>((set) => ({
   isMuted: false,
   isCamOff: false,
   isNoiseSuppressed: true,
+  hasRaisedHand: false,
   isHost: false,
   userName: '',
   socketId: null,
@@ -37,6 +40,7 @@ export const useCallStore = create<CallStore>((set) => ({
   setMuted: (value) => set({ isMuted: value }),
   setCamOff: (value) => set({ isCamOff: value }),
   toggleNoiseSuppression: () => set((s) => ({ isNoiseSuppressed: !s.isNoiseSuppressed })),
+  setHandRaised: (value) => set({ hasRaisedHand: value }),
   setIsHost: (value) => set({ isHost: value }),
   setUserName: (name) => set({ userName: name }),
   setSocketId: (id) => set({ socketId: id }),
@@ -44,6 +48,6 @@ export const useCallStore = create<CallStore>((set) => ({
   setMediaError: (err) => set({ mediaError: err }),
   reset: () => {
     useWhiteboardStore.getState().reset()
-    set({ isMuted: false, isCamOff: false, mediaError: null, isNoiseSuppressed: true, socketId: null })
+    set({ isMuted: false, isCamOff: false, mediaError: null, isNoiseSuppressed: true, socketId: null, hasRaisedHand: false })
   },
 }))

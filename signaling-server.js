@@ -1375,34 +1375,42 @@ io.on('connection', (socket) => {
 
   // Handle raise hand
   socket.on('raise-hand', () => {
+    if (!rateLimiter.checkLimit(socket.id, 'raise-hand', 10)) {
+      socket.emit('error', { message: 'Rate limit exceeded' });
+      return;
+    }
+
     const user = users[socket.id];
     if (user && user.roomId) {
-      // const existingHandIndex = roomRaisedHands[user.roomId].findIndex(h => h.userId === socket.id); // TODO: Fix room data management
-      
-      // if (existingHandIndex === -1) { // TODO: Fix room data management
-        // Add raised hand
-        // const hand = {
-        //   userId: socket.id,
-        //   userName: user.name,
-        //   timestamp: Date.now()
-        // };
-        // roomRaisedHands[user.roomId].push(hand); // TODO: Fix room data management
-        // io.to(user.roomId).emit('hand-raised', hand);
-      // } // TODO: Fix room data management
+      const hand = {
+        userId: socket.id,
+        userName: user.name,
+        timestamp: Date.now()
+      };
+      const added = roomManager.addRaisedHand(user.roomId, hand)
+      if (added) io.to(user.roomId).emit('hand-raised', hand);
     }
   });
 
   socket.on('lower-hand', () => {
+    if (!rateLimiter.checkLimit(socket.id, 'lower-hand', 10)) {
+      socket.emit('error', { message: 'Rate limit exceeded' });
+      return;
+    }
+
     const user = users[socket.id];
     if (user && user.roomId) {
-      // roomRaisedHands[user.roomId] = roomRaisedHands[user.roomId].filter(h => h.userId !== handData.userId); // TODO: Fix room data management
-      // io.to(user.roomId).emit('hand-lowered', { userId: handData.userId }); // TODO: Fix room data management
+      const removed = roomManager.removeRaisedHand(user.roomId, socket.id)
+      if (removed) io.to(user.roomId).emit('hand-lowered', { userId: socket.id });
     }
   });
 
   socket.on('user-leaving', () => {
     const user = users[socket.id];
     if (user && user.roomId) {
+      if (roomManager.removeRaisedHand(user.roomId, socket.id)) {
+        socket.broadcast.to(user.roomId).emit('hand-lowered', { userId: socket.id });
+      }
       // Notify other users in the room
       socket.broadcast.to(user.roomId).emit('user-left', socket.id);
     }
@@ -1420,6 +1428,9 @@ io.on('connection', (socket) => {
     try {
       const user = users[socket.id];
       if (user && user.roomId) {
+        if (roomManager.removeRaisedHand(user.roomId, socket.id)) {
+          socket.broadcast.to(user.roomId).emit('hand-lowered', { userId: socket.id });
+        }
         // Notify other users in the room
         socket.broadcast.to(user.roomId).emit('user-left', socket.id);
         console.log(`👤 User ${user.name} left room ${user.roomId}`);

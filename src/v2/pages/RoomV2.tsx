@@ -69,6 +69,9 @@ export default function RoomV2() {
           </div>
           <ControlBar
             onEndCall={() => { resetCall(); navigate('/') }}
+            onToggleHand={(raised) =>
+              raised ? peerManagerRef.current?.raiseHand() : peerManagerRef.current?.lowerHand()
+            }
             onSendReaction={(emoji) => peerManagerRef.current?.sendReaction(emoji)}
             onStartRecording={() => {
               setRecordingState('recording')

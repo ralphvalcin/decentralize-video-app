@@ -8,6 +8,7 @@ import { Button } from '../ui/Button'
 
 interface ControlBarProps {
   onEndCall: () => void
+  onToggleHand?: (raised: boolean) => void
   onSendReaction?: (emoji: string) => void
   onStartRecording?: () => void
   onStopRecording?: () => void
@@ -16,7 +17,7 @@ interface ControlBarProps {
 const REACTIONS = ['👍', '❤️', '😂', '😮', '👏']
 const HIDE_AFTER_MS = 3000
 
-export function ControlBar({ onEndCall, onSendReaction, onStartRecording, onStopRecording }: ControlBarProps) {
+export function ControlBar({ onEndCall, onToggleHand, onSendReaction, onStartRecording, onStopRecording }: ControlBarProps) {
   const isMuted = useCallStore((s) => s.isMuted)
   const isCamOff = useCallStore((s) => s.isCamOff)
   const setMuted = useCallStore((s) => s.setMuted)
@@ -35,6 +36,7 @@ export function ControlBar({ onEndCall, onSendReaction, onStartRecording, onStop
   const toggleCaptions = useUIStore((s) => s.toggleCaptions)
   const isWhiteboardOpen = useUIStore((s) => s.isWhiteboardOpen)
   const toggleWhiteboard = useUIStore((s) => s.toggleWhiteboard)
+  const hasRaisedHand = useCallStore((s) => s.hasRaisedHand)
   const isCaptionsLoading = useTranscriptionStore((s) => s.isLoading)
   const isHost = useCallStore((s) => s.isHost)
   const recordingState = useSessionStore((s) => s.recordingState)
@@ -163,6 +165,15 @@ export function ControlBar({ onEndCall, onSendReaction, onStartRecording, onStop
             aria-label="Captions"
           >
             {isCaptionsLoading ? 'CC …' : isCaptionsOpen ? 'CC ✓' : 'CC'}
+          </Button>
+
+          <Button
+            data-testid="btn-raise-hand"
+            variant={hasRaisedHand ? 'primary' : 'ghost'}
+            onClick={() => onToggleHand?.(!hasRaisedHand)}
+            aria-label={hasRaisedHand ? 'Lower Hand' : 'Raise Hand'}
+          >
+            ✋
           </Button>
 
           <Button
