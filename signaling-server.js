@@ -24,7 +24,7 @@ const config = {
   })(),
   SIGNALING_ENCRYPTION_KEY: process.env.SIGNALING_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex'),
   PORT: parseInt(process.env.PORT) || 5001,
-  FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:5173",
+  FRONTEND_URL: process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? 'https://decentralized-video-app.vercel.app' : 'http://localhost:5173'),
   NODE_ENV: process.env.NODE_ENV || 'development',
   
   // Performance Limits
@@ -338,10 +338,15 @@ validateTURNConfig();
 
 // Create HTTP server for health checks and metrics
 const server = http.createServer((req, res) => {
-  // Enable CORS for metrics endpoints
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  // Enable CORS for metrics endpoints — wrapped to prevent crash from malformed requests
+  try {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  } catch (e) {
+    console.error('CORS header error:', e.message);
+    // Continue without CORS headers rather than crashing
+  }
   
   if (req.method === 'OPTIONS') {
     res.writeHead(200);
@@ -437,7 +442,9 @@ const server = http.createServer((req, res) => {
 
 const io = new Server(server, {
   cors: { 
-    origin: config.NODE_ENV === 'production' ? config.FRONTEND_URL : "http://localhost:5173",
+    origin: config.NODE_ENV === 'production'
+      ? [config.FRONTEND_URL, 'https://decentralized-video-app.vercel.app']
+      : ['http://localhost:5173', 'http://127.0.0.1:5173'],
     methods: ["GET", "POST"],
     credentials: true
   },

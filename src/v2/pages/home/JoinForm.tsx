@@ -10,19 +10,28 @@ function generateRoomId(): string {
 export function JoinForm() {
   const [name, setName] = useState('')
   const [roomId, setRoomId] = useState('')
+  const [copied, setCopied] = useState(false)
   const navigate = useNavigate()
   const setUserName = useCallStore((s) => s.setUserName)
 
-  function handleCreate() {
+  async function handleCreate() {
     const id = roomId.trim() || generateRoomId()
     setUserName(name.trim())
     navigate(`/room/${id}`)
   }
 
-  function handleJoin() {
+  async function handleJoin() {
     const id = roomId.trim()
     setUserName(name.trim())
     navigate(`/room/${id}`)
+  }
+
+  async function handleCopyRoomId() {
+    const id = roomId.trim() || generateRoomId()
+    if (!roomId.trim()) setRoomId(id)
+    await navigator.clipboard.writeText(id)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   return (
@@ -59,13 +68,28 @@ export function JoinForm() {
           <label className="text-[var(--text-muted)] text-[10px] uppercase tracking-widest">
             Room ID
           </label>
-          <input
-            type="text"
-            value={roomId}
-            onChange={(e) => setRoomId(e.target.value)}
-            placeholder="Room ID"
-            className="bg-[var(--surface-raised)] border border-[var(--border-default)] rounded-[8px] px-3.5 py-3 text-[var(--text-primary)] text-sm outline-none focus:border-[var(--border-default)] transition-colors placeholder:text-[var(--text-muted)]"
-          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={roomId}
+              onChange={(e) => setRoomId(e.target.value)}
+              placeholder="Room ID (leave empty to auto-generate)"
+              className="flex-1 bg-[var(--surface-raised)] border border-[var(--border-default)] rounded-[8px] px-3.5 py-3 text-[var(--text-primary)] text-sm outline-none focus:border-[var(--border-strong)] transition-colors placeholder:text-[var(--text-muted)]"
+            />
+            <Button
+              variant="ghost"
+              onClick={handleCopyRoomId}
+              className="shrink-0 rounded-[8px] px-3"
+              title={copied ? 'Copied!' : 'Copy room ID'}
+            >
+              {copied ? '✓' : '📋'}
+            </Button>
+          </div>
+          {roomId.trim() && (
+            <p className="text-[var(--text-muted)] text-xs">
+              Share this Room ID with others so they can join your call.
+            </p>
+          )}
         </div>
 
         <div className="flex gap-2 mt-1">

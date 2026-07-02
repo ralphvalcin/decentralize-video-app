@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useCallStore } from '../store/useCallStore'
 import { useUIStore } from '../store/useUIStore'
@@ -38,6 +38,14 @@ export default function RoomV2() {
   const grantedPeerIds = useWhiteboardStore((s) => s.grantedPeerIds)
   const canDraw = isHost || grantedPeerIds.has(socketId ?? '')
   const setRecordingState = useSessionStore((s) => s.setRecordingState)
+  const [linkCopied, setLinkCopied] = useState(false)
+
+  const handleCopyLink = async () => {
+    const url = `${window.location.origin}/room/${roomId}`
+    await navigator.clipboard.writeText(url)
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2000)
+  }
 
   useEffect(() => {
     if (!userName) navigate(`/?redirect=/room/${roomId}`)
@@ -56,6 +64,12 @@ export default function RoomV2() {
           <span className="w-2 h-2 rounded-full bg-[var(--accent-live)] shadow-[0_0_6px_var(--accent-live)]" />
           <span className="text-[var(--text-primary)] text-sm font-semibold">{roomId}</span>
         </div>
+        <button
+          onClick={handleCopyLink}
+          className="text-xs px-3 py-1.5 rounded-[6px] border border-[var(--border-default)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors"
+        >
+          {linkCopied ? '✓ Link copied!' : '📋 Copy invite link'}
+        </button>
       </div>
 
       <div className="flex flex-1 min-h-0">
