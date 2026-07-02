@@ -12,6 +12,11 @@ env.backends.onnx.wasm.wasmPaths = {
   wasm: new URL(ortWasmUrl, self.location.origin).href,
   mjs: new URL(ortMjsUrl, self.location.origin).href,
 }
+// Run ORT inline in this worker (single-threaded, no proxy) so it does not
+// spawn a blob: sub-worker — that sub-worker would otherwise require
+// cross-origin isolation (COOP/COEP) and blob: in script-src.
+env.backends.onnx.wasm.numThreads = 1
+env.backends.onnx.wasm.proxy = false
 
 type ASRPipeline = Awaited<ReturnType<typeof pipeline<'automatic-speech-recognition'>>>
 
@@ -22,7 +27,11 @@ let transcriber: ASRPipeline | null = null
 
   if (type === 'init') {
     try {
-      transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny')
+      // dtype fp32: the default quantized weights use MatMulNBits, which the
+      // pinned onnxruntime-web build can't load ('Missing required scale').
+      transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny', {
+        dtype: 'fp32',
+      })
       self.postMessage({ type: 'ready' })
     } catch (err) {
       self.postMessage({ type: 'error', speakerId: null, error: String(err) })
