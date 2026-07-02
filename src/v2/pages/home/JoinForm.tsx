@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../../ui/Button'
 import { useCallStore } from '../../store/useCallStore'
 
@@ -11,8 +11,20 @@ export function JoinForm() {
   const [name, setName] = useState('')
   const [roomId, setRoomId] = useState('')
   const [copied, setCopied] = useState(false)
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const setUserName = useCallStore((s) => s.setUserName)
+
+  // Pre-fill room ID from invite link redirect parameter
+  useEffect(() => {
+    const redirect = searchParams.get('redirect')
+    if (redirect) {
+      const match = redirect.match(/\/room\/(.+)/)
+      if (match) {
+        setRoomId(match[1])
+      }
+    }
+  }, [searchParams])
 
   async function handleCreate() {
     const id = roomId.trim() || generateRoomId()
