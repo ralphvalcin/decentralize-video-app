@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import path from 'path'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
@@ -13,10 +14,16 @@ export default defineConfig({
     }
   },
   resolve: {
-    alias: {
-      'simple-peer': 'simple-peer/simplepeer.min.js',
-      'buffer': 'buffer'
-    }
+    alias: [
+      { find: 'simple-peer', replacement: 'simple-peer/simplepeer.min.js' },
+      { find: 'buffer', replacement: 'buffer' },
+      // onnxruntime-web's exports map hides dist/*; these let the
+      // transcription worker ?url-import the WASM runtime so it is
+      // served same-origin instead of transformers.js's jsdelivr default
+      // (which the production CSP blocks)
+      { find: /^@ort-asyncify-wasm/, replacement: path.resolve(__dirname, 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.wasm') },
+      { find: /^@ort-asyncify-mjs/, replacement: path.resolve(__dirname, 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.mjs') }
+    ]
   },
   optimizeDeps: {
     include: ['simple-peer', 'buffer']

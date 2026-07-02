@@ -1,4 +1,17 @@
-import { pipeline } from '@huggingface/transformers'
+import { env, pipeline } from '@huggingface/transformers'
+// Self-host the ONNX runtime WASM: without an explicit wasmPaths,
+// transformers.js falls back to cdn.jsdelivr.net, which the production
+// CSP (script/connect limited to 'self' + model hosts) blocks.
+// Vite's ?url imports emit these as hashed same-origin assets.
+// @ts-expect-error Vite ?url asset import (aliased in vite.config.js)
+import ortWasmUrl from '@ort-asyncify-wasm?url'
+// @ts-expect-error Vite ?url asset import (aliased in vite.config.js)
+import ortMjsUrl from '@ort-asyncify-mjs?url'
+
+env.backends.onnx.wasm.wasmPaths = {
+  wasm: new URL(ortWasmUrl, self.location.origin).href,
+  mjs: new URL(ortMjsUrl, self.location.origin).href,
+}
 
 type ASRPipeline = Awaited<ReturnType<typeof pipeline<'automatic-speech-recognition'>>>
 
