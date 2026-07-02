@@ -56,6 +56,7 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
   const reactionTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const iceServersRef = useRef<RTCIceServer[]>(ICE_SERVERS)
   const cryptoKeyRef = useRef<CryptoKey | null>(null)
+  const pendingPeersRef = useRef<Array<{ id: string; name: string; role: 'host' | 'guest'; signal?: unknown; callerID?: string }>>([])
   const userName = useCallStore((s) => s.userName)
   const localStream = useCallStore((s) => s.localStream)
   const setPeer = usePeerStore((s) => s.setPeer)
@@ -138,40 +139,77 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
     },
   }), [])
 
-  // If localStream arrives after peers are already connected (race: signaling faster than getUserMedia),
-  // add tracks to each live connection so the remote side receives our media.
+  // Shared helpers — defined at component level so both effects can use them
+  const destroyPeerConn = (id: string) => {
+    const conn = peerConnsRef.current.get(id)
+    if (conn && !conn.peer.destroyed) conn.peer.destroy()
+    peerConnsRef.current.delete(id)
+  }
+
+  const wirePeerEvents = (peer: InstanceType<typeof Peer>, peerId: string) => {
+    peer.on('connect', () => {
+      patchPeer(peerId, { connectionState: 'connected' })
+    })
+    peer.on('stream', (remoteStream: MediaStream) => {
+      patchPeer(peerId, { stream: remoteStream, connectionState: 'connected', videoEnabled: true })
+    })
+    peer.on('close', () => {
+      patchPeer(peerId, { connectionState: 'disconnected', stream: null })
+      destroyPeerConn(peerId)
+    })
+    peer.on('error', (err: Error) => {
+      console.error('[PeerManager] peer error:', peerId, err?.message)
+      patchPeer(peerId, { connectionState: 'failed', stream: null })
+      destroyPeerConn(peerId)
+    })
+  }
+
+  // If localStream arrives after peers are already queued, create connections now with media tracks.
   useEffect(() => {
     if (!localStream) return
-    peerConnsRef.current.forEach(({ peer }) => {
-      localStream.getTracks().forEach((track) => {
-        try { peer.addTrack(track, localStream) } catch (_) {}
-      })
-    })
+    const pending = pendingPeersRef.current.splice(0)
+    if (pending.length === 0) return
+    const socket = socketRef.current
+    if (!socket) return
+
+    for (const p of pending) {
+      // Skip if a peer already exists for this user (e.g., created by user-joined)
+      if (peerConnsRef.current.has(p.id)) continue
+
+      setPeer(p.id, makePeerRecord(p.id, p.name, p.role))
+      if (p.signal != null) {
+        // We received a user-joined with signal while stream was null — create answer peer
+        const peer = new Peer({
+          initiator: false,
+          trickle: false,
+          stream: localStream,
+          config: { iceServers: iceServersRef.current },
+        })
+        wirePeerEvents(peer, p.id)
+        peer.on('signal', (returnSignal) => {
+          socket.emit('returning-signal', { signal: returnSignal, callerID: p.callerID! })
+        })
+        peer.signal(p.signal as any)
+        peerConnsRef.current.set(p.id, { peer, name: p.name, role: p.role })
+      } else {
+        // Initiate connection to existing peer
+        const peer = new Peer({
+          initiator: true,
+          trickle: false,
+          stream: localStream,
+          config: { iceServers: iceServersRef.current },
+        })
+        wirePeerEvents(peer, p.id)
+        peer.on('signal', (signal) => {
+          socket.emit('sending-signal', { userToSignal: p.id, callerID: socket.id, signal })
+        })
+        peerConnsRef.current.set(p.id, { peer, name: p.name, role: p.role })
+      }
+    }
   }, [localStream])
 
   useEffect(() => {
     if (!roomId || !userName) return
-
-    function destroyPeerConn(id: string) {
-      const conn = peerConnsRef.current.get(id)
-      if (conn && !conn.peer.destroyed) conn.peer.destroy()
-      peerConnsRef.current.delete(id)
-    }
-
-    function wirePeerEvents(peer: InstanceType<typeof Peer>, peerId: string) {
-      peer.on('stream', (remoteStream: MediaStream) => {
-        patchPeer(peerId, { stream: remoteStream, connectionState: 'connected', videoEnabled: true })
-      })
-      peer.on('close', () => {
-        patchPeer(peerId, { connectionState: 'disconnected', stream: null })
-        destroyPeerConn(peerId)
-      })
-      peer.on('error', (err: Error) => {
-        console.error('[PeerManager] peer error:', peerId, err?.message)
-        patchPeer(peerId, { connectionState: 'failed', stream: null })
-        destroyPeerConn(peerId)
-      })
-    }
 
     const secret = process.env.VITE_CHAT_ENCRYPTION_SECRET ?? ''
     deriveKey(roomId, secret)
@@ -211,17 +249,22 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
     })
 
     socket.on('all-users', (users: Array<{ id: string; name: string; role?: string }>) => {
+      const stream = useCallStore.getState().localStream
       users.forEach((u) => {
         const role = (u.role as 'host' | 'guest') ?? 'guest'
         // On reconnect the server re-sends all-users; destroy any stale connection first
         // so we don't orphan a Peer with open data channels and listeners.
         if (peerConnsRef.current.has(u.id)) destroyPeerConn(u.id)
+        if (!stream) {
+          // Defer peer creation until localStream is ready so the offer includes media tracks
+          pendingPeersRef.current.push({ id: u.id, name: u.name, role })
+          return
+        }
         setPeer(u.id, makePeerRecord(u.id, u.name, role))
-        const stream = useCallStore.getState().localStream
         const peer = new Peer({
           initiator: true,
           trickle: false,
-          stream: stream ?? undefined,
+          stream,
           config: { iceServers: iceServersRef.current },
         })
         wirePeerEvents(peer, u.id)
@@ -237,10 +280,15 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
       setPeer(callerID, makePeerRecord(callerID, name, peerRole))
       if (!signal) return   // no signal = peer record only, no WebRTC yet
       const stream = useCallStore.getState().localStream
+      if (!stream) {
+        // Defer — the localStream effect will create the peer when the stream is ready
+        pendingPeersRef.current.push({ id: callerID, name, role: peerRole, signal, callerID })
+        return
+      }
       const peer = new Peer({
         initiator: false,
         trickle: false,
-        stream: stream ?? undefined,
+        stream,
         config: { iceServers: iceServersRef.current },
       })
       wirePeerEvents(peer, callerID)
@@ -407,6 +455,7 @@ export const PeerManager = forwardRef<PeerManagerHandle, PeerManagerProps>(({ ro
       socketRef.current?.disconnect()
       peerConnsRef.current.forEach((_, id) => destroyPeerConn(id))
       peerConnsRef.current.clear()
+      pendingPeersRef.current.length = 0
       socketRef.current = null
       reactionTimersRef.current.forEach(clearTimeout)
       reactionTimersRef.current.clear()
