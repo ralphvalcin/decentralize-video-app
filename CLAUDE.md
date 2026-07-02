@@ -65,51 +65,41 @@ Both the signaling server and frontend dev server must be running for the applic
 
 This is a decentralized video chat application built with React and WebRTC. The architecture follows a peer-to-peer model with a signaling server for initial connection establishment.
 
-### Core Components Architecture
+The live application is the **v2 app under `src/v2/`**. `src/App.jsx` routes exclusively to `src/v2/pages/HomeV2.tsx` (`/`) and `src/v2/pages/RoomV2.tsx` (`/room/:roomId`) via lazy-loaded routes, wrapped in `src/v2/ui/ErrorBoundary.tsx` and `src/v2/ui/PWAInstallPrompt.tsx`. The legacy top-level components tree (the old Room/VideoChat/VideoLayout/Chat .jsx files) no longer exists on disk — do not reference or try to edit it.
 
-**Room.jsx** (`src/components/Room.jsx`)
-- Main orchestrator for video calls and WebRTC peer connections
-- Manages Socket.io communication with signaling server
-- Handles media stream acquisition, peer management, and chat integration
-- Controls meeting state (mic/camera toggles, participants, layout switching)
-- Implements error handling and reconnection logic
-- Livestorm-inspired professional design with simplified UI
-- Integrated side-panel chat and enhanced user experience
+### Core Components Architecture (src/v2)
 
-**SessionHeader.jsx** (`src/components/SessionHeader.jsx`) [NEW]
-- Professional header replacing cluttered navigation
-- Clean, minimalist design inspired by enterprise video platforms
-- Centralized meeting controls and status indicators
+**Pages** (`src/v2/pages/`)
+- **HomeV2.tsx** — landing page: create/join room flow
+- **RoomV2.tsx** — the call page; composes the call components below
 
-**ShareModal.jsx** (`src/components/ShareModal.jsx`) [NEW]
-- Professional room sharing mechanism
-- QR code generation for quick room access
-- Clipboard link copying with visual feedback
+**Call orchestration** (`src/v2/call/`)
+- **PeerManager.tsx** — the WebRTC/Socket.io orchestrator: connects to the signaling server, manages simple-peer connections, and hosts the socket event listeners (chat, Q&A, polls, participants)
+- **MediaController.tsx** — local media acquisition and mic/camera state
+- **ControlBar.tsx** — in-call toolbar (mute, camera, screen share, whiteboard, panels)
+- **ChatPanel.tsx** — real-time messaging (E2E-encrypted via `src/v2/lib/chatCrypto.ts`)
+- **QAPanel.tsx** / **PollBanner.tsx** — questions with voting, and polls
+- **ParticipantsPanel.tsx** — roster with presence
+- **SpotlightView.tsx** / **ThumbnailStrip.tsx** — video layout (spotlight + thumbnails)
+- **RecordingController.tsx** (+ `src/v2/recording/RecordingManager.ts`) — client-side recording
+- **TranscriptionController.tsx** (+ `src/v2/audio/TranscriptionManager.ts`, `TranscriptionWorker.ts`) — in-browser Whisper transcription via ONNX Runtime web workers
+- **WhiteboardModal.tsx** / **WhiteboardController.tsx** / **WhiteboardToolbar.tsx** — collaborative whiteboard
+- **AISidePanel.tsx** — AI side panel
 
-**FeedbackModal.jsx** (`src/components/FeedbackModal.jsx`) [NEW]
-- Post-call feedback collection system
-- Structured feedback form with rating and comment sections
-- Seamless integration with session flow
+**State** (`src/v2/store/`, zustand)
+- **useCallStore.ts** — local media/user call state (mute, camera, raised hand, host)
+- **usePeerStore.ts** — remote peers and their streams
+- **useSessionStore.ts** — room/session metadata
+- **useTranscriptionStore.ts**, **useUIStore.ts**, **useWhiteboardStore.ts** — feature-scoped state
+- `src/stores/` (top-level, e.g. `roomStore.ts`) holds additional shared stores consumed by v2 components
 
-**ConnectionStatus.jsx** (`src/components/ConnectionStatus.jsx`) [NEW]
-- Real-time connection quality indicators
-- Detailed network and stream performance metrics
-- Proactive connection health notifications
+**UI primitives & design system**
+- `src/v2/ui/` — Button, Badge, Avatar, VideoTile, ErrorBoundary, PWAInstallPrompt
+- `src/v2/design-system/tokens.ts` (+ `index.css`) — design tokens
+- `src/v2/audio/NoiseProcessor.ts` — RNNoise WASM noise suppression
+- `src/v2/services/pwa.js` — PWA registration
 
-**VideoChat.jsx** (`src/components/VideoChat.jsx`)
-- Renders individual video streams with user info and connection status
-- Handles video element lifecycle and stream binding
-- Displays participant names and connection indicators
-
-**VideoLayout.jsx** (`src/components/VideoLayout.jsx`)
-- Advanced drag-and-drop video layout system using react-grid-layout
-- Multiple layout presets (Grid, Podcast, Spotlight)
-- Responsive design with customizable video positions
-
-**Chat.jsx** (`src/components/Chat.jsx`)
-- Real-time messaging with message history
-- Unread message indicators and notification system
-- Integrates with Socket.io for message persistence
+**Note on `src/utils/`**: the AI-performance files there (AdaptiveBitrate, MLAdaptiveBitrate, PeerOptimizer, PerformanceMonitor, MemoryResourceOptimizer, webrtcOptimizations, EventBus) are unused by the live v2 app and are slated for archival (see queue packet fp-dvideo-2). Do not build new features on them.
 
 ### Signaling Server (`signaling-server.js`)
 - WebRTC signaling server using Socket.io
@@ -151,9 +141,9 @@ This is a decentralized video chat application built with React and WebRTC. The 
   - FAILED
 
 **State Management:**
+- zustand stores (`src/v2/store/`, `src/stores/`) for global call/peer/session state
 - React hooks for local component state
 - Socket.io events for real-time synchronization
-- No global state management library used
 
 **Error Handling:**
 - ErrorBoundary component wraps the entire app
@@ -261,8 +251,8 @@ This is a decentralized video chat application built with React and WebRTC. The 
 5. Monitor and iterate
 
 ### File Organization
-- All React components in `src/components/`
-- Global styles in `src/index.css` (Tailwind imports)
+- All live React components in `src/v2/` (pages, call, ui, store, audio, recording, lib, design-system)
+- Global styles in `src/index.css` (Tailwind imports) plus `src/v2/design-system/index.css`
 - Signaling server is a standalone Node.js file at project root
 
 ### Common Patterns
