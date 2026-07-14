@@ -33,7 +33,7 @@ jobs:
         message_if_xl: 'This PR is very large. Consider breaking it down into smaller PRs for easier review.'
 
     - name: Auto-assign reviewers
-      uses: kentaro-m/auto-assign-action@v2.0.0
+      uses: kentaro-m/auto-assign-action@v2.0.2
       with:
         configuration-path: '.github/auto-assign.yml'
 
